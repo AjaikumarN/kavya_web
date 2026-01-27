@@ -1,0 +1,522 @@
+/* ====================================
+   KAVYA TRANSPORTS - RESPONSIVE STYLES
+   ==================================== */
+
+/* Tablet Landscape */
+@media (max-width: 1024px) {
+    :root {
+        --font-size-5xl: 2.5rem;
+        --font-size-4xl: 2rem;
+        --font-size-3xl: 1.5rem;
+    }
+
+    .container {
+        padding: 0 var(--spacing-xl);
+    }
+
+    .hero .container {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .hero-content {
+        order: 1;
+    }
+
+    .hero-content p {
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .hero-buttons {
+        justify-content: center;
+    }
+
+    .hero-stats {
+        justify-content: center;
+    }
+
+    .hero-image {
+        order: 0;
+        margin-bottom: var(--spacing-2xl);
+    }
+
+    .truck-illustration {
+        padding: var(--spacing-2xl);
+    }
+
+    .truck-illustration i {
+        font-size: 8rem;
+    }
+
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .service-card {
+        flex-direction: column;
+    }
+
+    .service-image {
+        width: 100%;
+        min-height: 150px;
+    }
+
+    .feature-highlight-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-2xl);
+    }
+
+    .feature-highlight-image {
+        order: -1;
+    }
+
+    .fleet-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .testimonials-slider {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .contact-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tablet Portrait */
+@media (max-width: 768px) {
+    .section {
+        padding: var(--spacing-3xl) 0;
+    }
+
+    .nav-menu {
+        position: fixed;
+        top: 80px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--white);
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: var(--spacing-2xl);
+        gap: var(--spacing-lg);
+        transform: translateX(100%);
+        transition: transform var(--transition-base);
+        z-index: var(--z-dropdown);
+    }
+
+    .nav-menu.active {
+        transform: translateX(0);
+    }
+
+    .nav-link {
+        font-size: var(--font-size-lg);
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
+    .hamburger.active span:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px);
+    }
+
+    .hamburger.active span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .hamburger.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -6px);
+    }
+
+    .nav-buttons .btn {
+        display: none;
+    }
+
+    .hero {
+        min-height: auto;
+        padding: 120px 0 80px;
+    }
+
+    .hero-stats {
+        gap: var(--spacing-lg);
+    }
+
+    .stat-item {
+        flex: 1 1 45%;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .fleet-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .testimonials-slider {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .footer-brand .logo {
+        justify-content: center;
+    }
+
+    .social-links {
+        justify-content: center;
+    }
+
+    .footer-contact ul li {
+        justify-content: center;
+    }
+
+    .footer-bottom-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .footer-legal {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .page-header {
+        padding: 120px 0 60px;
+    }
+
+    .page-header h1 {
+        font-size: var(--font-size-3xl);
+    }
+
+    /* Fleet Page */
+    .fleet-filters {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .fleet-showcase-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Contact Page */
+    .contact-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* About Page */
+    .about-content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .timeline::before {
+        left: 20px;
+    }
+
+    .timeline-item {
+        padding-left: 50px;
+    }
+
+    .timeline-marker {
+        left: 10px;
+    }
+}
+
+/* Mobile Large */
+@media (max-width: 576px) {
+    :root {
+        --font-size-5xl: 2rem;
+        --font-size-4xl: 1.75rem;
+        --font-size-3xl: 1.375rem;
+        --font-size-2xl: 1.25rem;
+    }
+
+    .container {
+        padding: 0 var(--spacing-md);
+    }
+
+    .section {
+        padding: var(--spacing-2xl) 0;
+    }
+
+    .section-header {
+        margin-bottom: var(--spacing-2xl);
+    }
+
+    .hero {
+        padding: 100px 0 60px;
+    }
+
+    .hero-badge {
+        font-size: var(--font-size-xs);
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .hero-buttons .btn {
+        width: 100%;
+    }
+
+    .hero-stats {
+        gap: var(--spacing-md);
+    }
+
+    .stat-number {
+        font-size: var(--font-size-2xl);
+    }
+
+    .truck-illustration {
+        padding: var(--spacing-xl);
+    }
+
+    .truck-illustration i {
+        font-size: 5rem;
+    }
+
+    .feature-card {
+        padding: var(--spacing-lg);
+    }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        font-size: var(--font-size-xl);
+    }
+
+    .service-content {
+        padding: var(--spacing-lg);
+    }
+
+    .highlight-list li {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .fleet-card {
+        padding: var(--spacing-lg);
+    }
+
+    .fleet-icon {
+        width: 80px;
+        height: 80px;
+        font-size: var(--font-size-2xl);
+    }
+
+    .testimonial-card {
+        padding: var(--spacing-lg);
+    }
+
+    .partners-grid {
+        gap: var(--spacing-md);
+    }
+
+    .partner-logo {
+        padding: var(--spacing-md);
+    }
+
+    .partner-logo i {
+        font-size: var(--font-size-2xl);
+    }
+
+    .cta-content h2 {
+        font-size: var(--font-size-2xl);
+    }
+
+    .pricing-card {
+        padding: var(--spacing-lg);
+    }
+
+    .pricing-card .price {
+        font-size: var(--font-size-3xl);
+    }
+
+    .team-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .back-to-top {
+        width: 40px;
+        height: 40px;
+        bottom: var(--spacing-md);
+        right: var(--spacing-md);
+    }
+
+    /* Forms */
+    .form-row {
+        flex-direction: column;
+    }
+
+    .form-row .form-group {
+        width: 100%;
+    }
+
+    /* Tables */
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    /* Modal */
+    .modal-content {
+        margin: var(--spacing-md);
+        max-height: calc(100vh - var(--spacing-2xl));
+    }
+}
+
+/* Mobile Small */
+@media (max-width: 375px) {
+    :root {
+        --font-size-5xl: 1.75rem;
+        --font-size-4xl: 1.5rem;
+    }
+
+    .navbar {
+        height: 70px;
+    }
+
+    .logo {
+        font-size: var(--font-size-lg);
+    }
+
+    .logo i {
+        font-size: var(--font-size-xl);
+    }
+
+    .btn-lg {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        font-size: var(--font-size-base);
+    }
+
+    .stat-item {
+        flex: 1 1 100%;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .header,
+    .hero-scroll,
+    .back-to-top,
+    .cta-section,
+    .footer {
+        display: none;
+    }
+
+    .hero {
+        min-height: auto;
+        padding: var(--spacing-xl) 0;
+        background: none;
+        color: var(--gray-800);
+    }
+
+    .hero-overlay {
+        display: none;
+    }
+
+    .section {
+        padding: var(--spacing-xl) 0;
+    }
+
+    body {
+        font-size: 12pt;
+    }
+
+    a {
+        color: var(--gray-800);
+    }
+
+    .btn {
+        border: 1px solid var(--gray-800);
+    }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    :root {
+        --primary-color: #000080;
+        --accent-color: #ff6600;
+        --gray-500: #333333;
+        --gray-400: #444444;
+    }
+
+    .btn-primary,
+    .btn-accent {
+        border: 2px solid currentColor;
+    }
+
+    .feature-card,
+    .service-card,
+    .testimonial-card,
+    .pricing-card {
+        border: 2px solid var(--gray-800);
+    }
+}
+
+/* Dark Mode Support (Optional) */
+@media (prefers-color-scheme: dark) {
+    /* Uncomment to enable dark mode support */
+    /*
+    :root {
+        --white: #1a202c;
+        --gray-50: #2d3748;
+        --gray-100: #4a5568;
+        --gray-200: #718096;
+        --gray-300: #a0aec0;
+        --gray-400: #cbd5e0;
+        --gray-500: #e2e8f0;
+        --gray-600: #edf2f7;
+        --gray-700: #f7fafc;
+        --gray-800: #ffffff;
+        --gray-900: #ffffff;
+    }
+    */
+}

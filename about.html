@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="About Kavya Transports - Life on Wheels since 2004. Discover our journey from a fleet operator to Pan-India 3PL logistics provider with 20+ years of excellence.">
+    <title>About Us | Kavya Transports - Life on Wheels</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        /* Highway Timeline Styles */
+        .highway-timeline {
+            position: relative;
+            padding: 60px 0;
+            overflow: hidden;
+        }
+        
+        .highway-road {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 80px;
+            transform: translateX(-50%);
+            background: #333;
+            border-radius: 4px;
+        }
+        
+        .highway-road::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: repeating-linear-gradient(
+                to bottom,
+                #fff 0px,
+                #fff 30px,
+                #333 30px,
+                #333 60px
+            );
+            transform: translateX(-50%);
+        }
+        
+        .timeline-truck {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            font-size: 2rem;
+            color: var(--accent-color);
+            transition: top 0.5s ease;
+            animation: engineVibrate 0.1s linear infinite;
+        }
+        
+        .milestone-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 80px;
+            padding: 0 20px;
+        }
+        
+        .milestone-item:nth-child(odd) {
+            flex-direction: row;
+        }
+        
+        .milestone-item:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+        
+        .milestone-content {
+            flex: 1;
+            max-width: 45%;
+            padding: 30px;
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+        }
+        
+        .milestone-item:nth-child(odd) .milestone-content {
+            margin-right: auto;
+            text-align: right;
+        }
+        
+        .milestone-item:nth-child(even) .milestone-content {
+            margin-left: auto;
+            text-align: left;
+        }
+        
+        .milestone-marker {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: 700;
+            font-size: 1.1rem;
+            z-index: 5;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .milestone-year {
+            display: inline-block;
+            background: var(--accent-color);
+            color: var(--white);
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .milestone-content h4 {
+            color: var(--primary-color);
+            font-size: var(--font-size-xl);
+            margin-bottom: 10px;
+        }
+        
+        .milestone-content p {
+            color: var(--gray-600);
+            line-height: 1.7;
+        }
+        
+        .milestone-icon {
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        /* Core Values */
+        .values-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-xl);
+        }
+        
+        .value-card {
+            background: var(--white);
+            padding: var(--spacing-2xl);
+            border-radius: var(--radius-xl);
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            transition: all 0.4s ease;
+        }
+        
+        .value-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .value-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto var(--spacing-lg);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-size: 2rem;
+        }
+        
+        .value-card:hover .value-icon {
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+        }
+        
+        .value-card h4 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        @media (max-width: 768px) {
+            .highway-road {
+                left: 30px;
+                width: 60px;
+            }
+            
+            .milestone-item,
+            .milestone-item:nth-child(odd),
+            .milestone-item:nth-child(even) {
+                flex-direction: column;
+                padding-left: 80px;
+            }
+            
+            .milestone-content,
+            .milestone-item:nth-child(odd) .milestone-content,
+            .milestone-item:nth-child(even) .milestone-content {
+                max-width: 100%;
+                margin: 0;
+                text-align: left;
+            }
+            
+            .milestone-marker {
+                left: 30px;
+                width: 50px;
+                height: 50px;
+                font-size: 0.9rem;
+            }
+            
+            .timeline-truck {
+                left: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-truck-moving"></i>
+                    <span>Kavya<strong>Transports</strong></span>
+                </a>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="index.html" class="nav-link">Home</a></li>
+                    <li><a href="about.html" class="nav-link active">About</a></li>
+                    <li><a href="services.html" class="nav-link">Services</a></li>
+                    <li><a href="fleet.html" class="nav-link">Fleet</a></li>
+                    <li><a href="testimonials.html" class="nav-link">Testimonials</a></li>
+                    <li><a href="contact.html" class="nav-link">Contact</a></li>
+                </ul>
+                <div class="nav-buttons">
+                    <a href="contact.html#quote" class="btn btn-primary">Get a Quote</a>
+                    <button class="hamburger" id="hamburger" aria-label="Toggle navigation">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);">
+        <div class="container">
+            <h1 data-aos="fade-up">About Kavya Transports</h1>
+            <p class="tagline" data-aos="fade-up" data-aos-delay="100" style="color: var(--accent-color); font-size: 1.3rem; font-weight: 600;">Life on Wheels Since 2004</p>
+            <p data-aos="fade-up" data-aos-delay="200">Two decades of delivering excellence across India</p>
+            <div class="breadcrumb" data-aos="fade-up" data-aos-delay="300">
+                <a href="index.html">Home</a>
+                <i class="fas fa-chevron-right"></i>
+                <span>About Us</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Vision Section -->
+    <section class="section vision-section">
+        <div class="container">
+            <div class="vision-content" data-aos="fade-up">
+                <div class="vision-icon">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <h2 style="color: var(--primary-color); margin-bottom: var(--spacing-lg);">Our Vision</h2>
+                <p class="vision-text">
+                    In the logistics sector, a company must always show themselves as <strong>service-oriented</strong>. 
+                    In this modern era, transport logistics plays a crucial role in the supply chain. 
+                    The primary duty in the logistics industry is to <em>transfer the goods safely</em> to the destination.
+                </p>
+                <p class="vision-text">
+                    For this, the company should have proper transportation facilities, advanced technology, 
+                    proper documentation handling, and <strong>punctuality</strong>. We will customize the service 
+                    according to our valuable customer needs and focus on delivering 
+                    <em>an error-free service every single time</em>.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Introduction -->
+    <section class="section section-gray">
+        <div class="container">
+            <div class="about-content-grid">
+                <div class="about-image" data-aos="fade-right">
+                    <div class="about-image-wrapper">
+                        <div class="about-illustration" style="background: linear-gradient(135deg, var(--primary-color), var(--accent-color));">
+                            <i class="fas fa-road"></i>
+                        </div>
+                        <div class="experience-badge">
+                            <span class="years">20+</span>
+                            <span class="text">Years on the Road</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-text" data-aos="fade-left">
+                    <span class="section-badge">Our Story</span>
+                    <h2>From Local Fleet to Pan-India Network</h2>
+                    <p>
+                        Kavya Transports started as a <strong>fleet operator in 2004</strong> in Tirunelveli, 
+                        Tamil Nadu with a vision to revolutionize transportation in South India. 
+                        What began as a small fleet operation has grown into a comprehensive 
+                        <strong>3PL logistics provider</strong> with a Pan-India network.
+                    </p>
+                    <p>
+                        Over two decades, we've expanded from TN37 to TN01 to MH10, building strong 
+                        partnerships across industries. Our diversified service portfolio now includes 
+                        Road Transportation, Air & Sea Freight, Warehousing Solutions, and Manpower Services.
+                    </p>
+                    <div class="about-features">
+                        <div class="about-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Pan-India 3PL Provider</span>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Complete Logistics Solutions</span>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Technology-Driven Operations</span>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Customer-First Approach</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Highway Timeline -->
+    <section class="section">
+        <div class="container">
+            <div class="section-header" data-aos="fade-up">
+                <span class="section-badge"><i class="fas fa-road"></i> Our Journey</span>
+                <h2>Milestones on the Highway</h2>
+                <p>From a single route to nationwide coverage - our journey of growth</p>
+            </div>
+            
+            <div class="highway-timeline">
+                <div class="highway-road"></div>
+                <div class="timeline-truck">
+                    <i class="fas fa-truck-moving"></i>
+                </div>
+                
+                <!-- 2004 -->
+                <div class="milestone-item" data-aos="fade-right">
+                    <div class="milestone-marker">
+                        <i class="fas fa-flag-checkered"></i>
+                    </div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">2004</span>
+                        <div class="milestone-icon"><i class="fas fa-play-circle"></i></div>
+                        <h4>The Beginning - Fleet Operator</h4>
+                        <p>Started operations as a fleet operator in Tirunelveli, Tamil Nadu. The foundation was laid with a commitment to reliable service and customer satisfaction.</p>
+                    </div>
+                </div>
+                
+                <!-- 2007 -->
+                <div class="milestone-item" data-aos="fade-left">
+                    <div class="milestone-marker">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">2007</span>
+                        <div class="milestone-icon"><i class="fas fa-chart-line"></i></div>
+                        <h4>Fleet Strength Expansion</h4>
+                        <p>Significant expansion of our fleet capacity. Added diverse vehicle types to serve different cargo requirements - from small parcels to heavy freight.</p>
+                    </div>
+                </div>
+                
+                <!-- 2011 -->
+                <div class="milestone-item" data-aos="fade-right">
+                    <div class="milestone-marker">TN37</div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">2011</span>
+                        <div class="milestone-icon"><i class="fas fa-map-marker-alt"></i></div>
+                        <h4>TN37 - Regional Establishment</h4>
+                        <p>Established strong presence in the TN37 (Tirunelveli) region. Built a reputation for dependable transport services in Southern Tamil Nadu.</p>
+                    </div>
+                </div>
+                
+                <!-- 2015 -->
+                <div class="milestone-item" data-aos="fade-left">
+                    <div class="milestone-marker">TN01</div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">2015</span>
+                        <div class="milestone-icon"><i class="fas fa-expand-arrows-alt"></i></div>
+                        <h4>TN01 - Chennai Expansion</h4>
+                        <p>Major expansion to Chennai (TN01). Opened operations in Tamil Nadu's capital, connecting the southern region to the metropolitan hub.</p>
+                    </div>
+                </div>
+                
+                <!-- 2017-2018 -->
+                <div class="milestone-item" data-aos="fade-right">
+                    <div class="milestone-marker">
+                        <i class="fas fa-bus"></i>
+                    </div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">2017-18</span>
+                        <div class="milestone-icon"><i class="fas fa-users"></i></div>
+                        <h4>Kavya Travels Launch</h4>
+                        <p>Diversified into passenger transportation with the launch of Kavya Travels. Expanded service portfolio to include people movement alongside goods transport.</p>
+                    </div>
+                </div>
+                
+                <!-- 2019-2020 -->
+                <div class="milestone-item" data-aos="fade-left">
+                    <div class="milestone-marker">MH10</div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">2019-20</span>
+                        <div class="milestone-icon"><i class="fas fa-globe-asia"></i></div>
+                        <h4>MH10 - Pan-India Network</h4>
+                        <p>Expanded to Maharashtra (MH10) with Mumbai operations. Achieved true Pan-India presence, connecting South to West India with seamless logistics.</p>
+                    </div>
+                </div>
+                
+                <!-- Today -->
+                <div class="milestone-item" data-aos="fade-right">
+                    <div class="milestone-marker">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="milestone-content">
+                        <span class="milestone-year">Today</span>
+                        <div class="milestone-icon"><i class="fas fa-award"></i></div>
+                        <h4>Complete 3PL Provider</h4>
+                        <p>Full-fledged 3PL logistics provider with Road Transport, Air & Sea Freight, Warehousing, and Manpower Services. Serving Pan-India with offices in Tirunelveli, Coimbatore, Chennai, and Mumbai.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Values -->
+    <section class="section section-gray">
+        <div class="container">
+            <div class="section-header" data-aos="fade-up">
+                <span class="section-badge"><i class="fas fa-heart"></i> Our Values</span>
+                <h2>What Drives Us Forward</h2>
+                <p>The principles that guide every mile we travel</p>
+            </div>
+            
+            <div class="values-grid">
+                <div class="value-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="value-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h4>Safety First</h4>
+                    <p>Every shipment is handled with utmost care. From loading to delivery, safety protocols ensure your goods arrive in perfect condition.</p>
+                </div>
+                
+                <div class="value-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="value-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h4>Punctuality</h4>
+                    <p>Time is money. We understand the importance of timely deliveries and work tirelessly to meet every deadline without compromise.</p>
+                </div>
+                
+                <div class="value-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="value-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <h4>Customer Focus</h4>
+                    <p>We customize services according to our valuable customer needs, ensuring personalized solutions for every logistics requirement.</p>
+                </div>
+                
+                <div class="value-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="value-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h4>Technology</h4>
+                    <p>Modern tracking systems, digital documentation, and advanced fleet management ensure efficient operations at every step.</p>
+                </div>
+                
+                <div class="value-card" data-aos="fade-up" data-aos-delay="500">
+                    <div class="value-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <h4>Documentation</h4>
+                    <p>Proper documentation handling and compliance ensure smooth transit across state borders and hassle-free deliveries.</p>
+                </div>
+                
+                <div class="value-card" data-aos="fade-up" data-aos-delay="600">
+                    <div class="value-icon">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h4>Error-Free Service</h4>
+                    <p>Our focus on delivering error-free service every single time has earned us the trust of clients across industries.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card" data-aos="zoom-in" data-aos-delay="100">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <span class="stat-number"><span class="counter" data-target="20">0</span><span class="stat-plus">+</span></span>
+                    <span class="stat-label">Years of Experience</span>
+                </div>
+                <div class="stat-card" data-aos="zoom-in" data-aos-delay="200">
+                    <div class="stat-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <span class="stat-number"><span class="counter" data-target="100">0</span><span class="stat-plus">+</span></span>
+                    <span class="stat-label">Vehicles in Fleet</span>
+                </div>
+                <div class="stat-card" data-aos="zoom-in" data-aos-delay="300">
+                    <div class="stat-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <span class="stat-number"><span class="counter" data-target="4">0</span></span>
+                    <span class="stat-label">Office Locations</span>
+                </div>
+                <div class="stat-card" data-aos="zoom-in" data-aos-delay="400">
+                    <div class="stat-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <span class="stat-number"><span class="counter" data-target="500">0</span><span class="stat-plus">+</span></span>
+                    <span class="stat-label">Happy Clients</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content" data-aos="fade-up">
+                <h2>Ready to Experience the Kavya Difference?</h2>
+                <p class="tagline" style="color: var(--accent-color); font-weight: 600;">Life on Wheels - Your Journey Starts Here</p>
+                <p>Partner with 20+ years of logistics excellence</p>
+                <div class="cta-buttons">
+                    <a href="contact.html#quote" class="btn btn-white btn-lg">Get a Free Quote</a>
+                    <a href="tel:+919791595215" class="btn btn-outline-white btn-lg">
+                        <i class="fas fa-phone"></i> +91 97915 95215
+                    </a>
+                </div>
+                <div class="cta-contacts">
+                    <span><i class="fas fa-phone"></i> BD: +91 97915 95215</span>
+                    <span><i class="fas fa-phone"></i> Ops: +91 94868 71772</span>
+                    <span><i class="fas fa-phone"></i> HO: +91 90472 44000</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="index.html" class="logo">
+                        <i class="fas fa-truck-moving"></i>
+                        <span>Kavya<strong>Transports</strong></span>
+                    </a>
+                    <p class="tagline">Life on Wheels</p>
+                    <p>Your trusted partner for reliable logistics and transport solutions across India. Delivering excellence since 2004.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="services.html">Services</a></li>
+                        <li><a href="fleet.html">Our Fleet</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Our Services</h4>
+                    <ul>
+                        <li><a href="services.html#road">Road Transportation</a></li>
+                        <li><a href="services.html#air-sea">Air & Sea Freight</a></li>
+                        <li><a href="services.html#warehouse">Warehousing Solutions</a></li>
+                        <li><a href="services.html#manpower">Manpower Services</a></li>
+                        <li><a href="services.html#3pl">3PL Solutions</a></li>
+                    </ul>
+                </div>
+                <div class="footer-contact">
+                    <h4>Head Office</h4>
+                    <ul>
+                        <li>
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>1st Floor, Mano Tower,<br>Vannarpettai, Tirunelveli-627003</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-phone"></i>
+                            <a href="tel:+919047244000">+91 90472 44000</a>
+                        </li>
+                        <li>
+                            <i class="fas fa-envelope"></i>
+                            <a href="mailto:kavyatrans04@gmail.com">kavyatrans04@gmail.com</a>
+                        </li>
+                        <li>
+                            <i class="fas fa-clock"></i>
+                            <span>24/7 Operations Support</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-bottom-content">
+                    <p>&copy; 2024 Kavya Transports. All Rights Reserved. | Life on Wheels Since 2004</p>
+                    <div class="footer-legal">
+                        <a href="privacy.html">Privacy Policy</a>
+                        <a href="terms.html">Terms of Service</a>
+                        <a href="refund.html">Refund Policy</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Back to Top Button -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/animations.js"></script>
+    <script>
+        // Timeline truck animation on scroll
+        document.addEventListener('DOMContentLoaded', function() {
+            const truck = document.querySelector('.timeline-truck');
+            const milestones = document.querySelectorAll('.milestone-item');
+            
+            if (truck && milestones.length > 0) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const marker = entry.target.querySelector('.milestone-marker');
+                            if (marker) {
+                                const rect = marker.getBoundingClientRect();
+                                const timelineRect = document.querySelector('.highway-timeline').getBoundingClientRect();
+                                truck.style.top = (rect.top - timelineRect.top + 10) + 'px';
+                            }
+                        }
+                    });
+                }, { threshold: 0.5 });
+                
+                milestones.forEach(item => observer.observe(item));
+            }
+        });
+    </script>
+</body>
+</html>

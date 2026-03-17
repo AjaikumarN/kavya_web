@@ -53,6 +53,7 @@ async def seed_roles(db: AsyncSession):
         {"name": "accountant", "display_name": "Accountant", "role_type": RoleType.ACCOUNTANT, "is_system": True},
         {"name": "project_associate", "display_name": "Project Associate", "role_type": RoleType.PROJECT_ASSOCIATE, "is_system": True},
         {"name": "driver", "display_name": "Driver", "role_type": RoleType.DRIVER, "is_system": True},
+        {"name": "pump_operator", "display_name": "Pump Operator", "role_type": RoleType.PUMP_OPERATOR, "is_system": True},
     ]
     created = []
     for role_data in roles:
@@ -101,6 +102,7 @@ async def seed_demo_users(db: AsyncSession):
         {"email": "accountant@kavyatransports.com", "first_name": "Lakshmi", "last_name": "Priya", "phone": "9876510003", "role": "accountant"},
         {"email": "pa@kavyatransports.com", "first_name": "Arun", "last_name": "Prakash", "phone": "9876510004", "role": "project_associate"},
         {"email": "driver@kavyatransports.com", "first_name": "Karthik", "last_name": "Vel", "phone": "9876510005", "role": "driver"},
+        {"email": "pump@kavyatransports.com", "first_name": "Ravi", "last_name": "Kumar", "phone": "9876510006", "role": "pump_operator"},
     ]
 
     created = []
@@ -1022,6 +1024,93 @@ async def seed_invoices(db: AsyncSession):
     print(f"[OK] Invoices created: {created}")
 
 
+async def seed_fuel_data(db: AsyncSession):
+    """Create depot fuel tanks and sample fuel issues."""
+    from app.models.postgres.fuel_pump import (
+        DepotFuelTank, FuelIssue, FuelStockTransaction,
+        FuelType, TransactionType,
+    )
+
+    # Check if already seeded
+    existing = await db.execute(select(DepotFuelTank))
+    if existing.scalar_one_or_none():
+        print("[OK] Fuel data already exists")
+        return
+
+    # Get pump_operator user
+    pump_user_result = await db.execute(select(User).where(User.email == "pump@kavyatransports.com"))
+    pump_user = pump_user_result.scalar_one_or_none()
+    pump_user_id = pump_user.id if pump_user else 1
+
+    # Create depot tank
+    tank = DepotFuelTank(
+        name="Main Depot Tank",
+        fuel_type=FuelType.DIESEL,
+        capacity_litres=10000,
+        current_stock_litres=7500,
+        min_stock_alert=2000,
+        location="Kavya Transports Depot, Chennai",
+    )
+    db.add(tank)
+    await db.flush()
+
+    # Initial refill transaction
+    refill = FuelStockTransaction(
+        tank_id=tank.id,
+        transaction_type=TransactionType.TANKER_REFILL,
+        quantity_litres=10000,
+        rate_per_litre=Decimal("89.50"),
+        total_amount=Decimal("895000.00"),
+        stock_before=0,
+        stock_after=10000,
+        reference_number="TANKER-INIT-001",
+        remarks="Initial depot fill",
+        created_by=pump_user_id,
+    )
+    db.add(refill)
+
+    # Get some vehicles
+    vehicles_result = await db.execute(select(Vehicle).limit(5))
+    vehicles = list(vehicles_result.scalars().all())
+
+    # Get some drivers
+    drivers_result = await db.execute(select(Driver).limit(3))
+    drivers = list(drivers_result.scalars().all())
+
+    # Create sample fuel issues over past 30 days
+    issued_total = Decimal("0")
+    for i in range(min(15, len(vehicles) * 3)):
+        vehicle = vehicles[i % len(vehicles)]
+        driver = drivers[i % len(drivers)] if drivers else None
+        days_ago = random.randint(0, 30)
+        qty = Decimal(str(random.randint(50, 200)))
+        rate = Decimal("89.50")
+        total = qty * rate
+        issued_total += qty
+
+        issue = FuelIssue(
+            tank_id=tank.id,
+            vehicle_id=vehicle.id,
+            driver_id=driver.id if driver else None,
+            fuel_type=FuelType.DIESEL,
+            quantity_litres=qty,
+            rate_per_litre=rate,
+            total_amount=total,
+            odometer_reading=Decimal(str(random.randint(50000, 200000))),
+            issued_by=pump_user_id,
+            issued_at=datetime.now() - timedelta(days=days_ago, hours=random.randint(6, 18)),
+            receipt_number=f"FUEL-{1000 + i}",
+            remarks=f"Routine fueling",
+        )
+        db.add(issue)
+
+    # Update tank stock to reflect issues
+    tank.current_stock_litres = Decimal("10000") - issued_total
+
+    await db.flush()
+    print(f"[OK] Fuel data: 1 tank, 15 fuel issues, 1 refill transaction")
+
+
 async def main():
     """Run all seed functions."""
     print("\n--- Kavya Transports Database Seeding ---\n")
@@ -1048,14 +1137,16 @@ async def main():
             # Business data
             await seed_jobs_trips_lrs(db)
             await seed_invoices(db)
+            await seed_fuel_data(db)
             await db.commit()
 
             print("\n--- Seed Complete ---")
             print("  Admin:  admin@kavyatransports.com / admin123")
-            print("  Demo:   manager|fleet|accountant|pa|driver@kavyatransports.com / demo123")
+            print("  Demo:   manager|fleet|accountant|pa|driver|pump@kavyatransports.com / demo123")
             print("  Data:   6 clients, 8 vehicles, 6 drivers, 8 routes")
             print("  Jobs:   20 completed + 5 active + 3 pending = 28 total")
             print("  Finance: 10 invoices (7 paid, 3 pending)")
+            print("  Fuel:   1 depot tank, 15 fuel issues")
 
         except Exception as e:
             await db.rollback()

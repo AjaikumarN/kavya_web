@@ -97,6 +97,9 @@ class Job(Base, TimestampMixin, SoftDeleteMixin):
     budgeted_expense = Column(Numeric(15, 2), nullable=True)
     expected_profit = Column(Numeric(15, 2), nullable=True)
     
+    # E-way Bill
+    latest_eway_bill_number = Column(String(50), nullable=True)
+    
     # Status
     status = Column(SQLEnum(JobStatusEnum), default=JobStatusEnum.DRAFT)
     

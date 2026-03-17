@@ -21,7 +21,7 @@ export interface NavMenuGroup {
   roles?: RoleType[];
 }
 
-export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'PROJECT_ASSOCIATES' | 'DRIVER';
+export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR';
 
 export interface HeaderNavItem {
   label: string;
@@ -374,6 +374,26 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Attendance', route: '/driver/attendance', icon: 'clock', description: 'Daily check-in and attendance logs' },
           { label: 'Expenses', route: '/driver/expenses', icon: 'wallet', description: 'Submit and view trip expenses' },
           { label: 'My Documents', route: '/driver/documents', icon: 'folder', description: 'Personal and trip-related documents' },
+        ],
+      },
+    ],
+  },
+  PUMP_OPERATOR: {
+    sections: [
+      { label: 'Overview', items: [{ label: 'Fuel Dashboard', route: '/pump/dashboard', icon: 'gauge', description: 'Fuel stock levels and daily activity' }] },
+      {
+        label: 'Fuel Operations',
+        items: [
+          { label: 'Issue Fuel', route: '/pump/issue', icon: 'fuel', description: 'Dispense fuel to vehicles' },
+          { label: 'Fuel Log', route: '/pump/log', icon: 'list', description: 'All fuel issue records' },
+          { label: 'Tank Stock', route: '/pump/stock', icon: 'database', description: 'Tank levels and refill history' },
+        ],
+      },
+      {
+        label: 'Monitoring',
+        items: [
+          { label: 'Theft Alerts', route: '/pump/alerts', icon: 'alert', description: 'Anomaly detection alerts' },
+          { label: 'Reports', route: '/pump/reports', icon: 'chart', description: 'Fuel consumption reports' },
         ],
       },
     ],

@@ -91,6 +91,10 @@ class Permissions:
     FUEL_CREATE = "fuel:create"
     FUEL_READ = "fuel:read"
     FUEL_APPROVE = "fuel:approve"
+    FUEL_ISSUE = "fuel:issue"
+    FUEL_STOCK_VIEW = "fuel:stock_view"
+    FUEL_STOCK_EDIT = "fuel:stock_edit"
+    FUEL_REPORTS = "fuel:reports"
     
     # Maintenance
     MAINTENANCE_CREATE = "maintenance:create"
@@ -267,6 +271,19 @@ ROLE_PERMISSIONS = {
         Permissions.LR_READ,
         # Documents (read own)
         Permissions.DOCUMENT_READ,
+        # Alerts / Notifications
+        Permissions.ALERT_VIEW,
+    ],
+
+    "pump_operator": [
+        # Fuel management (core responsibility)
+        Permissions.FUEL_ISSUE, Permissions.FUEL_CREATE, Permissions.FUEL_READ,
+        Permissions.FUEL_STOCK_VIEW, Permissions.FUEL_STOCK_EDIT,
+        Permissions.FUEL_REPORTS,
+        # Vehicle (read only for dispensing)
+        Permissions.VEHICLE_READ,
+        # Driver (read only for dispensing)
+        Permissions.DRIVER_READ,
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
     ],

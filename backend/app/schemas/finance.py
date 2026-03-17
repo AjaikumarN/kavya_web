@@ -244,6 +244,8 @@ class BankTransactionCreate(BaseModel):
     reference_number: Optional[str] = None
     narration: Optional[str] = None
     payment_id: Optional[int] = None
+    invoice_id: Optional[int] = None
+    client_id: Optional[int] = None
 
 
 class BankTransactionResponse(BaseModel):

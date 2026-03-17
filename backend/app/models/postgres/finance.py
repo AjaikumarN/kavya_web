@@ -69,6 +69,11 @@ class Invoice(Base, TimestampMixin, SoftDeleteMixin):
     # Client
     client_id = Column(Integer, ForeignKey('clients.id'), nullable=False)
     
+    # Trip / Job link (for auto-generated invoices)
+    job_id = Column(Integer, ForeignKey('jobs.id'), nullable=True)
+    trip_id = Column(Integer, ForeignKey('trips.id'), nullable=True)
+    auto_generated = Column(Boolean, default=False)
+    
     # Billing Address
     billing_name = Column(String(200), nullable=False)
     billing_address = Column(Text, nullable=True)
@@ -105,6 +110,10 @@ class Invoice(Base, TimestampMixin, SoftDeleteMixin):
     
     # Status
     status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
+    
+    # Payment tracking
+    paid_at = Column(DateTime, nullable=True)
+    last_payment_at = Column(DateTime, nullable=True)
     
     # Reference
     reference_number = Column(String(50), nullable=True)  # Client PO number

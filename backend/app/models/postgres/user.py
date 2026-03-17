@@ -17,6 +17,7 @@ class RoleType(enum.Enum):
     ACCOUNTANT = "accountant"
     PROJECT_ASSOCIATE = "project_associate"
     DRIVER = "driver"
+    PUMP_OPERATOR = "pump_operator"
 
 
 class PermissionAction(enum.Enum):

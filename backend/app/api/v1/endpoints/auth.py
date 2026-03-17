@@ -12,6 +12,25 @@ from app.middleware.permissions import get_user_permissions
 
 router = APIRouter()
 
+# Role → default landing page mapping
+ROLE_REDIRECT_MAP = {
+    "admin": "/dashboard",
+    "manager": "/dashboard",
+    "fleet_manager": "/fleet/dashboard",
+    "accountant": "/accountant/dashboard",
+    "project_associate": "/dashboard",
+    "driver": "/driver/trips",
+    "pump_operator": "/pump/dashboard",
+}
+
+
+def _get_redirect(roles: list[str]) -> str:
+    """Return the landing page for the user's primary role."""
+    for role in roles:
+        if role.lower() in ROLE_REDIRECT_MAP:
+            return ROLE_REDIRECT_MAP[role.lower()]
+    return "/dashboard"
+
 
 @router.post("/login", response_model=APIResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
@@ -32,6 +51,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         id=user.id, email=user.email, first_name=user.first_name,
         last_name=user.last_name, roles=roles, permissions=all_perms,
         branch_id=user.branch_id, tenant_id=user.tenant_id,
+        redirect_to=_get_redirect(roles),
     )
     return APIResponse(success=True, data={
         "access_token": tokens.access_token,
@@ -60,6 +80,7 @@ async def get_profile(current_user: TokenData = Depends(get_current_user), db: A
         id=user.id, email=user.email, first_name=user.first_name,
         last_name=user.last_name, roles=roles, permissions=all_perms,
         branch_id=user.branch_id, tenant_id=user.tenant_id,
+        redirect_to=_get_redirect(roles),
     ).model_dump())
 
 

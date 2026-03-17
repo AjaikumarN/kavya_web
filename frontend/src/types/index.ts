@@ -3,7 +3,7 @@
 // ============================================================
 
 // ---- Enums ----
-export type RoleType = 'admin' | 'manager' | 'fleet_manager' | 'accountant' | 'project_associate' | 'driver';
+export type RoleType = 'admin' | 'manager' | 'fleet_manager' | 'accountant' | 'project_associate' | 'driver' | 'pump_operator';
 
 export type VehicleType = 'truck' | 'trailer' | 'tanker' | 'container' | 'mini_truck' | 'lcv' | 'pickup' | 'other';
 export type VehicleStatus = 'available' | 'on_trip' | 'maintenance' | 'breakdown' | 'inactive';
@@ -71,6 +71,7 @@ export interface User {
   permissions: string[];
   branch_id?: number;
   tenant_id?: number;
+  redirect_to?: string;
   created_at?: string;
   updated_at?: string;
 }

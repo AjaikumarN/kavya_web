@@ -83,3 +83,17 @@ async def change_lr_status(
     if error:
         raise HTTPException(status_code=400, detail=error)
     return APIResponse(success=True, message=f"LR status changed to {data.status}")
+
+
+@router.post("/{lr_id}/generate", response_model=APIResponse)
+async def generate_lr(
+    lr_id: int, db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_UPDATE)),
+):
+    """Generate an LR — transitions status from draft to generated."""
+    lr, error = await lr_service.change_lr_status(db, lr_id, "generated", current_user.user_id, "LR generated")
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    data = await lr_service.get_lr_with_details(db, lr)
+    return APIResponse(success=True, data=data, message="LR generated successfully")

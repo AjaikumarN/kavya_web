@@ -8,7 +8,7 @@ import {
   TrendingDown, MapPinned, BarChart3, Settings, ChevronLeft,
   ChevronRight, LogOut, PlusCircle, FilePlus, Route, Upload,
   Bell, Fuel, Wrench, Gauge, Wallet, Landmark, Clock,
-  Folder,
+  Folder, List, Database, AlertTriangle,
 } from 'lucide-react';
 
 const resolveRole = (rawRole?: string): HeaderNavRole => {
@@ -18,6 +18,7 @@ const resolveRole = (rawRole?: string): HeaderNavRole => {
   if (normalized === 'ACCOUNTANT') return 'ACCOUNTANT';
   if (normalized === 'PROJECT_ASSOCIATE' || normalized === 'PROJECT_ASSOCIATES') return 'PROJECT_ASSOCIATES';
   if (normalized === 'DRIVER') return 'DRIVER';
+  if (normalized === 'PUMP_OPERATOR') return 'PUMP_OPERATOR';
   return 'ADMIN';
 };
 
@@ -53,6 +54,9 @@ const iconMap: Record<string, React.ReactNode> = {
   upload: <Upload size={20} />,
   settings: <Settings size={20} />,
   clock: <Clock size={20} />,
+  list: <List size={20} />,
+  database: <Database size={20} />,
+  warning: <AlertTriangle size={20} />,
 };
 
 export default function Sidebar() {

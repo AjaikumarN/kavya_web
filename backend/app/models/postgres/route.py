@@ -194,8 +194,10 @@ class BankTransaction(Base, TimestampMixin):
     reference_number = Column(String(100), nullable=True)
     narration = Column(Text, nullable=True)
     
-    # Link to payment
+    # Link to payment/invoice/client
     payment_id = Column(Integer, ForeignKey('payments.id'), nullable=True)
+    invoice_id = Column(Integer, ForeignKey('invoices.id'), nullable=True)
+    client_id = Column(Integer, ForeignKey('clients.id'), nullable=True)
     
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)

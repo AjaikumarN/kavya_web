@@ -13,6 +13,7 @@ from .finance import Invoice, InvoiceItem, Payment, Ledger, GSTEntry, Vendor, Re
 from .route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTransaction
 from .eway_bill import EwayBill, EwayItem
 from .document import Document, DocumentVersion
+from .fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
 
 __all__ = [
     "Base",

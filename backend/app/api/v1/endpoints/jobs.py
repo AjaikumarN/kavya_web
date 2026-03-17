@@ -231,14 +231,14 @@ async def lookup_routes(
 @router.get("/lookup/vehicle-types", response_model=APIResponse)
 async def lookup_vehicle_types(current_user: TokenData = Depends(get_current_user)):
     types = [
-        {"value": "open_body", "label": "Open Body"},
-        {"value": "closed_body", "label": "Closed Body / Container"},
-        {"value": "flatbed", "label": "Flatbed"},
-        {"value": "tanker", "label": "Tanker"},
-        {"value": "tipper", "label": "Tipper"},
-        {"value": "trailer", "label": "Trailer"},
-        {"value": "refrigerated", "label": "Refrigerated"},
-        {"value": "other", "label": "Other"},
+        {"value": "open_body", "label": "Open Body", "capacity_tons": 10},
+        {"value": "closed_body", "label": "Closed Body / Container", "capacity_tons": 18},
+        {"value": "flatbed", "label": "Flatbed", "capacity_tons": 25},
+        {"value": "tanker", "label": "Tanker", "capacity_tons": 20},
+        {"value": "tipper", "label": "Tipper", "capacity_tons": 16},
+        {"value": "trailer", "label": "Trailer", "capacity_tons": 30},
+        {"value": "refrigerated", "label": "Refrigerated", "capacity_tons": 15},
+        {"value": "other", "label": "Other", "capacity_tons": 0},
     ]
     return APIResponse(success=True, data=types)
 

@@ -1,8 +1,9 @@
 # Finance Service - Invoice, Payment, Ledger, Banking
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
+import logging
 
 from app.models.postgres.finance import (
     Invoice, InvoiceItem, InvoiceStatus, InvoiceType,
@@ -335,6 +336,11 @@ async def create_bank_transaction(db: AsyncSession, data: dict) -> BankTransacti
             account.current_balance = float(account.current_balance or 0) - float(data["amount"])
         txn.balance_after = account.current_balance
 
+    # Auto-recalculate invoice status when payment received against invoice
+    invoice_id = data.get("invoice_id")
+    if invoice_id and data["transaction_type"] == "credit":
+        await recalculate_invoice_on_payment(db, invoice_id)
+
     return txn
 
 
@@ -393,3 +399,204 @@ async def update_route(db: AsyncSession, route_id: int, data: dict):
         if v is not None:
             setattr(route, k, v)
     return route
+
+
+# ==================== INVOICE AUTO-RECALCULATION ====================
+logger = logging.getLogger(__name__)
+
+
+async def recalculate_invoice_on_payment(db: AsyncSession, invoice_id: int):
+    """
+    Recalculate invoice.amount_paid, amount_due, status based on all linked payments.
+    Called after bank transaction creation or payment creation.
+    """
+    invoice = await get_invoice(db, invoice_id)
+    if not invoice:
+        return None
+
+    # Sum all completed payments for this invoice
+    payment_result = await db.execute(
+        select(func.sum(Payment.amount)).where(
+            Payment.invoice_id == invoice_id,
+            Payment.status != PaymentStatus.REVERSED,
+            Payment.is_deleted == False,
+        )
+    )
+    total_paid = Decimal(str(payment_result.scalar() or 0))
+
+    # Also sum direct bank credits against this invoice
+    from app.models.postgres.route import BankTransaction
+    bank_result = await db.execute(
+        select(func.sum(BankTransaction.amount)).where(
+            BankTransaction.invoice_id == invoice_id,
+            BankTransaction.transaction_type == "credit",
+        )
+    )
+    bank_paid = Decimal(str(bank_result.scalar() or 0))
+
+    # Use whichever is greater (avoid double counting if payment + bank txn exist)
+    effective_paid = max(total_paid, bank_paid)
+
+    invoice.amount_paid = effective_paid
+    invoice.amount_due = max(Decimal("0"), Decimal(str(invoice.total_amount or 0)) - effective_paid)
+    invoice.last_payment_at = datetime.utcnow()
+
+    if effective_paid <= 0:
+        if invoice.status not in (InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED):
+            invoice.status = InvoiceStatus.SENT
+    elif effective_paid < Decimal(str(invoice.total_amount or 0)):
+        invoice.status = InvoiceStatus.PARTIALLY_PAID
+    else:
+        invoice.status = InvoiceStatus.PAID
+        invoice.paid_at = datetime.utcnow()
+
+        # Auto-complete job when invoice is fully paid
+        if invoice.job_id:
+            from app.models.postgres.job import Job, JobStatusEnum
+            job = await db.get(Job, invoice.job_id)
+            if job and job.status == JobStatusEnum.IN_PROGRESS:
+                job.status = JobStatusEnum.COMPLETED
+                job.completed_at = datetime.utcnow()
+
+    await db.flush()
+    return invoice
+
+
+# ==================== INVOICE AUTO-GENERATION FROM TRIP ====================
+async def auto_generate_invoice_from_trip(db: AsyncSession, trip) -> Invoice:
+    """
+    Auto-generate a DRAFT invoice when a trip is completed.
+    Pre-fills all data from the trip, its LRs, and the job.
+    """
+    from app.models.postgres.job import Job
+    from app.models.postgres.lr import LR
+    from app.models.postgres.client import Client
+    from app.core.config import settings
+
+    if not trip.job_id:
+        return None
+
+    job = await db.get(Job, trip.job_id)
+    if not job:
+        return None
+
+    # Get all LRs for this trip
+    lr_result = await db.execute(select(LR).where(LR.trip_id == trip.id))
+    lrs = lr_result.scalars().all()
+
+    # Calculate freight from LRs or fallback to job rate
+    freight_total = sum(float(lr.total_freight or 0) for lr in lrs)
+    if freight_total == 0:
+        freight_total = float(trip.revenue or 0) or float(job.agreed_rate or 0) or 0
+
+    if freight_total <= 0:
+        return None  # Nothing to invoice
+
+    # Get client for GST determination
+    client = await db.get(Client, job.client_id)
+    if not client:
+        return None
+
+    # Determine GST type (transport services SAC 9965, rate 5%)
+    company_gstin = getattr(settings, 'EWAY_BILL_GSTIN', '') or ''
+    client_gstin = client.gstin or ''
+    company_state = company_gstin[:2] if len(company_gstin) >= 2 else ''
+    client_state = client_gstin[:2] if len(client_gstin) >= 2 else ''
+
+    gst_rate = Decimal("5")  # Transport services standard rate
+    subtotal = Decimal(str(freight_total))
+
+    if company_state and client_state and company_state == client_state:
+        # Intrastate: CGST + SGST
+        half = subtotal * gst_rate / 200
+        cgst = half
+        sgst = half
+        igst = Decimal("0")
+    else:
+        # Interstate or unknown: IGST
+        igst = subtotal * gst_rate / 100
+        cgst = Decimal("0")
+        sgst = Decimal("0")
+
+    tax_amount = igst + cgst + sgst
+    total = subtotal + tax_amount
+
+    # Payment terms
+    payment_terms = getattr(client, 'payment_terms', None) or 30
+    due_date_val = date.today() + timedelta(days=payment_terms)
+
+    # Generate invoice number
+    invoice_number = generate_invoice_number()
+
+    invoice = Invoice(
+        invoice_number=invoice_number,
+        invoice_date=date.today(),
+        due_date=due_date_val,
+        invoice_type=InvoiceType.TAX_INVOICE,
+        client_id=job.client_id,
+        job_id=trip.job_id,
+        trip_id=trip.id,
+        auto_generated=True,
+        billing_name=client.name,
+        billing_address=getattr(client, 'address', None),
+        billing_gstin=client_gstin,
+        billing_state_code=client_state,
+        company_name="Kavya Transports",
+        company_gstin=company_gstin,
+        company_state_code=company_state,
+        subtotal=subtotal,
+        taxable_amount=subtotal,
+        cgst_rate=gst_rate / 2 if cgst > 0 else Decimal("0"),
+        cgst_amount=cgst,
+        sgst_rate=gst_rate / 2 if sgst > 0 else Decimal("0"),
+        sgst_amount=sgst,
+        igst_rate=gst_rate if igst > 0 else Decimal("0"),
+        igst_amount=igst,
+        total_tax=tax_amount,
+        total_amount=total,
+        amount_paid=Decimal("0"),
+        amount_due=total,
+        status=InvoiceStatus.DRAFT,
+    )
+    db.add(invoice)
+    await db.flush()
+
+    # Add line items from LRs
+    if lrs:
+        for idx, lr in enumerate(lrs, 1):
+            item = InvoiceItem(
+                invoice_id=invoice.id,
+                item_number=idx,
+                description=f"Freight: {lr.origin or job.origin_city} → {lr.destination or job.destination_city}",
+                hsn_sac_code="9965",
+                lr_id=lr.id,
+                trip_id=trip.id,
+                quantity=Decimal("1"),
+                unit="trip",
+                rate=Decimal(str(lr.total_freight or 0)),
+                amount=Decimal(str(lr.total_freight or 0)),
+                tax_rate=gst_rate,
+                tax_amount=Decimal(str(lr.total_freight or 0)) * gst_rate / 100,
+                total=Decimal(str(lr.total_freight or 0)) * (1 + gst_rate / 100),
+            )
+            db.add(item)
+    else:
+        item = InvoiceItem(
+            invoice_id=invoice.id,
+            item_number=1,
+            description=f"Freight: {job.origin_city} → {job.destination_city}",
+            hsn_sac_code="9965",
+            trip_id=trip.id,
+            quantity=Decimal("1"),
+            unit="trip",
+            rate=subtotal,
+            amount=subtotal,
+            tax_rate=gst_rate,
+            tax_amount=tax_amount,
+            total=total,
+        )
+        db.add(item)
+
+    await db.flush()
+    logger.info(f"Auto-generated invoice {invoice_number} for trip {trip.trip_number}")
+    return invoice

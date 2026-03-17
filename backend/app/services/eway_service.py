@@ -102,6 +102,28 @@ async def create_eway_bill(db: AsyncSession, data: dict, user_id: int = None) ->
         db.add(item)
     await db.flush()
 
+    # Writeback EWB number to linked LR
+    if eway.lr_id and eway.eway_bill_number:
+        from sqlalchemy import update
+        update_values = {"eway_bill_number": eway.eway_bill_number}
+        if eway.eway_bill_date:
+            update_values["eway_bill_date"] = eway.eway_bill_date
+        if eway.valid_until:
+            update_values["eway_bill_valid_until"] = eway.valid_until
+        await db.execute(
+            update(LR).where(LR.id == eway.lr_id).values(**update_values)
+        )
+
+    # Writeback to Job
+    if eway.job_id and eway.eway_bill_number:
+        from app.models.postgres.job import Job
+        from sqlalchemy import update
+        await db.execute(
+            update(Job).where(Job.id == eway.job_id)
+            .values(latest_eway_bill_number=eway.eway_bill_number)
+        )
+
+    await db.flush()
     return eway
 
 

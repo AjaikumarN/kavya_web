@@ -44,8 +44,7 @@ class ConnectionManager:
         logger.info(f"WebSocket connected to channel: {channel}")
     
     async def connect_user(self, websocket: WebSocket, user_id: int):
-        """Connect a specific user for notifications."""
-        await websocket.accept()
+        """Register an already-accepted WebSocket for a specific user."""
         
         if user_id not in self.user_connections:
             self.user_connections[user_id] = []

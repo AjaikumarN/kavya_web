@@ -24,6 +24,7 @@ from app.models.postgres.finance import Invoice, InvoiceItem, Payment, Ledger, G
 from app.models.postgres.route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTransaction
 from app.models.postgres.eway_bill import EwayBill, EwayItem
 from app.models.postgres.document import Document, DocumentVersion
+from app.models.postgres.fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

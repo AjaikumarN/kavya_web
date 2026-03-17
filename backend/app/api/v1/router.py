@@ -32,6 +32,7 @@ from app.api.v1.endpoints import (
     payments,
     notifications,
     fuel,
+    fuel_pump,
     maps,
 )
 
@@ -97,3 +98,6 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 
 # Fuel Prices
 api_router.include_router(fuel.router, prefix="/fuel-prices", tags=["Fuel Prices"])
+
+# Fuel Pump Management
+api_router.include_router(fuel_pump.router, prefix="/fuel-pump", tags=["Fuel Pump"])

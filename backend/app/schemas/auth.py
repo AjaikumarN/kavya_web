@@ -26,6 +26,7 @@ class UserInfo(BaseModel):
     avatar_url: Optional[str] = None
     branch_id: Optional[int] = None
     tenant_id: Optional[int] = None
+    redirect_to: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):

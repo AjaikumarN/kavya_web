@@ -4,10 +4,10 @@ from sqlalchemy import select, func, or_
 from datetime import datetime
 
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatus, TripStatusEnum, ExpenseCategory
-from app.models.postgres.job import Job
+from app.models.postgres.job import Job, JobStatusEnum
 from app.models.postgres.vehicle import Vehicle, VehicleStatus
 from app.models.postgres.driver import Driver, DriverStatus
-from app.models.postgres.lr import LR
+from app.models.postgres.lr import LR, LRStatus
 from app.utils.generators import generate_trip_number
 
 
@@ -114,6 +114,7 @@ async def create_trip(db: AsyncSession, data: dict, user_id: int = None) -> Trip
             lr.trip_id = trip.id
             lr.vehicle_id = data["vehicle_id"]
             lr.driver_id = data["driver_id"]
+            lr.status = LRStatus.IN_TRANSIT
 
     # Update vehicle status
     if vehicle:
@@ -122,6 +123,13 @@ async def create_trip(db: AsyncSession, data: dict, user_id: int = None) -> Trip
     # Update driver status
     if driver:
         driver.status = DriverStatus.ON_TRIP
+
+    # Auto-transition job to in_progress
+    if trip.job_id:
+        job_result = await db.execute(select(Job).where(Job.id == trip.job_id))
+        job = job_result.scalar_one_or_none()
+        if job and job.status == JobStatusEnum.APPROVED:
+            job.status = JobStatusEnum.IN_PROGRESS
 
     # Status history
     history = TripStatus(
@@ -203,6 +211,23 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
                 d.status = DriverStatus.AVAILABLE
         # Calculate profit/loss
         trip.profit_loss = float(trip.revenue or 0) - float(trip.total_expense or 0)
+
+        # Auto-update LR statuses to delivered
+        await db.execute(
+            select(LR).where(LR.trip_id == trip.id)  # just load check
+        )
+        from sqlalchemy import update
+        await db.execute(
+            update(LR).where(LR.trip_id == trip.id).values(status=LRStatus.DELIVERED)
+        )
+
+        # Auto-generate invoice from completed trip
+        try:
+            from app.services.finance_service import auto_generate_invoice_from_trip
+            await auto_generate_invoice_from_trip(db, trip)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-invoice generation failed for trip {trip.id}: {e}")
 
     history = TripStatus(
         trip_id=trip.id, from_status=old_status, to_status=new_status,

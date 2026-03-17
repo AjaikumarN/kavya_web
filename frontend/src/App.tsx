@@ -85,6 +85,14 @@ import FleetReportsPage from '@/pages/fleet/FleetReportsPage';
 import TyrePage from '@/pages/fleet/TyrePage';
 import RoutesPage from '@/pages/masters/RoutesPage';
 
+// Pump Operator
+import PumpDashboardPage from '@/pages/pump/PumpDashboardPage';
+import PumpIssueFuelPage from '@/pages/pump/PumpIssueFuelPage';
+import PumpFuelLogPage from '@/pages/pump/PumpFuelLogPage';
+import PumpStockPage from '@/pages/pump/PumpStockPage';
+import PumpAlertsPage from '@/pages/pump/PumpAlertsPage';
+import PumpReportsPage from '@/pages/pump/PumpReportsPage';
+
 // Accountant
 import AccountantDashboardPage from '@/pages/accountant/AccountantDashboardPage';
 import AccountantInvoicesPage from '@/pages/accountant/AccountantInvoicesPage';
@@ -227,6 +235,15 @@ function App() {
           <Route path="/accountant/banking" element={<AccountantBankingPage />} />
           <Route path="/accountant/ledger" element={<AccountantLedgerPage />} />
           <Route path="/accountant/reports" element={<AccountantReportsPage />} />
+
+          {/* Pump Operator */}
+          <Route path="/pump/dashboard" element={<PumpDashboardPage />} />
+          <Route path="/pump" element={<PumpDashboardPage />} />
+          <Route path="/pump/issue" element={<PumpIssueFuelPage />} />
+          <Route path="/pump/log" element={<PumpFuelLogPage />} />
+          <Route path="/pump/stock" element={<PumpStockPage />} />
+          <Route path="/pump/alerts" element={<PumpAlertsPage />} />
+          <Route path="/pump/reports" element={<PumpReportsPage />} />
 
           {/* Admin */}
           <Route

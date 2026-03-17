@@ -200,6 +200,7 @@ async def list_payments(db: AsyncSession, page: int = 1, limit: int = 20, paymen
 async def create_payment(db: AsyncSession, data: dict, user_id: int = None) -> Payment:
     data["payment_number"] = generate_payment_number()
     data["created_by"] = user_id
+    data["payment_method"] = _coerce_enum(PaymentMethod, data.get("payment_method"))
 
     # Calculate net amount
     amount = Decimal(str(data["amount"]))
@@ -275,6 +276,7 @@ async def list_ledger(db: AsyncSession, page: int = 1, limit: int = 20, ledger_t
 async def create_ledger_entry(db: AsyncSession, data: dict, user_id: int = None) -> Ledger:
     data["entry_number"] = generate_ledger_number()
     data["created_by"] = user_id
+    data["ledger_type"] = _coerce_enum(LedgerType, data.get("ledger_type"))
 
     # Calculate running balance
     data["balance"] = float(data.get("debit", 0)) - float(data.get("credit", 0))
@@ -283,6 +285,88 @@ async def create_ledger_entry(db: AsyncSession, data: dict, user_id: int = None)
     db.add(entry)
     await db.flush()
     return entry
+
+
+async def post_expense_approval_entries(db: AsyncSession, expense, user_id: int = None):
+    """
+    On expense approval, create/update payable summary and create a payable ledger entry.
+    Idempotent: skips if ledger entry for this expense already exists.
+    """
+    if not expense:
+        return None
+
+    ref_number = f"EXP-{expense.id}"
+    existing_ledger = await db.execute(
+        select(Ledger).where(
+            Ledger.reference_type == "expense",
+            Ledger.reference_number == ref_number,
+        )
+    )
+    if existing_ledger.scalar_one_or_none():
+        return None
+
+    category_raw = str(getattr(getattr(expense, "category", None), "value", getattr(expense, "category", "misc")) or "misc")
+    category = category_raw.lower()
+    vendor_code = f"AUTO-{category.upper()}"
+    vendor_name = f"{category.replace('_', ' ').title()} Expense Vendor"
+
+    vendor_result = await db.execute(select(Vendor).where(Vendor.code == vendor_code, Vendor.is_deleted == False))
+    vendor = vendor_result.scalar_one_or_none()
+    if not vendor:
+        vendor = Vendor(
+            name=vendor_name,
+            code=vendor_code,
+            vendor_type=category,
+            is_active=True,
+            tenant_id=getattr(expense, "tenant_id", None),
+            branch_id=getattr(expense, "branch_id", None),
+        )
+        db.add(vendor)
+        await db.flush()
+
+    today = date.today()
+    amount = Decimal(str(getattr(expense, "amount", 0) or 0))
+
+    payable_result = await db.execute(
+        select(Payable).where(
+            Payable.vendor_id == vendor.id,
+            Payable.as_on_date == today,
+        )
+    )
+    payable = payable_result.scalar_one_or_none()
+    if not payable:
+        payable = Payable(
+            vendor_id=vendor.id,
+            as_on_date=today,
+            current=amount,
+            total_outstanding=amount,
+            tenant_id=getattr(expense, "tenant_id", None),
+        )
+        db.add(payable)
+    else:
+        payable.current = Decimal(str(payable.current or 0)) + amount
+        payable.total_outstanding = Decimal(str(payable.total_outstanding or 0)) + amount
+
+    await create_ledger_entry(
+        db,
+        {
+            "entry_date": today,
+            "ledger_type": "payable",
+            "account_name": f"Expense Payable - {vendor.name}",
+            "vendor_id": vendor.id,
+            "trip_id": getattr(expense, "trip_id", None),
+            "debit": 0,
+            "credit": float(amount),
+            "narration": f"Approved expense {ref_number}",
+            "reference_type": "expense",
+            "reference_number": ref_number,
+            "tenant_id": getattr(expense, "tenant_id", None),
+            "branch_id": getattr(expense, "branch_id", None),
+        },
+        user_id,
+    )
+
+    return True
 
 
 # ==================== VENDORS ====================
@@ -498,7 +582,9 @@ async def auto_generate_invoice_from_trip(db: AsyncSession, trip) -> Invoice:
         return None
 
     # Determine GST type (transport services SAC 9965, rate 5%)
-    company_gstin = getattr(settings, 'EWAY_BILL_GSTIN', '') or ''
+    raw_gstin = getattr(settings, 'EWAY_BILL_GSTIN', '') or ''
+    # Validate GSTIN format (15 chars alphanumeric); treat placeholders as empty
+    company_gstin = raw_gstin if len(raw_gstin) == 15 and raw_gstin.isalnum() else ''
     client_gstin = client.gstin or ''
     company_state = company_gstin[:2] if len(company_gstin) >= 2 else ''
     client_state = client_gstin[:2] if len(client_gstin) >= 2 else ''
@@ -557,6 +643,9 @@ async def auto_generate_invoice_from_trip(db: AsyncSession, trip) -> Invoice:
         amount_paid=Decimal("0"),
         amount_due=total,
         status=InvoiceStatus.DRAFT,
+        tenant_id=getattr(trip, 'tenant_id', None),
+        branch_id=getattr(trip, 'branch_id', None),
+        created_by=getattr(trip, 'created_by', None),
     )
     db.add(invoice)
     await db.flush()

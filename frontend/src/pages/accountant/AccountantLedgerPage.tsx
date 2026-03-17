@@ -23,10 +23,16 @@ export default function AccountantLedgerPage() {
 
   const { data: ledgerData, isLoading: entriesLoading } = useQuery({
     queryKey: ['accountant-ledger-entries'],
-    queryFn: () => api.get('/ledger', { params: { page: 1, limit: 500 } }),
+    queryFn: () => api.get('/accountant/ledger', { params: { page: 1, limit: 100 } }),
   });
 
-  const allEntries = safeArray<any>(ledgerData).map((item: any) => ({
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN');
+  };
+
+  const allEntries = safeArray<any>((ledgerData as any)?.data ?? (ledgerData as any)?.items ?? ledgerData).map((item: any) => ({
     id: item.id,
     date: item.entry_date || item.date,
     description: item.narration || item.description || '-',
@@ -80,7 +86,7 @@ export default function AccountantLedgerPage() {
       key: 'date' as const,
       header: 'Date',
       render: (item: AccountantLedgerEntry) => (
-        <span className="text-sm">{new Date(item.date).toLocaleDateString('en-IN')}</span>
+        <span className="text-sm">{formatDate(item.date)}</span>
       ),
     },
     {

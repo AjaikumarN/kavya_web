@@ -1,6 +1,7 @@
 # Finance Endpoints - Invoice, Payment, Ledger, Vendor, Banking, Routes
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from datetime import date
 
@@ -15,6 +16,8 @@ from app.schemas.finance import (
     RouteCreate, RouteUpdate,
 )
 from app.services import finance_service
+from app.models.postgres.client import Client
+from app.models.postgres.finance import Vendor
 
 router = APIRouter()
 
@@ -78,6 +81,94 @@ async def delete_invoice(
     return APIResponse(success=True, message="Invoice deleted")
 
 
+@router.post("/invoices/{invoice_id}/send", response_model=APIResponse)
+async def send_invoice(
+    invoice_id: int, db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_UPDATE)),
+):
+    inv = await finance_service.get_invoice(db, invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    from app.models.postgres.finance import InvoiceStatus
+    if inv.status not in (InvoiceStatus.DRAFT, InvoiceStatus.SENT):
+        raise HTTPException(status_code=400, detail=f"Cannot send invoice with status '{inv.status.value}'")
+    inv.status = InvoiceStatus.SENT
+    await db.flush()
+    return APIResponse(success=True, message="Invoice sent to client")
+
+
+@router.post("/invoices/{invoice_id}/mark-paid", response_model=APIResponse)
+async def mark_invoice_paid(
+    invoice_id: int, db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_UPDATE)),
+):
+    inv = await finance_service.get_invoice(db, invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    from app.models.postgres.finance import InvoiceStatus
+    from decimal import Decimal
+    from datetime import datetime, date
+
+    if inv.status == InvoiceStatus.PAID:
+        raise HTTPException(status_code=400, detail="Invoice already marked as paid")
+
+    amount_due = Decimal(str(inv.amount_due or 0))
+    if amount_due <= 0:
+        amount_due = Decimal(str(inv.total_amount or 0)) - Decimal(str(inv.amount_paid or 0))
+    if amount_due <= 0:
+        raise HTTPException(status_code=400, detail="Invoice has no outstanding amount")
+
+    payment = await finance_service.create_payment(
+        db,
+        {
+            "payment_date": date.today(),
+            "payment_type": "received",
+            "invoice_id": inv.id,
+            "client_id": inv.client_id,
+            "amount": float(amount_due),
+            "payment_method": "bank_transfer",
+            "transaction_ref": f"AUTO-{inv.invoice_number}",
+            "remarks": f"Auto payment via mark-paid for {inv.invoice_number}",
+        },
+        current_user.user_id,
+    )
+
+    inv = await finance_service.get_invoice(db, invoice_id)
+    inv.paid_at = datetime.utcnow()
+    if Decimal(str(inv.amount_due or 0)) <= 0:
+        inv.status = InvoiceStatus.PAID
+        inv.amount_due = Decimal("0")
+
+    await db.flush()
+    return APIResponse(success=True, data={"payment_id": payment.id, "payment_number": payment.payment_number}, message="Invoice marked as paid")
+
+
+@router.post("/invoices/generate-from-trip/{trip_id}", response_model=APIResponse, status_code=201)
+async def generate_invoice_from_trip(
+    trip_id: int, db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_CREATE)),
+):
+    from app.models.postgres.trip import Trip
+    trip = await db.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    try:
+        inv = await finance_service.auto_generate_invoice_from_trip(db, trip)
+        if not inv:
+            raise HTTPException(status_code=400, detail="Cannot generate invoice for this trip (no job/client/freight data)")
+        await db.commit()
+        return APIResponse(success=True, data={"id": inv.id, "invoice_number": inv.invoice_number}, message="Invoice generated from trip")
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # --- Payments ---
 @router.get("/payments", response_model=APIResponse)
 async def list_payments(
@@ -98,7 +189,33 @@ async def create_payment(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.PAYMENT_CREATE)),
 ):
-    payment = await finance_service.create_payment(db, data.model_dump(), current_user.user_id)
+    payload = data.model_dump()
+
+    if payload.get("invoice_id"):
+        inv = await finance_service.get_invoice(db, payload["invoice_id"])
+        if not inv:
+            raise HTTPException(status_code=400, detail=f"Invalid invoice_id: {payload['invoice_id']}")
+
+        if not payload.get("client_id") and inv.client_id:
+            payload["client_id"] = inv.client_id
+        if payload.get("client_id") and inv.client_id and payload["client_id"] != inv.client_id:
+            raise HTTPException(status_code=400, detail="client_id does not match invoice client")
+
+    if payload.get("client_id"):
+        client = await db.get(Client, payload["client_id"])
+        if not client:
+            raise HTTPException(status_code=400, detail=f"Invalid client_id: {payload['client_id']}")
+
+    if payload.get("vendor_id"):
+        vendor = await db.get(Vendor, payload["vendor_id"])
+        if not vendor:
+            raise HTTPException(status_code=400, detail=f"Invalid vendor_id: {payload['vendor_id']}")
+
+    try:
+        payment = await finance_service.create_payment(db, payload, current_user.user_id)
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="Invalid payment linkage. Verify invoice/client/vendor IDs.")
+
     return APIResponse(success=True, data={"id": payment.id, "payment_number": payment.payment_number}, message="Payment recorded")
 
 

@@ -22,6 +22,12 @@ const tabs = [
 export default function FleetMaintenancePage() {
   const [activeTab, setActiveTab] = useState<TabKey>('schedule');
 
+  const formatDate = (value?: string | null) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN');
+  };
+
   const { data: scheduleData, isLoading: scheduleLoading } = useQuery<any>({
     queryKey: ['fleet-maintenance-schedule'],
     queryFn: () => fleetService.getMaintenanceSchedule({}),
@@ -57,11 +63,11 @@ export default function FleetMaintenancePage() {
     { key: 'vehicle', header: 'Vehicle', render: (r) => <span className="font-medium">{r.vehicle}</span> },
     { key: 'service_type', header: 'Type', render: (r) => <StatusBadge status={r.service_type} /> },
     { key: 'description', header: 'Description', render: (r) => <span className="text-sm">{r.description}</span> },
-    { key: 'due_date', header: 'Due Date', render: (r) => <span className="text-sm">{new Date(r.due_date).toLocaleDateString('en-IN')}</span> },
+    { key: 'due_date', header: 'Due Date', render: (r) => <span className="text-sm">{formatDate(r.due_date)}</span> },
     { key: 'due_km', header: 'Due KM', render: (r) => <span className="text-sm">{r.due_km ? Number(r.due_km).toLocaleString('en-IN') : '—'}</span> },
     { key: 'current_km', header: 'Current KM', render: (r) => <span className="text-sm">{(r.current_km ?? 0).toLocaleString('en-IN')}</span> },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'priority', header: 'Priority', render: (r) => <StatusBadge status={r.priority} /> },
+    { key: 'priority', header: 'Priority', render: (r) => <StatusBadge status={r.priority || 'medium'} /> },
     { key: 'estimated_cost', header: 'Est. Cost', render: (r) => <span className="text-sm">₹{(r.estimated_cost ?? 0).toLocaleString('en-IN')}</span> },
   ];
 
@@ -72,7 +78,7 @@ export default function FleetMaintenancePage() {
     { key: 'type', header: 'Type', render: (r) => <StatusBadge status={r.type} /> },
     { key: 'description', header: 'Description', render: (r) => <span className="text-sm truncate max-w-[200px] block">{r.description}</span> },
     { key: 'workshop', header: 'Workshop', render: (r) => <span className="text-sm">{r.workshop}</span> },
-    { key: 'expected_completion', header: 'Expected', render: (r) => <span className="text-sm">{new Date(r.expected_completion).toLocaleDateString('en-IN')}</span> },
+    { key: 'expected_completion', header: 'Expected', render: (r) => <span className="text-sm">{formatDate(r.expected_completion)}</span> },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'cost', header: 'Cost', render: (r) => <span className="text-sm">₹{(r.cost ?? 0).toLocaleString('en-IN')}</span> },
   ];
@@ -92,7 +98,7 @@ export default function FleetMaintenancePage() {
     { key: 'vehicle', header: 'Vehicle', render: (r) => <span className="font-medium">{r.vehicle}</span> },
     { key: 'position', header: 'Position', render: (r) => <span className="text-sm">{r.position}</span> },
     { key: 'brand', header: 'Brand', render: (r) => <span className="text-sm">{r.brand} {r.model}</span> },
-    { key: 'installed_date', header: 'Installed', render: (r) => <span className="text-sm">{new Date(r.installed_date).toLocaleDateString('en-IN')}</span> },
+    { key: 'installed_date', header: 'Installed', render: (r) => <span className="text-sm">{formatDate(r.installed_date)}</span> },
     { key: 'tread_depth_mm', header: 'Tread (mm)', render: (r) => <span className={`text-sm font-medium ${r.tread_depth_mm < 4 ? 'text-red-600' : r.tread_depth_mm < 6 ? 'text-amber-600' : 'text-green-600'}`}>{r.tread_depth_mm}</span> },
     { key: 'current_km', header: 'KM Run', render: (r) => <span className="text-sm">{Number(r.current_km - r.installed_km).toLocaleString('en-IN')} km</span> },
     { key: 'condition', header: 'Condition', render: (r) => <StatusBadge status={r.condition} /> },
@@ -102,7 +108,7 @@ export default function FleetMaintenancePage() {
   const batteryColumns: Column<BatteryRecord>[] = [
     { key: 'vehicle', header: 'Vehicle', render: (r) => <span className="font-medium">{r.vehicle}</span> },
     { key: 'brand', header: 'Battery', render: (r) => <span className="text-sm">{r.brand} {r.model}</span> },
-    { key: 'installed_date', header: 'Installed', render: (r) => <span className="text-sm">{new Date(r.installed_date).toLocaleDateString('en-IN')}</span> },
+    { key: 'installed_date', header: 'Installed', render: (r) => <span className="text-sm">{formatDate(r.installed_date)}</span> },
     { key: 'voltage', header: 'Voltage', render: (r) => <span className={`text-sm font-medium ${r.voltage < 12 ? 'text-red-600' : r.voltage < 12.4 ? 'text-amber-600' : 'text-green-600'}`}>{r.voltage}V</span> },
     { key: 'health_percent', header: 'Health', render: (r) => (
       <div className="flex items-center gap-2">
@@ -113,7 +119,7 @@ export default function FleetMaintenancePage() {
       </div>
     ) },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'expected_replacement', header: 'Replace By', render: (r) => <span className="text-sm">{new Date(r.expected_replacement).toLocaleDateString('en-IN')}</span> },
+    { key: 'expected_replacement', header: 'Replace By', render: (r) => <span className="text-sm">{formatDate(r.expected_replacement)}</span> },
   ];
 
   return (
@@ -147,10 +153,10 @@ export default function FleetMaintenancePage() {
       {/* Tab Content */}
       <div className="card">
         {activeTab === 'schedule' && (
-          <DataTable columns={scheduleColumns} data={safeArray<MaintenanceScheduleItem>(scheduleData)} isLoading={scheduleLoading} emptyMessage="No scheduled maintenance" />
+          <DataTable columns={scheduleColumns} data={safeArray<MaintenanceScheduleItem>((scheduleData as any)?.items ?? scheduleData)} isLoading={scheduleLoading} emptyMessage="No scheduled maintenance" />
         )}
         {activeTab === 'work-orders' && (
-          <DataTable columns={woColumns} data={safeArray<WorkOrder>(workOrderData)} isLoading={woLoading} emptyMessage="No work orders" />
+          <DataTable columns={woColumns} data={safeArray<WorkOrder>((workOrderData as any)?.items ?? workOrderData)} isLoading={woLoading} emptyMessage="No work orders" />
         )}
         {activeTab === 'parts' && (
           <>
@@ -161,7 +167,7 @@ export default function FleetMaintenancePage() {
                 <KPICard title="Out of Stock" value={partsData.out_of_stock_count || 0} icon={<AlertTriangle className="w-5 h-5" />} color="red" />
               </div>
             )}
-            <DataTable columns={partsColumns} data={safeArray<PartInventory>(partsData)} isLoading={partsLoading} emptyMessage="No parts in inventory" />
+            <DataTable columns={partsColumns} data={safeArray<PartInventory>((partsData as any)?.items ?? partsData)} isLoading={partsLoading} emptyMessage="No parts in inventory" />
           </>
         )}
         {activeTab === 'tyres' && (
@@ -175,11 +181,11 @@ export default function FleetMaintenancePage() {
                 <KPICard title="Critical" value={tyreData.summary.critical} icon={<AlertTriangle className="w-5 h-5" />} color="red" />
               </div>
             )}
-            <DataTable columns={tyreColumns} data={safeArray<TyreRecord>(tyreData)} isLoading={tyreLoading} emptyMessage="No tyre records" />
+            <DataTable columns={tyreColumns} data={safeArray<TyreRecord>((tyreData as any)?.items ?? tyreData)} isLoading={tyreLoading} emptyMessage="No tyre records" />
           </>
         )}
         {activeTab === 'battery' && (
-          <DataTable columns={batteryColumns} data={safeArray<BatteryRecord>(batteryData)} isLoading={batteryLoading} emptyMessage="No battery records" />
+          <DataTable columns={batteryColumns} data={safeArray<BatteryRecord>((batteryData as any)?.items ?? batteryData)} isLoading={batteryLoading} emptyMessage="No battery records" />
         )}
       </div>
     </div>

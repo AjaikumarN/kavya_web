@@ -28,6 +28,8 @@ async def list_vehicles(
     for v in vehicles:
         d = {c.key: getattr(v, c.key) for c in v.__table__.columns}
         d["expiry_alerts"] = vehicle_service.get_expiry_alerts(v)
+        d["gps_enabled"] = bool(v.gps_device_id or v.current_latitude)
+        d["total_km_run"] = float(v.odometer_reading or 0)
         items.append(d)
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 

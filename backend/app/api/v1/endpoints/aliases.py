@@ -49,12 +49,29 @@ async def alias_ewb(
 async def alias_expenses(
     page: int = 1,
     limit: int = 20,
+    trip_id: int | None = None,
     db: AsyncSession = Depends(get_db),
-    _user: TokenData = Depends(require_permission(Permissions.EXPENSE_READ)),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_READ)),
 ):
     offset = max(page - 1, 0) * limit
-    total = (await db.execute(select(TripExpense.id))).all()
-    rows = (await db.execute(select(TripExpense).order_by(TripExpense.expense_date.desc()).offset(offset).limit(limit))).scalars().all()
+    query = select(TripExpense)
+    count_query = select(func.count(TripExpense.id))
+
+    if trip_id is not None:
+        query = query.where(TripExpense.trip_id == trip_id)
+        count_query = count_query.where(TripExpense.trip_id == trip_id)
+
+    # Driver/employee views should only show their own expenses.
+    if 'admin' not in [r.lower() for r in (current_user.roles or [])]:
+        query = query.where(TripExpense.entered_by == current_user.user_id)
+        count_query = count_query.where(TripExpense.entered_by == current_user.user_id)
+
+    total = (await db.execute(count_query)).scalar() or 0
+    rows = (
+        await db.execute(
+            query.order_by(TripExpense.expense_date.desc()).offset(offset).limit(limit)
+        )
+    ).scalars().all()
     items = [{
         'id': e.id,
         'trip_id': e.trip_id,
@@ -65,7 +82,7 @@ async def alias_expenses(
         'expense_date': e.expense_date.isoformat() if e.expense_date else None,
         'is_verified': bool(e.is_verified),
     } for e in rows]
-    return APIResponse(success=True, data={'items': items, 'total': len(total), 'page': page, 'limit': limit}, message='ok')
+    return APIResponse(success=True, data={'items': items, 'total': total, 'page': page, 'limit': limit}, message='ok')
 
 
 @router.get('/fuel', response_model=APIResponse)
@@ -82,12 +99,21 @@ async def alias_fuel(
         'id': f.id,
         'trip_id': f.trip_id,
         'vehicle_id': f.vehicle_id,
+        'date': f.fuel_date.isoformat() if f.fuel_date else None,
         'fuel_date': f.fuel_date.isoformat() if f.fuel_date else None,
-        'quantity_litres': float(f.quantity_litres),
-        'rate_per_litre': float(f.rate_per_litre),
-        'total_amount': float(f.total_amount),
+        'vehicle': f.pump_name or f'Vehicle #{f.vehicle_id}',
+        'driver': 'N/A',
+        'litres': float(f.quantity_litres or 0),
+        'quantity_litres': float(f.quantity_litres or 0),
+        'cost_per_litre': float(f.rate_per_litre or 0),
+        'rate_per_litre': float(f.rate_per_litre or 0),
+        'total_cost': float(f.total_amount or 0),
+        'total_amount': float(f.total_amount or 0),
+        'odometer': 0,
+        'mileage': 0,
+        'station': f.pump_name or 'N/A',
         'pump_name': f.pump_name,
-        'payment_mode': f.payment_mode,
+        'payment_mode': f.payment_mode or 'cash',
     } for f in rows]
     return APIResponse(success=True, data={'items': items, 'total': len(total), 'page': page, 'limit': limit}, message='ok')
 

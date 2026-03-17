@@ -12,6 +12,24 @@ export default function LedgerPage() {
     queryFn: () => financeService.getLedger(filters),
   });
 
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN');
+  };
+
+  const rows = (entries || []).map((entry: any) => ({
+    id: entry.id,
+    date: entry.entry_date || entry.date,
+    description: entry.narration || entry.description || entry.account_name || '—',
+    reference_type: entry.reference_type,
+    reference_number: entry.reference_number,
+    reference_id: entry.reference_id,
+    debit: Number(entry.debit ?? 0),
+    credit: Number(entry.credit ?? 0),
+    balance: Number(entry.balance ?? 0),
+  }));
+
   return (
     <div className="space-y-5">
       <div className="page-header">
@@ -43,31 +61,33 @@ export default function LedgerPage() {
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}><td colSpan={6} className="table-cell"><div className="h-4 bg-gray-200 rounded animate-pulse" /></td></tr>
               ))
-            ) : (entries || []).length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No ledger entries found</td></tr>
             ) : (
-              (entries || []).map((entry) => (
+              rows.map((entry) => (
                 <tr key={entry.id} className="hover:bg-gray-50">
-                  <td className="table-cell">{new Date(entry.date).toLocaleDateString('en-IN')}</td>
+                  <td className="table-cell">{formatDate(entry.date)}</td>
                   <td className="table-cell">{entry.description}</td>
                   <td className="table-cell text-sm text-gray-500">
-                    {entry.reference_type && `${entry.reference_type} #${entry.reference_id}`}
+                    {entry.reference_number
+                      ? `${entry.reference_type || 'ref'} #${entry.reference_number}`
+                      : (entry.reference_type ? `${entry.reference_type}${entry.reference_id ? ` #${entry.reference_id}` : ''}` : '—')}
                   </td>
                   <td className="table-cell text-right">
-                    {entry.ledger_type === 'debit' ? (
+                    {entry.debit > 0 ? (
                       <span className="text-red-600 font-medium flex items-center justify-end gap-1">
-                        <ArrowDownRight size={14} /> ₹{(entry.amount ?? 0).toLocaleString('en-IN')}
+                        <ArrowDownRight size={14} /> ₹{entry.debit.toLocaleString('en-IN')}
                       </span>
                     ) : '—'}
                   </td>
                   <td className="table-cell text-right">
-                    {entry.ledger_type === 'credit' ? (
+                    {entry.credit > 0 ? (
                       <span className="text-green-600 font-medium flex items-center justify-end gap-1">
-                        <ArrowUpRight size={14} /> ₹{(entry.amount ?? 0).toLocaleString('en-IN')}
+                        <ArrowUpRight size={14} /> ₹{entry.credit.toLocaleString('en-IN')}
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="table-cell text-right font-semibold">₹{(entry.balance ?? 0).toLocaleString('en-IN')}</td>
+                  <td className="table-cell text-right font-semibold">₹{entry.balance.toLocaleString('en-IN')}</td>
                 </tr>
               ))
             )}

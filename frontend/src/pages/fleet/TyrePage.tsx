@@ -135,7 +135,9 @@ export default function TyrePage() {
     onError: (error) => handleApiError(error, 'Failed to log tyre event.'),
   });
 
-  const rows = safeArray<any>((data as any)?.items ?? data).map((item: any) => ({
+  const tyrePayload = (data as any)?.data;
+  const tyreItems = safeArray<any>(tyrePayload?.items ?? (data as any)?.items ?? data);
+  const rows = tyreItems.map((item: any) => ({
     id: item.id,
     serial_number: item.serial_number,
     brand: item.brand,
@@ -150,7 +152,7 @@ export default function TyrePage() {
     cost_per_km: Number(item.cost_per_km || 0),
   })) as TyreItem[];
 
-  const vehicleOptions = safeArray<any>((vehicles as any)?.items ?? vehicles);
+  const vehicleOptions = safeArray<any>((vehicles as any)?.data ?? (vehicles as any)?.items ?? vehicles);
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
@@ -196,7 +198,7 @@ export default function TyrePage() {
       <DataTable
         columns={columns}
         data={rows}
-        total={rows.length}
+        total={tyrePayload?.summary?.total_tyres ?? (data as any)?.pagination?.total ?? rows.length}
         isLoading={isLoading}
         onRefresh={() => refetch()}
         onAdd={() => { setEditItem(null); setForm(emptyTyre); setIsCreateOpen(true); }}

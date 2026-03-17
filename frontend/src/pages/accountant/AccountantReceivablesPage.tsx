@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/services/api';
+import toast from 'react-hot-toast';
 import { KPICard } from '@/components/common/Modal';
 import {
   Send, ChevronDown, ChevronUp,
@@ -12,6 +13,29 @@ import { safeArray } from '@/utils/helpers';
 export default function AccountantReceivablesPage() {
   const [expandedClient, setExpandedClient] = useState<number | null>(null);
 
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN');
+  };
+
+  const remindMutation = useMutation({
+    mutationFn: async (clientId: number) => {
+      return api.post(`/accountant/receivables/${clientId}/send-reminder`);
+    },
+    onSuccess: () => {
+      toast.success('Payment reminder sent.');
+    },
+    onError: (error: any) => {
+      const status = error?.response?.status;
+      if (status === 404) {
+        toast('Reminder endpoint is not available yet for this environment.');
+        return;
+      }
+      toast.error('Failed to send reminder');
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ['accountant-receivables'],
     queryFn: async () => {
@@ -19,23 +43,38 @@ export default function AccountantReceivablesPage() {
         const receivables = await api.get('/accountant/receivables');
         const baseItems = safeArray<any>(receivables?.items ?? receivables);
 
-        const items = baseItems.map((item: any, index: number) => ({
-          id: item.client_id ?? item.id ?? index + 1,
-          client_name: item.client_name || item.client?.name || `Client #${item.client_id ?? index + 1}`,
-          total_invoices: Number(item.invoice_count || 0),
-          total_amount: Number(item.total_amount || item.total_due || 0),
-          received_amount: Number(item.received_amount || item.amount_received || 0),
-          pending_amount: Number(item.pending_amount || item.total_due || 0),
-          credit_limit: Number(item.credit_limit || 0),
-          credit_utilization: Number(item.credit_utilization || 0),
-          aging_days: Number(item.aging_days || 0),
-          aging_0_30: Number(item.aging_0_30 || 0),
-          aging_31_60: Number(item.aging_31_60 || 0),
-          aging_61_90: Number(item.aging_61_90 || 0),
-          aging_over_90: Number(item.aging_over_90 || item.total_due || 0),
-          oldest_due: item.oldest_due || new Date().toISOString(),
-          last_payment_date: item.last_payment_date || new Date().toISOString(),
-        }));
+        const items = baseItems.map((item: any, index: number) => {
+          const oldestDue = item.oldest_due || item.due_date || null;
+          const computedAging = oldestDue
+            ? Math.max(0, Math.floor((Date.now() - new Date(oldestDue).getTime()) / (1000 * 60 * 60 * 24)))
+            : 0;
+          const totalDue = Number(item.pending_amount || item.total_due || 0);
+          const agingDays = Number(item.aging_days ?? computedAging);
+
+          const b0 = Number(item.aging_0_30 ?? 0);
+          const b1 = Number(item.aging_31_60 ?? 0);
+          const b2 = Number(item.aging_61_90 ?? 0);
+          const b3 = Number(item.aging_over_90 ?? 0);
+          const hasBuckets = (b0 + b1 + b2 + b3) > 0;
+
+          return {
+            id: item.client_id ?? item.id ?? index + 1,
+            client_name: item.client_name || item.client?.name || `Client #${item.client_id ?? index + 1}`,
+            total_invoices: Number(item.invoice_count || 0),
+            total_amount: Number(item.total_amount || item.total_due || 0),
+            received_amount: Number(item.received_amount || item.amount_received || 0),
+            pending_amount: totalDue,
+            credit_limit: Number(item.credit_limit || 0),
+            credit_utilization: Number(item.credit_utilization || 0),
+            aging_days: agingDays,
+            aging_0_30: hasBuckets ? b0 : (agingDays <= 30 ? totalDue : 0),
+            aging_31_60: hasBuckets ? b1 : (agingDays > 30 && agingDays <= 60 ? totalDue : 0),
+            aging_61_90: hasBuckets ? b2 : (agingDays > 60 && agingDays <= 90 ? totalDue : 0),
+            aging_over_90: hasBuckets ? b3 : (agingDays > 90 ? totalDue : 0),
+            oldest_due: oldestDue,
+            last_payment_date: item.last_payment_date || null,
+          };
+        });
 
         const summary = {
           total_receivable: items.reduce((sum: number, item: any) => sum + item.pending_amount, 0),
@@ -172,7 +211,7 @@ export default function AccountantReceivablesPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900">{client.client_name}</h3>
-                    <p className="text-xs text-gray-500">{client.total_invoices} invoices • Last payment: {new Date(client.last_payment_date).toLocaleDateString('en-IN')}</p>
+                    <p className="text-xs text-gray-500">{client.total_invoices} invoices • Last payment: {formatDate(client.last_payment_date || undefined)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
@@ -191,7 +230,11 @@ export default function AccountantReceivablesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remindMutation.mutate(client.id);
+                      }}
+                      disabled={remindMutation.isPending}
                       className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1"
                       title="Send Reminder"
                     >
@@ -254,7 +297,7 @@ export default function AccountantReceivablesPage() {
                     </div>
                     <div>
                       <p className="text-gray-500 text-xs">Oldest Due Date</p>
-                      <p className="font-semibold">{new Date(client.oldest_due).toLocaleDateString('en-IN')}</p>
+                      <p className="font-semibold">{formatDate(client.oldest_due || undefined)}</p>
                     </div>
                   </div>
                 </div>

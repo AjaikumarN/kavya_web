@@ -12,7 +12,7 @@ export const getRoleHomePage = (role?: string): string => {
     case 'PROJECT_ASSOCIATES':
       return '/dashboard';
     case 'DRIVER':
-      return '/driver/trips';
+      return '/dashboard';
     case 'PUMP_OPERATOR':
       return '/pump/dashboard';
     default:

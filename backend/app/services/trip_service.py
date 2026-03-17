@@ -1,7 +1,7 @@
 # Trip Service - CRUD + Status workflow + Expenses + Fuel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatus, TripStatusEnum, ExpenseCategory
 from app.models.postgres.job import Job, JobStatusEnum
@@ -40,6 +40,15 @@ def _coerce_enum(enum_cls, raw_value):
             return member
 
     return raw_value
+
+
+def _to_naive_utc(dt: datetime | None) -> datetime | None:
+    """Convert aware datetimes to naive UTC for TIMESTAMP WITHOUT TIME ZONE columns."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 async def list_trips(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, vehicle_id: int = None, driver_id: int = None):
@@ -221,10 +230,12 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
             update(LR).where(LR.trip_id == trip.id).values(status=LRStatus.DELIVERED)
         )
 
-        # Auto-generate invoice from completed trip
+        # Auto-generate invoice from completed trip. Isolate failures to a savepoint
+        # so trip completion does not fail when invoice generation has data issues.
         try:
             from app.services.finance_service import auto_generate_invoice_from_trip
-            await auto_generate_invoice_from_trip(db, trip)
+            async with db.begin_nested():
+                await auto_generate_invoice_from_trip(db, trip)
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"Auto-invoice generation failed for trip {trip.id}: {e}")
@@ -250,6 +261,7 @@ async def list_trip_expenses(db: AsyncSession, trip_id: int):
 async def add_trip_expense(db: AsyncSession, trip_id: int, data: dict, user_id: int = None):
     data = dict(data)
     data["category"] = _coerce_enum(ExpenseCategory, data.get("category", "misc"))
+    data["expense_date"] = _to_naive_utc(data.get("expense_date"))
     expense = TripExpense(trip_id=trip_id, entered_by=user_id, **data)
     db.add(expense)
     await db.flush()

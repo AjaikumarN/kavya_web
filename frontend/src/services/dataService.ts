@@ -532,7 +532,7 @@ export const tripService = {
 export const financeService = {
   // Invoices
   listInvoices: async (params?: FilterParams): Promise<PaginatedResponse<Invoice>> => {
-    const data = await api.get('/invoices', { params });
+    const data = await api.get('/finance/invoices', { params });
     return data;
   },
   getInvoice: async (id: number): Promise<Invoice> => {
@@ -555,6 +555,18 @@ export const financeService = {
     const data = await api.post(`/finance/invoices/${id}/send`);
     return data;
   },
+  markInvoicePaid: async (id: number) => {
+    const data = await api.post(`/finance/invoices/${id}/mark-paid`);
+    return data;
+  },
+  generateInvoiceFromTrip: async (tripId: number) => {
+    const data = await api.post(`/finance/invoices/generate-from-trip/${tripId}`);
+    return data;
+  },
+  deleteInvoice: async (id: number) => {
+    const data = await api.delete(`/finance/invoices/${id}`);
+    return data;
+  },
 
   // Payments
   listPayments: async (params?: FilterParams): Promise<PaginatedResponse<Payment>> => {
@@ -568,8 +580,8 @@ export const financeService = {
 
   // Ledger
   getLedger: async (params?: FilterParams): Promise<LedgerEntry[]> => {
-    const data = await api.get('/ledger', { params });
-    return Array.isArray(data) ? data : (data?.items ?? []);
+    const data = await api.get('/finance/ledger', { params });
+    return Array.isArray(data) ? data : (data?.data ?? data?.items ?? []);
   },
 
   // GST
@@ -971,7 +983,7 @@ export const fleetService = {
 
   // Maintenance
   getMaintenanceSchedule: async (params?: any) => {
-    const data = await api.get('/service', { params });
+    const data = await api.get('/fleet/maintenance/schedule', { params });
     return unwrap(data);
   },
   getWorkOrders: async (params?: any) => {
@@ -1003,14 +1015,30 @@ export const fleetService = {
 
   // Alerts
   getAlerts: async (params?: any) => {
-    const data = await api.get('/dashboard/notifications');
-    const items = (unwrap(data) || []).map((a: any) => {
-      const mappedType = a.type === 'warning' ? 'document_expiry' : (a.type || 'system');
-      const severity = params?.severity || (a.type === 'warning' ? 'warning' : 'info');
-      return {
+    // Pull alerts from tracking/alerts (richer source: doc expiry, maintenance, fuel, trips)
+    let items: any[] = [];
+    try {
+      const trackingData = await api.get('/tracking/alerts', { params: { severity: params?.severity } });
+      const trackingAlerts = unwrap(trackingData) || [];
+      items = trackingAlerts.map((a: any) => ({
         id: String(a.id),
-        type: mappedType,
-        severity,
+        type: a.type || 'system',
+        severity: a.severity || 'info',
+        title: a.title || 'Alert',
+        message: a.message || '',
+        vehicle: a.vehicle || '',
+        driver: a.driver || '',
+        location: a.location || '',
+        created_at: a.created_at || new Date().toISOString(),
+        acknowledged: !!a.acknowledged,
+      }));
+    } catch {
+      // Fallback to dashboard notifications
+      const data = await api.get('/dashboard/notifications');
+      items = (unwrap(data) || []).map((a: any) => ({
+        id: String(a.id),
+        type: a.type === 'warning' ? 'document_expiry' : (a.type || 'system'),
+        severity: a.type === 'warning' ? 'warning' : 'info',
         title: a.title || 'Alert',
         message: a.message || '',
         vehicle: a.vehicle || '',
@@ -1018,20 +1046,23 @@ export const fleetService = {
         location: a.location || '',
         created_at: a.timestamp || new Date().toISOString(),
         acknowledged: !!a.read,
-      };
-    }).filter((item: any) => {
+      }));
+    }
+
+    // Apply client-side filters
+    const filtered = items.filter((item: any) => {
       if (params?.alert_type && item.type !== params.alert_type) return false;
       if (params?.severity && item.severity !== params.severity) return false;
       return true;
     });
 
     const summary = {
-      critical: items.filter((i: any) => i.severity === 'critical').length,
-      warning: items.filter((i: any) => i.severity === 'warning').length,
-      info: items.filter((i: any) => i.severity === 'info').length,
+      critical: filtered.filter((i: any) => i.severity === 'critical').length,
+      warning: filtered.filter((i: any) => i.severity === 'warning').length,
+      info: filtered.filter((i: any) => i.severity === 'info').length,
     };
 
-    return { items, summary, total: items.length };
+    return { items: filtered, summary, total: filtered.length };
   },
   acknowledgeAlert: async (alertId: string) => {
     const data = await api.post(`/dashboard/notifications/${alertId}/read`);

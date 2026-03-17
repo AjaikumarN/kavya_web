@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/services/api';
+import { accountantService } from '@/services/dataService';
 import { KPICard } from '@/components/common/Modal';
 import DataTable from '@/components/common/DataTable';
 import {
@@ -23,22 +23,28 @@ export default function AccountantPayablesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['accountant-payables', typeFilter],
-    queryFn: () => api.get('/banking', { params: { page: 1, limit: 200 } }),
+    queryFn: () => accountantService.getPayables({ page: 1, limit: 200 }),
   });
 
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN');
+  };
+
   const items: AccountantPayableItem[] = safeArray<any>(data)
-    .filter((row: any) => (row.transaction_type || row.type) === 'debit')
+    .filter((row: any) => Number(row.total_outstanding ?? row.pending_amount ?? 0) > 0)
     .map((row: any) => ({
-      id: row.id,
-      entity_name: row.account_name || (row.account_id ? `Account #${row.account_id}` : 'Account'),
-      description: row.narration || row.description || '-',
-      payable_type: (typeFilter === 'all' ? 'other' : typeFilter) as AccountantPayableType,
-      total_amount: Number(row.amount || 0),
+      id: row.id ?? row.vendor_id,
+      entity_name: row.vendor_name || (row.vendor_id ? `Vendor #${row.vendor_id}` : 'Vendor'),
+      description: row.description || row.vendor_code || '-',
+      payable_type: (typeFilter === 'all' ? 'vendor' : typeFilter) as AccountantPayableType,
+      total_amount: Number(row.total_amount ?? row.total_outstanding ?? 0),
       paid_amount: 0,
-      pending_amount: Number(row.amount || 0),
-      due_date: row.transaction_date || row.date || new Date().toISOString(),
-      aging_days: 0,
-      status: 'pending',
+      pending_amount: Number(row.pending_amount ?? row.total_outstanding ?? 0),
+      due_date: row.due_date || row.as_on_date || null,
+      aging_days: Number(row.aging_days ?? (row.as_on_date ? Math.max(0, Math.floor((Date.now() - new Date(row.as_on_date).getTime()) / (1000 * 60 * 60 * 24))) : 0)),
+      status: Number(row.pending_amount ?? row.total_outstanding ?? 0) > 0 ? 'pending' : 'paid',
     }));
   const summary = {
     total_payable: items.reduce((sum, item) => sum + item.pending_amount, 0),
@@ -98,7 +104,7 @@ export default function AccountantPayablesPage() {
       header: 'Due Date',
       render: (item: AccountantPayableItem) => (
         <div className="flex items-center gap-1">
-          <span className="text-sm">{new Date(item.due_date).toLocaleDateString('en-IN')}</span>
+          <span className="text-sm">{formatDate(item.due_date || undefined)}</span>
           {item.aging_days > 0 && (
             <span className={`text-[10px] font-semibold ${item.aging_days > 30 ? 'text-red-600' : 'text-amber-600'}`}>
               ({item.aging_days}d)

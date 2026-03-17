@@ -36,8 +36,10 @@ const CATEGORY_TABS: { key: AccountantExpenseCategory | 'all'; label: string }[]
 ];
 
 export default function AccountantExpensesPage() {
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, hasAnyRole } = useAuthStore();
+  const isAdminOrAccountant = hasAnyRole(['admin', 'accountant'] as any);
   const canCreateExpense = hasPermission('expense:create');
+  const canApproveExpense = isAdminOrAccountant || hasPermission('expense:approve');
   const [catFilter, setCatFilter] = useState<AccountantExpenseCategory | 'all'>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteExpenseId, setDeleteExpenseId] = useState<number | null>(null);
@@ -141,7 +143,22 @@ export default function AccountantExpensesPage() {
     setEditForm({ amount: String(item.amount || ''), description: item.description || '' });
   };
 
-  const items = safeArray<any>(data).map((item: any) => ({
+  const rawItems = safeArray<any>((data as any)?.data?.items ?? (data as any)?.items ?? data);
+
+  const mapCategory = (category: string): AccountantExpenseCategory => {
+    const c = String(category || '').toLowerCase();
+    if (c === 'fuel') return 'fuel';
+    if (c === 'toll') return 'toll';
+    if (c === 'repair') return 'vehicle_maintenance';
+    if (c === 'advance') return 'driver_allowance';
+    if (c === 'misc') return 'miscellaneous';
+    if (c === 'office') return 'office';
+    if (c === 'vehicle_maintenance') return 'vehicle_maintenance';
+    if (c === 'driver_allowance') return 'driver_allowance';
+    return 'miscellaneous';
+  };
+
+  const items = rawItems.map((item: any) => ({
     id: item.id,
     expense_number: item.expense_number || String(item.id),
     trip_ref: item.trip_ref || '-',
@@ -149,16 +166,44 @@ export default function AccountantExpensesPage() {
     payment_method: item.payment_method || 'cash',
     vendor: item.vendor || '-',
     date: item.expense_date || item.date,
-    category: item.category || 'miscellaneous',
+    category: mapCategory(item.category),
     description: item.description || '-',
     vehicle: item.vehicle || '-',
     amount: Number(item.amount || 0),
     status: item.is_verified ? 'approved' : 'pending',
     receipt_url: item.receipt_url || null,
   })) as AccountantExpenseItem[];
-  const summary = (data as any)?.summary || { total: 0, pending_approval: 0, approved: 0, rejected: 0 };
+
+  const filteredItems = catFilter === 'all'
+    ? items
+    : items.filter((item) => item.category === catFilter);
+
+  const summary = {
+    total: items.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    pending_approval: items.filter((item) => item.status === 'pending').reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    approved: items.filter((item) => item.status === 'approved').reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    rejected: items.filter((item) => item.status === 'rejected').reduce((sum, item) => sum + Number(item.amount || 0), 0),
+  };
 
   const fmt = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
+
+  const canEditExpense = (item: AccountantExpenseItem) => {
+    if (isAdminOrAccountant) return true;
+    if (!canCreateExpense) return false;
+    if (item.status !== 'pending') return false;
+
+    if (hasAnyRole(['project_associate'] as any)) return true;
+    if (hasAnyRole(['fleet_manager'] as any)) {
+      return item.category === 'fuel' || item.category === 'vehicle_maintenance';
+    }
+    return false;
+  };
+
+  const canDeleteExpense = (item: AccountantExpenseItem) => {
+    if (isAdminOrAccountant) return true;
+    if (hasAnyRole(['project_associate'] as any)) return item.status !== 'approved';
+    return false;
+  };
 
   const columns = [
     {
@@ -226,14 +271,16 @@ export default function AccountantExpensesPage() {
       header: 'Actions',
       render: (item: AccountantExpenseItem) => (
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => handleEditExpense(item)}
-              className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-              title="Edit"
-            >
-              <Pencil size={14} />
-            </button>
-          {item.status === 'pending' && (
+            {canEditExpense(item) && (
+              <button
+                onClick={() => handleEditExpense(item)}
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </button>
+            )}
+          {item.status === 'pending' && canApproveExpense && (
             <>
             <button
               onClick={() => approveMut.mutate(item.id)}
@@ -251,15 +298,17 @@ export default function AccountantExpensesPage() {
             </button>
             </>
           )}
-            <button
-              onClick={() => {
-                setDeleteExpenseId(item.id);
-              }}
-              className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-              title="Delete"
-            >
-              <Trash2 size={14} />
-            </button>
+            {canDeleteExpense(item) && (
+              <button
+                onClick={() => {
+                  setDeleteExpenseId(item.id);
+                }}
+                className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
       ),
     },
@@ -273,6 +322,9 @@ export default function AccountantExpensesPage() {
           <p className="page-subtitle">Track and approve all operational expenses</p>
           {!canCreateExpense && (
             <p className="text-xs text-amber-700 mt-1">You have read/approval access for expenses. Create is restricted by role permission.</p>
+          )}
+          {!isAdminOrAccountant && (
+            <p className="text-xs text-gray-500 mt-1">Finalized expenses are locked. Project Associates cannot delete approved records. Fleet Managers can only edit fuel/maintenance pending entries.</p>
           )}
         </div>
         {canCreateExpense && (
@@ -308,7 +360,7 @@ export default function AccountantExpensesPage() {
       {/* Table */}
       <div className="card p-0 overflow-hidden">
         <DataTable
-          data={items}
+          data={filteredItems}
           columns={columns}
           isLoading={isLoading}
           emptyMessage="No expenses found"

@@ -1,9 +1,42 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { MapPin, Navigation, Truck, WifiOff, Clock } from 'lucide-react';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
 import { fleetService } from '@/services/dataService';
 import type { FleetTrackingVehicle } from '@/types';
+
+// Fix Leaflet marker icons in Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const createColorIcon = (color: string) =>
+  new L.DivIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.4)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+
+const iconMap: Record<string, L.DivIcon> = {
+  moving: createColorIcon('#22c55e'),
+  stopped: createColorIcon('#3b82f6'),
+  idle: createColorIcon('#f59e0b'),
+  offline: createColorIcon('#9ca3af'),
+};
+
+function FlyToVehicle({ vehicle }: { vehicle: FleetTrackingVehicle | null }) {
+  const map = useMap();
+  if (vehicle && vehicle.lat && vehicle.lng) {
+    map.flyTo([vehicle.lat, vehicle.lng], 12, { duration: 0.8 });
+  }
+  return null;
+}
 
 export default function FleetTrackingPage() {
   const [selectedVehicle, setSelectedVehicle] = useState<FleetTrackingVehicle | null>(null);
@@ -12,7 +45,7 @@ export default function FleetTrackingPage() {
   const { data } = useQuery({
     queryKey: ['fleet-live-tracking'],
     queryFn: fleetService.getLiveTracking,
-    refetchInterval: 30000, // refresh every 30s
+    refetchInterval: 10000, // refresh every 10s for real-time feel
   });
 
   const vehicles: FleetTrackingVehicle[] = data?.vehicles || [];
@@ -21,6 +54,14 @@ export default function FleetTrackingPage() {
   const filteredVehicles = statusFilter
     ? vehicles.filter(v => v.status === statusFilter)
     : vehicles;
+
+  const mapCenter = useMemo<[number, number]>(() => {
+    const withCoords = vehicles.filter(v => v.lat && v.lng);
+    if (withCoords.length === 0) return [11.0, 78.0]; // Tamil Nadu default
+    const avgLat = withCoords.reduce((s, v) => s + v.lat, 0) / withCoords.length;
+    const avgLng = withCoords.reduce((s, v) => s + v.lng, 0) / withCoords.length;
+    return [avgLat, avgLng];
+  }, [vehicles]);
 
   const statusIcon = (status: string) => {
     switch (status) {
@@ -105,73 +146,58 @@ export default function FleetTrackingPage() {
           </div>
         </div>
 
-        {/* Map Placeholder / Vehicle Details */}
+        {/* Live Map */}
         <div className="card lg:col-span-2">
-          {selectedVehicle ? (
-            <div className="space-y-6">
-              {/* Vehicle Header */}
-              <div className="flex items-center justify-between">
+          <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: '520px' }}>
+            <MapContainer center={mapCenter} zoom={7} style={{ height: '100%', width: '100%' }}>
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution="&copy; OpenStreetMap contributors"
+              />
+              <FlyToVehicle vehicle={selectedVehicle} />
+              {filteredVehicles.map((v) => {
+                if (!v.lat || !v.lng) return null;
+                return (
+                  <Marker
+                    key={v.id}
+                    position={[v.lat, v.lng]}
+                    icon={iconMap[v.status] || iconMap.offline}
+                    eventHandlers={{ click: () => setSelectedVehicle(v) }}
+                  >
+                    <Popup>
+                      <div className="text-sm space-y-1 min-w-[160px]">
+                        <p className="font-bold text-gray-900">{v.registration_number}</p>
+                        {v.driver && <p className="text-gray-600">🚗 {v.driver}</p>}
+                        <p>Speed: {v.speed} km/h</p>
+                        {v.route && <p className="text-blue-600">{v.route}</p>}
+                        <p className="text-xs text-gray-400 capitalize">{v.status}</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+          </div>
+
+          {/* Vehicle detail strip below map */}
+          {selectedVehicle && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${statusColor(selectedVehicle.status)}`} />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{selectedVehicle.registration_number}</h3>
-                    <p className="text-sm text-gray-500">{selectedVehicle.driver || 'No driver assigned'}</p>
+                    <span className="font-semibold text-gray-900">{selectedVehicle.registration_number}</span>
+                    <span className="text-sm text-gray-500 ml-2">{selectedVehicle.driver || 'No driver'}</span>
                   </div>
                 </div>
                 <StatusBadge status={selectedVehicle.status} />
               </div>
-
-              {/* Map Placeholder */}
-              <div className="bg-gray-100 rounded-xl h-64 flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <MapPin className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500 font-medium">Live Map View</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Lat: {Number(selectedVehicle.lat ?? 0).toFixed(4)}, Lng: {Number(selectedVehicle.lng ?? 0).toFixed(4)}
-                  </p>
-                  <p className="text-xs text-gray-400">(Map integration available with Google Maps / Leaflet)</p>
-                </div>
-              </div>
-
-              {/* Vehicle Details Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Speed</p>
-                  <p className="text-lg font-semibold">{selectedVehicle.speed} km/h</p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Heading</p>
-                  <p className="text-lg font-semibold">{selectedVehicle.heading}°</p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Trip</p>
-                  <p className="text-lg font-semibold">{selectedVehicle.trip || '—'}</p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">ETA</p>
-                  <p className="text-lg font-semibold">
-                    {selectedVehicle.eta ? new Date(selectedVehicle.eta).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </p>
-                </div>
-              </div>
-
-              {selectedVehicle.route && (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-600 font-medium">Route</p>
-                  <p className="text-sm text-blue-800">{selectedVehicle.route}</p>
-                </div>
-              )}
-
-              <div className="text-xs text-gray-400 text-right">
-                Last updated: {new Date((selectedVehicle.last_update) ?? 0).toLocaleString('en-IN')}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">Select a vehicle to view live tracking details</p>
-                <p className="text-xs text-gray-400 mt-1">Click on any vehicle from the list</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                <div><span className="text-gray-500">Speed:</span> <strong>{selectedVehicle.speed} km/h</strong></div>
+                <div><span className="text-gray-500">Heading:</span> <strong>{selectedVehicle.heading}°</strong></div>
+                <div><span className="text-gray-500">Trip:</span> <strong>{selectedVehicle.trip || '—'}</strong></div>
+                <div><span className="text-gray-500">Route:</span> <strong>{selectedVehicle.route || '—'}</strong></div>
+                <div><span className="text-gray-500">Coords:</span> <strong>{Number(selectedVehicle.lat).toFixed(4)}, {Number(selectedVehicle.lng).toFixed(4)}</strong></div>
               </div>
             </div>
           )}

@@ -227,13 +227,13 @@ function App() {
           {/* Accountant */}
           <Route path="/accountant/dashboard" element={<AccountantDashboardPage />} />
           <Route path="/accountant" element={<AccountantDashboardPage />} />
-          <Route path="/accountant/invoices" element={<AccountantInvoicesPage />} />
-          <Route path="/accountant/receivables" element={<AccountantReceivablesPage />} />
-          <Route path="/accountant/payables" element={<AccountantPayablesPage />} />
-          <Route path="/accountant/expenses" element={<AccountantExpensesPage />} />
+          <Route path="/accountant/invoices" element={<AuthGuard requiredPermission="invoice:read"><AccountantInvoicesPage /></AuthGuard>} />
+          <Route path="/accountant/receivables" element={<AuthGuard requiredPermission="invoice:read"><AccountantReceivablesPage /></AuthGuard>} />
+          <Route path="/accountant/payables" element={<AuthGuard requiredPermission="payment:read"><AccountantPayablesPage /></AuthGuard>} />
+          <Route path="/accountant/expenses" element={<AuthGuard requiredPermission="expense:read"><AccountantExpensesPage /></AuthGuard>} />
           <Route path="/accountant/fuel" element={<AccountantFuelExpensePage />} />
           <Route path="/accountant/banking" element={<AccountantBankingPage />} />
-          <Route path="/accountant/ledger" element={<AccountantLedgerPage />} />
+          <Route path="/accountant/ledger" element={<AuthGuard requiredPermission="ledger:read"><AccountantLedgerPage /></AuthGuard>} />
           <Route path="/accountant/reports" element={<AccountantReportsPage />} />
 
           {/* Pump Operator */}

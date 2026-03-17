@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import api from '@/services/api';
-import { clientService, financeService, tripService } from '@/services/dataService';
+import { financeService, tripService } from '@/services/dataService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { Modal, StatusBadge } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { useAuthStore } from '@/store/authStore';
 import type { Invoice, FilterParams } from '@/types';
-import { CheckCircle2, Pencil, Send, Trash2 } from 'lucide-react';
+import { CheckCircle2, Pencil, Receipt, Send, Trash2 } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
+import { exportTableToPdf } from '@/utils/pdfExport';
 import { handleApiError } from '../../utils/handleApiError';
 
 export default function InvoicesPage() {
@@ -20,24 +20,12 @@ export default function InvoicesPage() {
   const [deleteInvoice, setDeleteInvoice] = useState<Invoice | null>(null);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [editDueDate, setEditDueDate] = useState('');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    client_id: '',
-    trip_ids: [] as string[],
-    billing_period_start: new Date().toISOString().slice(0, 10),
-    billing_period_end: new Date().toISOString().slice(0, 10),
-    payment_due_date: new Date().toISOString().slice(0, 10),
-    notes: '',
-  });
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [generateTripId, setGenerateTripId] = useState('');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['invoices', filters],
     queryFn: () => financeService.listInvoices(filters),
-  });
-
-  const { data: clientsData } = useQuery({
-    queryKey: ['invoice-create-clients'],
-    queryFn: () => clientService.list({ page: 1, page_size: 500 }),
   });
 
   const { data: tripsData } = useQuery({
@@ -64,50 +52,31 @@ export default function InvoicesPage() {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice sent successfully.');
     },
-    onError: (error) => {
-      handleApiError(error, 'Operation failed');
-    },
+    onError: (error) => handleApiError(error, 'Operation failed'),
   });
 
-  const createMutation = useMutation({
-    mutationFn: () => {
-      const selectedClient = safeArray<any>((clientsData as any)?.items ?? clientsData).find((c: any) => String(c.id) === createForm.client_id);
-      return financeService.createInvoice({
-        client_id: Number(createForm.client_id),
-        invoice_date: createForm.billing_period_end,
-        due_date: createForm.payment_due_date,
-        billing_name: selectedClient?.name || `Client #${createForm.client_id}`,
-        notes: createForm.notes || `Billing period: ${createForm.billing_period_start} to ${createForm.billing_period_end}`,
-        items: createForm.trip_ids.map((tripId, idx) => ({
-          description: `Trip ${tripId} billing`,
-          quantity: 1,
-          rate: 1000,
-          tax_rate: 18,
-          trip_id: Number(tripId),
-          item_number: idx + 1,
-        })),
-      } as Partial<Invoice>);
-    },
+  const markPaidMutation = useMutation({
+    mutationFn: (id: number) => financeService.markInvoicePaid(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
-      toast.success('Invoice created successfully.');
-      setCreateForm({
-        client_id: '',
-        trip_ids: [],
-        billing_period_start: new Date().toISOString().slice(0, 10),
-        billing_period_end: new Date().toISOString().slice(0, 10),
-        payment_due_date: new Date().toISOString().slice(0, 10),
-        notes: '',
-      });
-      setIsCreateOpen(false);
+      toast.success('Invoice marked as paid.');
     },
-    onError: (error) => {
-      handleApiError(error, 'Operation failed');
+    onError: (error) => handleApiError(error, 'Operation failed'),
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: (tripId: number) => financeService.generateInvoiceFromTrip(tripId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      toast.success('Invoice generated from trip.');
+      setIsGenerateOpen(false);
+      setGenerateTripId('');
     },
+    onError: (error) => handleApiError(error, 'Failed to generate invoice'),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.delete(`/finance/invoices/${id}`),
+    mutationFn: (id: number) => financeService.deleteInvoice(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice deleted successfully.');
@@ -124,6 +93,31 @@ export default function InvoicesPage() {
 
   const handleDelete = (invoice: Invoice) => setDeleteInvoice(invoice);
 
+  const invoices = safeArray<Invoice>((data as any)?.data ?? (data as any)?.items ?? data);
+
+  const handleExportPdf = () => {
+    if (!invoices.length) {
+      toast.error('No invoices available to export.');
+      return;
+    }
+
+    exportTableToPdf<Invoice>({
+      title: 'Invoices Report',
+      fileName: `invoices-${new Date().toISOString().slice(0, 10)}.pdf`,
+      columns: [
+        { header: 'Invoice No', accessor: (inv) => inv.invoice_number },
+        { header: 'Client', accessor: (inv) => inv.client?.name || (inv as any).client_name || inv.billing_name || `Client #${inv.client_id}` },
+        { header: 'Date', accessor: (inv) => new Date(inv.invoice_date).toLocaleDateString('en-IN') },
+        { header: 'Due Date', accessor: (inv) => new Date(inv.due_date).toLocaleDateString('en-IN') },
+        { header: 'Amount', accessor: (inv) => Number((inv.total_amount || 0) ?? 0).toLocaleString('en-IN') },
+        { header: 'Paid', accessor: (inv) => Number((inv.paid_amount || 0) ?? 0).toLocaleString('en-IN') },
+        { header: 'Balance', accessor: (inv) => Number((inv.balance_amount || 0) ?? 0).toLocaleString('en-IN') },
+        { header: 'Status', accessor: (inv) => inv.status },
+      ],
+      rows: invoices,
+    });
+  };
+
   const columns: Column<Invoice>[] = [
     {
       key: 'invoice_number',
@@ -134,7 +128,7 @@ export default function InvoicesPage() {
     {
       key: 'client',
       header: 'Client',
-      render: (inv) => inv.client?.name || `Client #${inv.client_id}`,
+      render: (inv) => inv.client?.name || (inv as any).client_name || inv.billing_name || `Client #${inv.client_id}`,
     },
     {
       key: 'invoice_date',
@@ -189,8 +183,8 @@ export default function InvoicesPage() {
               <Send size={14} className="text-blue-600" />
             </button>
           )}
-          {(inv.status === 'sent' || inv.status === 'partial') && (
-            <button onClick={() => updateMutation.mutate({ id: inv.id, payload: { status: 'paid' } as Partial<Invoice> })} className="p-1.5 rounded-md hover:bg-green-50" title="Mark Paid">
+          {(inv.status === 'sent' || inv.status === 'partial' || inv.status === 'partially_paid') && (
+            <button onClick={() => markPaidMutation.mutate(inv.id)} className="p-1.5 rounded-md hover:bg-green-50" title="Mark Paid">
               <CheckCircle2 size={14} className="text-green-600" />
             </button>
           )}
@@ -204,16 +198,21 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="page-header">
+      <div className="page-header flex items-center justify-between">
         <div>
           <h1 className="page-title">Invoices</h1>
           <p className="page-subtitle">Manage invoices, billing, and collections</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setIsGenerateOpen(true)} className="btn-secondary flex items-center gap-2 text-sm">
+            <Receipt size={14} /> Generate from Trip
+          </button>
         </div>
       </div>
 
       <DataTable
         columns={columns}
-        data={safeArray<Invoice>(data)}
+        data={invoices}
         total={(data as any)?.pagination?.total || data?.total || 0}
         page={filters.page}
         pageSize={filters.page_size}
@@ -222,10 +221,8 @@ export default function InvoicesPage() {
         onSearch={(q) => setFilters({ ...filters, search: q, page: 1 })}
         onPageChange={(p) => setFilters({ ...filters, page: p })}
         onSort={(key, order) => setFilters({ ...filters, sort_by: key, sort_order: order })}
-        onAdd={hasPermission('invoices:create') ? () => setIsCreateOpen(true) : undefined}
-        addLabel="Create Invoice"
         onRefresh={() => refetch()}
-        onExport={() => {}}
+        onExport={handleExportPdf}
       />
 
       <ConfirmDialog
@@ -286,78 +283,24 @@ export default function InvoicesPage() {
         </form>
       </Modal>
 
-      <Modal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Create Invoice"
-        size="lg"
-      >
-        {/** Collect requested fields and map to backend invoice schema in createMutation. */}
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            createMutation.mutate();
-          }}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Client</label>
-              <select className="input-field" value={createForm.client_id} onChange={(e) => setCreateForm((p) => ({ ...p, client_id: e.target.value, trip_ids: [] }))} required>
-                <option value="">Select client</option>
-                {safeArray<any>((clientsData as any)?.items ?? clientsData).map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.name || `Client #${c.id}`}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Trip IDs</label>
-              <select
-                multiple
-                className="input-field min-h-[120px]"
-                value={createForm.trip_ids}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-                  setCreateForm((p) => ({ ...p, trip_ids: values }));
-                }}
-              >
-                {safeArray<any>((tripsData as any)?.items ?? tripsData)
-                  .filter((trip: any) => {
-                    if (!createForm.client_id) return true;
-                    return String(trip.client_id || trip.job?.client_id || '') === createForm.client_id;
-                  })
-                  .map((trip: any) => (
-                    <option key={trip.id} value={trip.id}>{trip.trip_number || `Trip #${trip.id}`}</option>
-                  ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="label">Billing Period Start</label>
-              <input type="date" className="input-field" value={createForm.billing_period_start} onChange={(e) => setCreateForm((p) => ({ ...p, billing_period_start: e.target.value }))} required />
-            </div>
-            <div>
-              <label className="label">Billing Period End</label>
-              <input type="date" className="input-field" value={createForm.billing_period_end} onChange={(e) => setCreateForm((p) => ({ ...p, billing_period_end: e.target.value }))} required />
-            </div>
-            <div>
-              <label className="label">Payment Due Date</label>
-              <input type="date" className="input-field" value={createForm.payment_due_date} onChange={(e) => setCreateForm((p) => ({ ...p, payment_due_date: e.target.value }))} required />
-            </div>
-          </div>
+      {/* Generate from Trip Modal */}
+      <Modal isOpen={isGenerateOpen} onClose={() => setIsGenerateOpen(false)} title="Generate Invoice from Trip" size="md">
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (generateTripId) generateMutation.mutate(Number(generateTripId)); }}>
+          <p className="text-sm text-gray-500">Select a completed trip to auto-generate a GST invoice with freight details, client info, and tax calculations.</p>
           <div>
-            <label className="label">Notes</label>
-            <textarea className="input-field" rows={2} value={createForm.notes} onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))} />
+            <label className="label">Completed Trip</label>
+            <select className="input-field" value={generateTripId} onChange={(e) => setGenerateTripId(e.target.value)} required>
+              <option value="">Select trip</option>
+              {safeArray<any>((tripsData as any)?.items ?? tripsData)
+                .filter((t: any) => t.status === 'completed' || t.status === 'delivered' || t.status === 'pod_uploaded')
+                .map((t: any) => (
+                  <option key={t.id} value={t.id}>{t.trip_number || `Trip #${t.id}`} — {t.origin_city || ''} → {t.destination_city || ''}</option>
+                ))}
+            </select>
           </div>
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-            <SubmitButton
-              isLoading={createMutation.isPending}
-              label="Create Invoice"
-              loadingLabel="Creating..."
-              disabled={!createForm.client_id || !createForm.billing_period_start || !createForm.billing_period_end || !createForm.payment_due_date}
-            />
+            <button type="button" className="btn-secondary" onClick={() => setIsGenerateOpen(false)}>Cancel</button>
+            <SubmitButton isLoading={generateMutation.isPending} label="Generate Invoice" loadingLabel="Generating..." disabled={!generateTripId} />
           </div>
         </form>
       </Modal>

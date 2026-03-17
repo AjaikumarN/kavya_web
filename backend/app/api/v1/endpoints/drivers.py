@@ -216,8 +216,12 @@ async def complete_my_trip(
     if current_status in {"completed", "cancelled"}:
         raise HTTPException(status_code=400, detail=f"Trip is already {current_status}")
 
-    # Driver complete should work from active trip phases; advance safely when needed.
+    # Driver complete should work from all active phases; advance safely when needed.
     transitions = {
+        "planned": ["started", "in_transit", "completed"],
+        "vehicle_assigned": ["driver_assigned", "ready", "started", "in_transit", "completed"],
+        "driver_assigned": ["ready", "started", "in_transit", "completed"],
+        "ready": ["started", "in_transit", "completed"],
         "started": ["in_transit", "completed"],
         "loading": ["in_transit", "completed"],
         "in_transit": ["completed"],

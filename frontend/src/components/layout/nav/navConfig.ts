@@ -246,6 +246,12 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
+        label: 'Finance',
+        items: [
+          { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'View invoices for trip reference' },
+        ],
+      },
+      {
         label: 'Fleet Manager',
         items: [
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
@@ -345,6 +351,12 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
+        label: 'Finance',
+        items: [
+          { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'Generate invoices after trip completion' },
+        ],
+      },
+      {
         label: 'Quick Actions',
         items: [
           { label: 'Create Job', route: '/jobs/new', icon: 'plus', description: 'Create a new transport job' },
@@ -431,7 +443,7 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     label: 'Finance',
     roles: ['admin'],
     items: [
-      { label: 'Invoices', path: '/finance/invoices', permission: 'invoices:read' },
+      { label: 'Invoices', path: '/finance/invoices', permission: 'invoices:read', roles: ['admin', 'manager', 'fleet_manager', 'project_associate', 'accountant'] },
       { label: 'Payments', path: '/finance/payments', permission: 'payments:read' },
       { label: 'Ledger', path: '/finance/ledger', permission: 'ledger:read' },
       { label: 'Receivables', path: '/finance/receivables', permission: 'receivables:read', roles: ['admin', 'manager', 'accountant'] },

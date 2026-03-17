@@ -18,7 +18,8 @@ export default function FleetDriversPage() {
     queryFn: () => fleetService.getDrivers({ search, status: statusFilter || undefined }),
   });
 
-  const drivers: FleetDriver[] = safeArray(data);
+  const drivers: FleetDriver[] = safeArray((data as any)?.data?.items ?? (data as any)?.items ?? data);
+  const totalDrivers = (data as any)?.pagination?.total ?? (data as any)?.data?.total ?? (data as any)?.total ?? drivers.length;
 
   const safetyColor = (score: number) => {
     if (score >= 90) return 'text-green-600';
@@ -31,7 +32,7 @@ export default function FleetDriversPage() {
       key: 'name',
       header: 'Driver',
       render: (d) => {
-        const name = d.name || 'Unknown';
+        const name = d.name || d.phone || `Driver-${d.id}`;
         return (
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -39,7 +40,7 @@ export default function FleetDriversPage() {
             </div>
             <div>
               <p className="font-medium text-gray-900">{name}</p>
-              <p className="text-xs text-gray-500">{d.phone}</p>
+              <p className="text-xs text-gray-500">{d.phone || 'No phone'}</p>
             </div>
           </div>
         );
@@ -48,12 +49,20 @@ export default function FleetDriversPage() {
     {
       key: 'license_number',
       header: 'License',
-      render: (d) => (
-        <div>
-          <p className="text-sm">{d.license_number}</p>
-          <p className="text-xs text-gray-500">Exp: {new Date(d.license_expiry).toLocaleDateString('en-IN')}</p>
-        </div>
-      ),
+      render: (d) => {
+        const hasExpiry = Boolean(d.license_expiry);
+        const expiryDate = hasExpiry ? new Date(d.license_expiry) : null;
+        const expiryText = expiryDate && !Number.isNaN(expiryDate.getTime())
+          ? expiryDate.toLocaleDateString('en-IN')
+          : 'Not set';
+
+        return (
+          <div>
+            <p className="text-sm">{d.license_number || 'Not set'}</p>
+            <p className="text-xs text-gray-500">Exp: {expiryText}</p>
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -73,7 +82,7 @@ export default function FleetDriversPage() {
     {
       key: 'trips_completed',
       header: 'Trips',
-      render: (d) => <span className="text-sm font-medium">{d.trips_completed}</span>,
+      render: (d) => <span className="text-sm font-medium">{d.trips_completed ?? 0}</span>,
     },
     {
       key: 'safety_score',
@@ -81,14 +90,14 @@ export default function FleetDriversPage() {
       render: (d) => (
         <div className="flex items-center gap-1">
           <Shield className="w-4 h-4 text-gray-400" />
-          <span className={`text-sm font-semibold ${safetyColor(d.safety_score)}`}>{d.safety_score}</span>
+          <span className={`text-sm font-semibold ${safetyColor(Number(d.safety_score ?? 0))}`}>{d.safety_score ?? 0}</span>
         </div>
       ),
     },
   ];
 
   const statusCounts = {
-    total: data?.total || 0,
+    total: totalDrivers,
     on_trip: drivers.filter(d => d.status === 'on_trip').length,
     available: drivers.filter(d => d.status === 'available').length,
     rest: drivers.filter(d => d.status === 'rest').length,

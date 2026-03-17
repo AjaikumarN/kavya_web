@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/services/api';
 import { dashboardService, reportService } from '@/services/dataService';
 import { KPICard, TabPills, StatusBadge } from '@/components/common/Modal';
 import { useRealtimeDashboard } from '@/services/useRealtimeDashboard';
+import { safeArray } from '@/utils/helpers';
 import {
   Truck, Users, Navigation, DollarSign, AlertTriangle,
   TrendingUp, Package, ArrowRight,
@@ -16,6 +18,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import ProjectAssociateDashboard from './ProjectAssociateDashboard';
+import DriverDashboardPage from '@/pages/driver/DriverDashboardPage';
 import SmartSuggestions from '@/components/modules/dashboard/SmartSuggestions';
 
 const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -28,6 +31,10 @@ export default function DashboardPage() {
 
   if (hasRole('project_associate')) {
     return <ProjectAssociateDashboard />;
+  }
+
+  if (hasRole('driver')) {
+    return <DriverDashboardPage />;
   }
 
   const { data: overview, refetch } = useQuery({
@@ -58,11 +65,26 @@ export default function DashboardPage() {
     queryFn: dashboardService.getNotifications,
   });
 
+  const { data: employeesResponse } = useQuery({
+    queryKey: ['dashboard-employees'],
+    queryFn: async () => api.get('/users'),
+    enabled: hasPermission('users:read') || hasRole('admin') || hasRole('manager'),
+  });
+
   const displayRevenue = Array.isArray(revenueTrend)
     ? revenueTrend.map((r: any) => ({ label: r.label, revenue: r.value, expense: r.value2 }))
     : [];
   const displayExpenses = Array.isArray(expenseBreakdown) ? expenseBreakdown : [];
   const displayFleet = Array.isArray(fleetUtilization) ? fleetUtilization : [];
+  const employees = safeArray<any>(employeesResponse);
+  const activeEmployees = employees.filter((u) => u?.is_active !== false);
+  const totalEmployees = employees.length;
+  const totalDrivers = employees.filter((u) => {
+    const roles = [u?.role, ...(Array.isArray(u?.roles) ? u.roles : [])]
+      .filter(Boolean)
+      .map((r: string) => String(r).toLowerCase());
+    return roles.includes('driver');
+  }).length;
 
   const fmt = (val: number) => {
     if (val >= 100000) return `₹${Number(val / 100000).toFixed(1)}L`;
@@ -174,11 +196,13 @@ export default function DashboardPage() {
       {/* ── Secondary KPI Cards ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <KPICard
-          title="Available Drivers"
-          value={`${overview?.available_drivers || 0}/${overview?.total_drivers || 0}`}
+          title="Employees"
+          value={`${activeEmployees.length}/${totalEmployees}`}
           icon={<Users size={20} className="text-cyan-600" />}
+          change={`${totalDrivers} drivers`}
+          changeType="neutral"
           color="bg-cyan-50"
-          onClick={() => navigate('/drivers')}
+          onClick={() => navigate('/admin/employees')}
         />
         <KPICard
           title="Active Jobs"

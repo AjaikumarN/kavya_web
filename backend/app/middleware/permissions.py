@@ -104,6 +104,8 @@ class Permissions:
     # Expense
     EXPENSE_CREATE = "expense:create"
     EXPENSE_READ = "expense:read"
+    EXPENSE_UPDATE = "expense:update"
+    EXPENSE_DELETE = "expense:delete"
     EXPENSE_APPROVE = "expense:approve"
     
     # User Management
@@ -171,7 +173,8 @@ ROLE_PERMISSIONS = {
         # Maintenance / Service
         Permissions.MAINTENANCE_CREATE, Permissions.MAINTENANCE_READ, Permissions.MAINTENANCE_APPROVE,
         # Expense
-        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ, Permissions.EXPENSE_APPROVE,
+        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ,
+        Permissions.EXPENSE_UPDATE, Permissions.EXPENSE_DELETE, Permissions.EXPENSE_APPROVE,
         # Reports
         Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
         # Tracking
@@ -197,13 +200,15 @@ ROLE_PERMISSIONS = {
         Permissions.DRIVER_READ, Permissions.DRIVER_UPDATE,
         # LR
         Permissions.LR_READ,
+        # Invoice (view only for trip reference)
+        Permissions.INVOICE_READ,
         # Fuel
         Permissions.FUEL_CREATE, Permissions.FUEL_READ, Permissions.FUEL_APPROVE,
         # Maintenance
         Permissions.MAINTENANCE_CREATE, Permissions.MAINTENANCE_READ, 
         Permissions.MAINTENANCE_APPROVE,
-        # Expense
-        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ, Permissions.EXPENSE_APPROVE,
+        # Expense (fuel/maintenance + view only; approvals handled by finance)
+        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ, Permissions.EXPENSE_UPDATE,
         # Tracking
         Permissions.TRACKING_VIEW, Permissions.TRACKING_LIVE,
         # Alerts
@@ -230,8 +235,9 @@ ROLE_PERMISSIONS = {
         # Reports
         Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
         # Expense
-        Permissions.EXPENSE_CREATE,
-        Permissions.EXPENSE_READ, Permissions.EXPENSE_APPROVE,
+        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ,
+        Permissions.EXPENSE_UPDATE, Permissions.EXPENSE_DELETE,
+        Permissions.EXPENSE_APPROVE,
         # Fuel & Maintenance (read for overview)
         Permissions.FUEL_READ,
         Permissions.MAINTENANCE_READ,
@@ -248,6 +254,13 @@ ROLE_PERMISSIONS = {
         Permissions.TRIP_CREATE, Permissions.TRIP_READ, Permissions.TRIP_UPDATE,
         # Job
         Permissions.JOB_CREATE, Permissions.JOB_READ, Permissions.JOB_UPDATE,
+        # Invoice (generate after trip + view)
+        Permissions.INVOICE_CREATE, Permissions.INVOICE_READ,
+        # Expense (trip-related create + view)
+        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ,
+        Permissions.EXPENSE_UPDATE, Permissions.EXPENSE_DELETE,
+        # Ledger (limited view)
+        Permissions.LEDGER_READ,
         # Client
         Permissions.CLIENT_READ,
         # Vehicle

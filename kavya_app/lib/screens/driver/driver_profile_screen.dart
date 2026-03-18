@@ -10,7 +10,7 @@ class DriverProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateProvider).valueOrNull;
+    final user = ref.watch(authProvider).user;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -47,7 +47,7 @@ class DriverProfileScreen extends ConsumerWidget {
             content: const Text('Are you sure you want to logout?'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-              TextButton(onPressed: () { Navigator.pop(ctx); ref.read(authStateProvider.notifier).logout(); }, child: const Text('Logout', style: TextStyle(color: KTColors.error))),
+              TextButton(onPressed: () { Navigator.pop(ctx); ref.read(authProvider.notifier).logout(); }, child: const Text('Logout', style: TextStyle(color: KTColors.error))),
             ],
           ));
         }, color: KTColors.error),

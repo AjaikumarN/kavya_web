@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/notification.dart' as models;
 
 /// Background message handler - called when app is terminated
-void firebaseMessagingBackgroundHandler(RemoteMessage message) {
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling background message: ${message.messageId}');
 }
 
@@ -21,7 +22,7 @@ class NotificationService {
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   late FlutterLocalNotificationsPlugin _localNotifications;
-  final List<models.Notification> _notifications = [];
+  final List<models.NotificationModel> _notifications = [];
   VoidCallback? _onNotificationReceived;
 
   Future<void> initialize() async {
@@ -32,8 +33,8 @@ class NotificationService {
       alert: true,
       announcement: false,
       badge: true,
-      carryForward: true,
-      criticalSound: false,
+      carPlay: true,
+      criticalAlert: false,
       provisional: false,
       sound: true,
     );
@@ -87,8 +88,8 @@ class NotificationService {
     _localNotifications = FlutterLocalNotificationsPlugin();
 
     const androidChannel = AndroidNotificationChannel(
-      id: 'kavya_transport_notifications',
-      name: 'Kavya Transport Notifications',
+      'kavya_transport_notifications',
+      'Kavya Transport Notifications',
       description: 'Notifications for Kavya Transport ERP',
       importance: Importance.high,
       enableVibration: true,
@@ -101,9 +102,13 @@ class NotificationService {
         ?.createNotificationChannel(androidChannel);
 
     _localNotifications.initialize(
-      const InitializationSettings(
+      settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        ),
       ),
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         debugPrint('[Local] Notification tapped: ${response.payload}');
@@ -116,13 +121,12 @@ class NotificationService {
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
-    final notification = models.Notification(
+    final notification = models.NotificationModel(
       id: message.messageId ?? '',
       title: message.notification?.title ?? 'Kavya Transport',
       body: message.notification?.body ?? '',
       type: message.data['type'] ?? 'default',
-      data: message.data,
-      timestamp: DateTime.now(),
+      createdAt: DateTime.now().toIso8601String(),
       read: false,
     );
 
@@ -146,10 +150,10 @@ class NotificationService {
   }) async {
     try {
       await _localNotifications.show(
-        title.hashCode,
-        title,
-        body,
-        const NotificationDetails(
+        id: title.hashCode,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'kavya_transport_notifications',
             'Kavya Transport Notifications',
@@ -159,7 +163,6 @@ class NotificationService {
             showWhen: true,
           ),
           iOS: DarwinNotificationDetails(
-            critical: false,
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
@@ -235,7 +238,7 @@ class NotificationService {
   }
 
   // Public API
-  List<models.Notification> getNotifications() => _notifications;
+  List<models.NotificationModel> getNotifications() => _notifications;
 
   Future<void> markAsRead(String notificationId) async {
     final index = _notifications.indexWhere((n) => n.id == notificationId);

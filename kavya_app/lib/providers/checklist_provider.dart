@@ -27,7 +27,7 @@ class ChecklistNotifier extends StateNotifier<AsyncValue<Checklist>> {
   Future<void> _load() async {
     try {
       final data = await _api
-          .get<Map<String, dynamic>>('/trips/$tripId/checklist?type=$type');
+          .get('/trips/$tripId/checklist?type=$type');
       state = AsyncValue.data(Checklist.fromJson(data));
     } catch (_) {
       // No existing checklist — start with defaults

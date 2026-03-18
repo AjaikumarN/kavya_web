@@ -36,6 +36,7 @@ class KTColors {
   static const gray900 = Color(0xFF111827);
   static const gray700 = Color(0xFF374151);
   static const gray500 = Color(0xFF6B7280);
+  static const gray600 = Color(0xFF4B5563);
   static const gray400 = Color(0xFF9CA3AF);
   static const gray300 = Color(0xFFD1D5DB);
   static const gray200 = Color(0xFFE5E7EB);
@@ -98,6 +99,11 @@ class KTColors {
   static const surface = navy900;                  // Surface color
   static const roleFleet = roleFleetManager;       // Alias for fleet manager color
   static const roleAssociate = roleProjectAssociate; // Alias for project associate color
+
+  // ============= MISSING ALIASES =============
+  static const card = navy100;
+  static const accent = amber500;
+  static const backgroundSecondary = gray100;
 
   /// Get role accent color based on user role string
   static Color getRoleColor(String role) {

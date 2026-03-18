@@ -7,10 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/kt_colors.dart';
 import 'api_service.dart';
 
-final offlineSyncProvider = Provider<OfflineSyncService>((ref) {
-  return OfflineSyncService();
-});
-
 class OfflineSyncStatus {
   final int queuedCount;
   final bool isSyncing;
@@ -27,6 +23,10 @@ class OfflineSyncStatus {
   bool get hasPending => queuedCount > 0;
   bool get isIdle => !isSyncing && !hasPending;
 }
+
+final offlineSyncProvider = Provider<OfflineSyncService>((ref) {
+  return OfflineSyncService();
+});
 
 class OfflineSyncService {
   late Box _fleetCache;

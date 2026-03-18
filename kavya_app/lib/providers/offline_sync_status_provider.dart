@@ -2,22 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../services/offline_sync_service.dart';
 
-class OfflineSyncStatus {
-  final int queuedCount;
-  final bool isSyncing;
-  final String? lastError;
-  final DateTime? lastSyncTime;
-
-  OfflineSyncStatus({
-    required this.queuedCount,
-    this.isSyncing = false,
-    this.lastError,
-    this.lastSyncTime,
-  });
-
-  bool get hasPending => queuedCount > 0;
-  bool get isIdle => !isSyncing && !hasPending;
-}
+// Re-export OfflineSyncStatus from service so widgets can import from either place
+export '../services/offline_sync_service.dart' show OfflineSyncStatus;
 
 // Track offline sync visibility - streams from service
 final offlineSyncStatusProvider = StreamProvider<OfflineSyncStatus>((ref) {

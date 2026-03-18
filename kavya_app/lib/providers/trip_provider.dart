@@ -44,7 +44,7 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
     }
 
     try {
-      final data = await _api.get<Map<String, dynamic>>(
+      final data = await _api.get(
         '/trips/?page=$_currentPage&page_size=$_pageSize',
       );
       
@@ -142,7 +142,7 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
   /// Check if pre-trip checklist for this trip is complete
   Future<Map<String, dynamic>> _checkPreTripChecklistCompletion(int tripId) async {
     try {
-      final data = await _api.get<Map<String, dynamic>>(
+      final data = await _api.get(
         '/trips/$tripId/checklist?type=pre_trip',
       );
       
@@ -213,13 +213,13 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
     // Check cache first
     final cached = _ref.read(tripsCacheProvider).get('trips_all');
     if (cached != null) {
-      state = AsyncValue.data(cached);
+      state = AsyncValue.data(cached.cast<Trip>());
       return;
     }
 
     state = const AsyncValue.loading();
     try {
-      final data = await _api.get<Map<String, dynamic>>('/trips/');
+      final data = await _api.get('/trips/');
       final items = (data['items'] as List<dynamic>?)
               ?.map((e) => Trip.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -262,7 +262,7 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
   /// Check if pre-trip checklist for this trip is complete
   Future<Map<String, dynamic>> _checkPreTripChecklistCompletion(int tripId) async {
     try {
-      final data = await _api.get<Map<String, dynamic>>(
+      final data = await _api.get(
         '/trips/$tripId/checklist?type=pre_trip',
       );
       
@@ -293,18 +293,16 @@ final tripDetailProvider =
     FutureProvider.family<Trip, int>((ref, tripId) async {
   // Check cache first
   final cached = ref.read(tripsCacheProvider).get('trip_detail_$tripId');
-  if (cached != null && cached is Trip) {
-    return cached;
+  if (cached != null && cached.isNotEmpty) {
+    return Trip.fromJson(cached.first as Map<String, dynamic>);
   }
 
   final api = ref.read(apiServiceProvider);
-  final trip = await api.get<Trip>(
-    '/trips/$tripId',
-    fromJson: (d) => Trip.fromJson(d as Map<String, dynamic>),
-  );
+  final data = await api.get('/trips/$tripId');
+  final trip = Trip.fromJson(data as Map<String, dynamic>);
   
   // Cache the result
-  ref.read(tripsCacheProvider).set('trip_detail_$tripId', trip);
+  ref.read(tripsCacheProvider).set('trip_detail_$tripId', [trip.toJson()]);
   
   return trip;
 });

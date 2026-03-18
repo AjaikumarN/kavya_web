@@ -4,6 +4,7 @@ import '../../providers/notification_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
+import 'package:shimmer/shimmer.dart';
 
 class DriverNotificationsScreen extends ConsumerWidget {
   const DriverNotificationsScreen({super.key});
@@ -71,7 +72,7 @@ class DriverNotificationsScreen extends ConsumerWidget {
                   color: KTColors.cardSurface,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Shimmer.fromColors(
+                child: Shimmer.fromColors(
                   baseColor: Colors.grey,
                   highlightColor: Colors.white,
                   child: SizedBox.expand(),

@@ -63,6 +63,19 @@ class Checklist {
       };
 
   bool get isComplete => items.isNotEmpty && items.every((i) => i.checked);
+
+  Checklist copyWith({
+    int? tripId,
+    String? type,
+    List<ChecklistItem>? items,
+    String? completedAt,
+  }) =>
+      Checklist(
+        tripId: tripId ?? this.tripId,
+        type: type ?? this.type,
+        items: items ?? this.items,
+        completedAt: completedAt ?? this.completedAt,
+      );
 }
 
 List<ChecklistItem> defaultPreTripItems() => const [

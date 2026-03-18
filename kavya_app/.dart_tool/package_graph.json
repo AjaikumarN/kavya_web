@@ -10,6 +10,7 @@
         "camera",
         "connectivity_plus",
         "cupertino_icons",
+        "debounce_throttle",
         "dio",
         "firebase_messaging",
         "fl_chart",
@@ -24,6 +25,7 @@
         "hive_flutter",
         "image_picker",
         "intl",
+        "local_auth",
         "lottie",
         "package_info_plus",
         "pretty_dio_logger",
@@ -156,6 +158,25 @@
         "firebase_messaging_web",
         "flutter",
         "meta"
+      ]
+    },
+    {
+      "name": "local_auth",
+      "version": "2.3.0",
+      "dependencies": [
+        "flutter",
+        "local_auth_android",
+        "local_auth_darwin",
+        "local_auth_platform_interface",
+        "local_auth_windows"
+      ]
+    },
+    {
+      "name": "debounce_throttle",
+      "version": "2.0.0",
+      "dependencies": [
+        "meta",
+        "simple_observable"
       ]
     },
     {
@@ -931,6 +952,48 @@
         "firebase_core_platform_interface",
         "firebase_core_web",
         "flutter",
+        "meta"
+      ]
+    },
+    {
+      "name": "local_auth_windows",
+      "version": "1.0.11",
+      "dependencies": [
+        "flutter",
+        "local_auth_platform_interface"
+      ]
+    },
+    {
+      "name": "local_auth_platform_interface",
+      "version": "1.1.0",
+      "dependencies": [
+        "flutter",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "local_auth_darwin",
+      "version": "1.6.1",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "local_auth_platform_interface"
+      ]
+    },
+    {
+      "name": "local_auth_android",
+      "version": "1.0.56",
+      "dependencies": [
+        "flutter",
+        "flutter_plugin_android_lifecycle",
+        "intl",
+        "local_auth_platform_interface"
+      ]
+    },
+    {
+      "name": "simple_observable",
+      "version": "2.0.0",
+      "dependencies": [
         "meta"
       ]
     },

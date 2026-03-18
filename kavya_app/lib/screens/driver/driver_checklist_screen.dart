@@ -29,7 +29,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final checklistAsync = ref.watch(checklistProvider((tripId: widget.tripId ?? 0, type: _selectedType)));
 
     return Scaffold(

@@ -7,6 +7,7 @@ import '../../providers/search_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/status_chip.dart';
 
@@ -34,7 +35,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     // Watch paginated trips
     final tripsAsync = ref.watch(tripsPaginatedProvider);
     
@@ -44,10 +45,10 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
 
     // Use search results if query present, otherwise use paginated trips
     final displayTrips = searchQuery.isNotEmpty 
-        ? searchResults.valueOrNull ?? []
+        ? (searchResults.valueOrNull ?? <Trip>[])
         : tripsAsync.maybeWhen(
             data: (paginatedData) => paginatedData.items,
-            orElse: () => [],
+            orElse: () => <Trip>[],
           );
     
     final filtered = _filterTrips(displayTrips);
@@ -173,7 +174,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
                         color: KTColors.cardSurface,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Shimmer.fromColors(
+                      child: Shimmer.fromColors(
                         baseColor: Colors.grey,
                         highlightColor: Colors.white,
                         child: SizedBox.expand(),

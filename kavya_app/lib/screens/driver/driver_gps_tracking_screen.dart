@@ -90,7 +90,7 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final tripAsync = ref.watch(tripDetailProvider(widget.tripId));
     final positionAsync = ref.watch(currentPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
@@ -120,8 +120,8 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
     bool isTracking,
   ) {
     // Parse origin and destination coordinates (format: "lat,lng")
-    final originCoords = _parseCoordinates(trip.origin);
-    final destCoords = _parseCoordinates(trip.destination);
+    final originCoords = _parseCoordinates(trip.origin ?? '');
+    final destCoords = _parseCoordinates(trip.destination ?? '');
 
     final currentLocation = LatLng(position.latitude, position.longitude);
     final originLocation = LatLng(originCoords['lat']!, originCoords['lng']!);
@@ -148,7 +148,7 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
               Marker(
                 markerId: const MarkerId('origin'),
                 position: originLocation,
-                infoWindow: InfoWindow(title: trip.origin),
+                infoWindow: InfoWindow(title: trip.origin ?? 'Origin'),
                 icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
               ),
               Marker(
@@ -160,7 +160,7 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
               Marker(
                 markerId: const MarkerId('destination'),
                 position: destLocation,
-                infoWindow: InfoWindow(title: trip.destination),
+                infoWindow: InfoWindow(title: trip.destination ?? 'Destination'),
                 icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
               ),
             },
@@ -226,8 +226,8 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
                 ),
                 const SizedBox(height: 12),
                 // Location Info
-                _buildInfoRow('From:', trip.origin),
-                _buildInfoRow('To:', trip.destination),
+                _buildInfoRow('From:', trip.origin ?? '-'),
+                _buildInfoRow('To:', trip.destination ?? '-'),
                 const SizedBox(height: 12),
                 // Speed & Distance
                 Row(
@@ -254,21 +254,19 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
                 Row(
                   children: [
                     Expanded(
-                      child: KTButton(
+                      child: KtButton(
                         label: isTracking ? 'Pause Tracking' : 'Resume Tracking',
                         onPressed: _toggleTracking,
-                        backgroundColor: isTracking ? KTColors.warning : KTColors.success,
                         icon: Icons.gps_fixed,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: KTButton(
+                      child: KtButton(
                         label: 'Complete Trip',
                         onPressed: trip.status == 'in_transit'
                             ? () => _showCompleteConfirmation(context, ref, trip)
                             : null,
-                        backgroundColor: KTColors.success,
                         icon: Icons.check_circle,
                       ),
                     ),
@@ -308,8 +306,8 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoRow('From:', trip.origin),
-                _buildInfoRow('To:', trip.destination),
+                _buildInfoRow('From:', trip.origin ?? '-'),
+                _buildInfoRow('To:', trip.destination ?? '-'),
               ],
             ),
           ),
@@ -355,8 +353,8 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoRow('From:', trip.origin),
-                _buildInfoRow('To:', trip.destination),
+                _buildInfoRow('From:', trip.origin ?? '-'),
+                _buildInfoRow('To:', trip.destination ?? '-'),
               ],
             ),
           ),
@@ -484,12 +482,12 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
     }
 
     controller.animateCamera(
-      CameraUpdateOptions(
-        bounds: LatLngBounds(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
           southwest: LatLng(minLat, minLng),
           northeast: LatLng(maxLat, maxLng),
         ),
-        padding: const EdgeInsets.all(100),
+        100,
       ),
     );
   }

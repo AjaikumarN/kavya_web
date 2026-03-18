@@ -23,7 +23,7 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<Attendance?>> {
 
   Future<void> _loadToday() async {
     try {
-      final data = await _api.get<Map<String, dynamic>>('/attendance/today');
+      final data = await _api.get('/attendance/today');
       state = AsyncValue.data(Attendance.fromJson(data));
     } catch (_) {
       state = const AsyncValue.data(null);
@@ -34,7 +34,7 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<Attendance?>> {
     state = const AsyncValue.loading();
     try {
       final position = await _location.getCurrentPosition();
-      final data = await _api.post<Map<String, dynamic>>(
+      final data = await _api.post(
         '/attendance/check-in',
         data: {
           if (position != null) 'lat': position.latitude,
@@ -50,7 +50,7 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<Attendance?>> {
   Future<void> checkOut() async {
     state = const AsyncValue.loading();
     try {
-      final data = await _api.post<Map<String, dynamic>>(
+      final data = await _api.post(
         '/attendance/check-out',
         data: {},
       );

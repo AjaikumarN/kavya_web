@@ -7,6 +7,7 @@ import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 
 class DriverExpenseListScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expensesProvider(null));
     final expenses = expensesAsync.valueOrNull ?? [];
     
@@ -156,7 +157,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
                         color: KTColors.cardSurface,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Shimmer.fromColors(
+                      child: Shimmer.fromColors(
                         baseColor: Colors.grey,
                         highlightColor: Colors.white,
                         child: SizedBox.expand(),

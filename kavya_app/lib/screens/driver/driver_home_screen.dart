@@ -15,7 +15,7 @@ class DriverHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(connectivityProvider);
-    final user = ref.watch(authStateProvider).valueOrNull;
+    final user = ref.watch(authProvider).user;
 
     return Scaffold(
       appBar: AppBar(
@@ -29,7 +29,7 @@ class DriverHomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               if (value == 'logout') {
-                ref.read(authStateProvider.notifier).logout();
+                ref.read(authProvider.notifier).logout();
               }
             },
             itemBuilder: (_) => [

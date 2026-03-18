@@ -80,7 +80,7 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
 
     try {
       final tripFilter = tripId != null ? '&trip_id=$tripId' : '';
-      final data = await _api.get<Map<String, dynamic>>(
+      final data = await _api.get(
         '/expenses/?page=$_currentPage&page_size=$_pageSize$tripFilter',
       );
 
@@ -227,7 +227,7 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
     state = const AsyncValue.loading();
     try {
       final path = tripId != null ? '/expenses/?trip_id=$tripId' : '/expenses/';
-      final data = await _api.get<Map<String, dynamic>>(path);
+      final data = await _api.get(path);
       final items = (data['items'] as List<dynamic>?)
               ?.map((e) => Expense.fromJson(e as Map<String, dynamic>))
               .toList() ??

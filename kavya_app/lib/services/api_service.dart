@@ -57,6 +57,34 @@ class ApiService {
   }
 
   // --- Auth & Profile ---
+
+  // --- Generic HTTP methods (used by providers) ---
+  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) async {
+    final response = await _dio.get(path, queryParameters: queryParameters);
+    return response.data;
+  }
+
+  Future<dynamic> post(String path, {dynamic data}) async {
+    final response = await _dio.post(path, data: data);
+    return response.data;
+  }
+
+  Future<dynamic> patch(String path, {dynamic data}) async {
+    final response = await _dio.patch(path, data: data);
+    return response.data;
+  }
+
+  Future<dynamic> put(String path, {dynamic data}) async {
+    final response = await _dio.put(path, data: data);
+    return response.data;
+  }
+
+  Future<dynamic> delete(String path) async {
+    final response = await _dio.delete(path);
+    return response.data;
+  }
+
+  // --- Named Auth & Profile ---
   Future<Map<String, dynamic>> login(String email, String password) async { // [cite: 32-33]
     final response = await _dio.post('/auth/login', data: {'email': email, 'password': password});
     return response.data;

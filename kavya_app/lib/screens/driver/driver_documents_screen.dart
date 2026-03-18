@@ -153,7 +153,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
             ),
             const SizedBox(height: 4),
             Icon(
-              doc.status == 'verified' ? Icons.check_circle : Icons.clock_outlined,
+              doc.status == 'verified' ? Icons.check_circle : Icons.access_time,
               size: 16,
               color: _getStatusColor(doc.status),
             ),

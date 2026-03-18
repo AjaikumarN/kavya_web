@@ -12,7 +12,7 @@ class BiometricAuthService {
   Future<bool> canUseBiometrics() async {
     try {
       final isDeviceSupported = await _localAuth.canCheckBiometrics;
-      final isDeviceSecure = await _localAuth.deviceSupportsBiometrics;
+      final isDeviceSecure = await _localAuth.isDeviceSupported();
       return isDeviceSupported || isDeviceSecure;
     } catch (e) {
       debugPrint('Error checking biometrics: $e');

@@ -22,7 +22,7 @@ final tripSearchProvider = FutureProvider.autoDispose<List<Trip>>((ref) async {
 
   try {
     final api = ref.read(apiServiceProvider);
-    final data = await api.get<Map<String, dynamic>>(
+    final data = await api.get(
       '/trips/?search=$query',
     );
     
@@ -51,7 +51,7 @@ final expenseSearchProvider = FutureProvider.autoDispose<List<Expense>>((ref) as
 
   try {
     final api = ref.read(apiServiceProvider);
-    final data = await api.get<Map<String, dynamic>>(
+    final data = await api.get(
       '/expenses/?search=$query',
     );
     

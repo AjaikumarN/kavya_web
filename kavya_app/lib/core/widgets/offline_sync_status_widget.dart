@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/offline_sync_status_provider.dart';
-import '../core/theme/kt_colors.dart';
+import '../../providers/offline_sync_status_provider.dart';
+import '../theme/kt_colors.dart';
 
 /// Displays offline sync status (queued items, syncing, etc.)
 class OfflineSyncStatusWidget extends ConsumerWidget {

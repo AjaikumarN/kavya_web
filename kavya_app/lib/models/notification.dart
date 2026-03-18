@@ -33,4 +33,21 @@ class NotificationModel {
         'created_at': createdAt,
         'read': read,
       };
+
+  NotificationModel copyWith({
+    String? id,
+    String? title,
+    String? body,
+    String? type,
+    String? createdAt,
+    bool? read,
+  }) =>
+      NotificationModel(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        body: body ?? this.body,
+        type: type ?? this.type,
+        createdAt: createdAt ?? this.createdAt,
+        read: read ?? this.read,
+      );
 }

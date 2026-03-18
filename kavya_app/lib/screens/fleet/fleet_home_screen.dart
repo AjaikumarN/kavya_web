@@ -47,26 +47,26 @@ class FleetHomeScreen extends ConsumerWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              KtStatCard(
-                label: 'Total Vehicles',
+              KTStatCard(
+                title: 'Total Vehicles',
                 value: '$totalVehicles',
                 icon: Icons.directions_car,
                 color: KTColors.primary,
               ),
-              KtStatCard(
-                label: 'Active Today',
+              KTStatCard(
+                title: 'Active Today',
                 value: '$activeVehicles',
                 icon: Icons.check_circle,
                 color: KTColors.success,
               ),
-              KtStatCard(
-                label: 'Maintenance Due',
+              KTStatCard(
+                title: 'Maintenance Due',
                 value: '$maintenancePending',
                 icon: Icons.build,
                 color: KTColors.warning,
               ),
-              KtStatCard(
-                label: 'Drivers on Duty',
+              KTStatCard(
+                title: 'Drivers on Duty',
                 value: '$driversOnDuty',
                 icon: Icons.person,
                 color: KTColors.info,

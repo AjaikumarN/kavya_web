@@ -37,26 +37,26 @@ class FleetAnalyticsScreen extends ConsumerWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              KtStatCard(
-                label: 'Avg Utilization',
+              KTStatCard(
+                title: 'Avg Utilization',
                 value: '78%',
-                icon: Icons.tracked_changes,
+                icon: Icons.track_changes,
                 color: KTColors.success,
               ),
-              KtStatCard(
-                label: 'On-Time Rate',
+              KTStatCard(
+                title: 'On-Time Rate',
                 value: '94%',
                 icon: Icons.schedule,
                 color: KTColors.info,
               ),
-              KtStatCard(
-                label: 'Avg Fuel/km',
+              KTStatCard(
+                title: 'Avg Fuel/km',
                 value: '5.2 L',
                 icon: Icons.local_gas_station,
                 color: KTColors.warning,
               ),
-              KtStatCard(
-                label: 'Cost per Trip',
+              KTStatCard(
+                title: 'Cost per Trip',
                 value: '₹2,450',
                 icon: Icons.attach_money,
                 color: KTColors.primary,
@@ -138,7 +138,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
             getTitlesWidget: (double value, TitleMeta meta) {
               const titles = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
               return SideTitleWidget(
-                axisSide: meta.axisSide,
+                meta: meta,
                 child: Text(
                   titles[value.toInt()],
                   style: const TextStyle(fontSize: 10),
@@ -175,7 +175,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
             getTitlesWidget: (double value, TitleMeta meta) {
               const titles = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
               return SideTitleWidget(
-                axisSide: meta.axisSide,
+                meta: meta,
                 child: Text(
                   titles[value.toInt()],
                   style: const TextStyle(fontSize: 10),

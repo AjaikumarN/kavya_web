@@ -39,4 +39,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false; // Failed
     }
   }
+
+  Future<void> logout() async {
+    state = AuthState();
+  }
+
+  void setUser(User user) {
+    state = state.copyWith(user: user);
+  }
 }

@@ -7,11 +7,11 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 });
 
 // Watch notifications list
-final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<Notification>>((ref) {
+final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<NotificationModel>>((ref) {
   return NotificationsNotifier(ref.read(notificationServiceProvider));
 });
 
-class NotificationsNotifier extends StateNotifier<List<Notification>> {
+class NotificationsNotifier extends StateNotifier<List<NotificationModel>> {
   final NotificationService _notificationService;
 
   NotificationsNotifier(this._notificationService) : super([]) {

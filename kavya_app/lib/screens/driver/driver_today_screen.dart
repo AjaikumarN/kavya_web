@@ -11,6 +11,7 @@ import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
 import '../../core/widgets/kt_stat_card.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 
 class DriverTodayScreen extends ConsumerWidget {
@@ -37,7 +38,7 @@ class DriverTodayScreen extends ConsumerWidget {
                 color: KTColors.cardSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Shimmer.fromColors(
+              child: Shimmer.fromColors(
                 baseColor: Colors.grey,
                 highlightColor: Colors.white,
                 child: SizedBox.expand(),
@@ -175,7 +176,7 @@ class DriverTodayScreen extends ConsumerWidget {
                       color: KTColors.cardSurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Shimmer.fromColors(
+                    child: Shimmer.fromColors(
                       baseColor: Colors.grey,
                       highlightColor: Colors.white,
                       child: SizedBox.expand(),
@@ -244,8 +245,8 @@ class DriverTodayScreen extends ConsumerWidget {
     );
   }
 
-  Widget _attendanceCard(BuildContext context, List<Attendance> attendance) {
-    final today = attendance.isNotEmpty ? attendance.first : null;
+  Widget _attendanceCard(BuildContext context, Attendance? attendance) {
+    final today = attendance;
     final isCheckedIn = today?.checkIn != null;
     final isCheckedOut = today?.checkOut != null;
 

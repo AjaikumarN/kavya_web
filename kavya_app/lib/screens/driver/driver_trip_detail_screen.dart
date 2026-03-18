@@ -6,6 +6,7 @@ import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 
 class DriverTripDetailScreen extends ConsumerWidget {
@@ -200,7 +201,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
                 color: KTColors.cardSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Shimmer.fromColors(
+              child: Shimmer.fromColors(
                 baseColor: Colors.grey,
                 highlightColor: Colors.white,
                 child: SizedBox.expand(),

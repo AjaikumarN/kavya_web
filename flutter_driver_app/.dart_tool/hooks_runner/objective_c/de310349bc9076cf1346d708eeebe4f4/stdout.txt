@@ -1,0 +1,65 @@
+Running `(cd /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/; TMPDIR=/var/folders/k1/kj5jn_l96j588ts0_sq5mvmw0000gn/T/ PATH=/Users/ajaikumarn/.antigravity/antigravity/bin:/Users/ajaikumarn/.antigravity/antigravity/bin:/Library/Frameworks/Python.framework/Versions/3.12/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Users/ajaikumarn/flutter/bin HOME=/Users/ajaikumarn /Users/ajaikumarn/flutter/bin/cache/dart-sdk/bin/dart --packages=/Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/package_config.json /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/objective_c/de310349bc9076cf1346d708eeebe4f4/hook.dill --config=/Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/objective_c/de310349bc9076cf1346d708eeebe4f4/input.json )`.
+INFO: 2026-03-17 08:55:20.433441: Running `/Library/Developer/CommandLineTools/usr/bin/clang --version`.
+
+INFO: 2026-03-17 08:55:20.547454: Running `/Library/Developer/CommandLineTools/usr/bin/clang --version`.
+
+INFO: 2026-03-17 08:55:20.557040: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/include/dart_api_dl.c -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-03-17 08:55:20.557289: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.c -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.c.o
+
+INFO: 2026-03-17 08:55:20.557524: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/test/util.c -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/test/util.c.o
+
+INFO: 2026-03-17 08:55:20.557696: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/input_stream_adapter.m -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-03-17 08:55:20.557807: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.m -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.m.o
+
+INFO: 2026-03-17 08:55:20.557890: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/observer.m -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/observer.m.o
+
+INFO: 2026-03-17 08:55:20.557993: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/ns_number.m -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/ns_number.m.o
+
+INFO: 2026-03-17 08:55:20.558070: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/protocol.m -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/protocol.m.o
+
+INFO: 2026-03-17 08:55:20.558167: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c_bindings_generated.m -fpic -I src -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-03-17 08:55:20.641613: 
+INFO: 2026-03-17 08:55:20.641836: 
+INFO: 2026-03-17 08:55:20.641906: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.c.o
+
+INFO: 2026-03-17 08:55:20.642193: 
+INFO: 2026-03-17 08:55:20.642263: 
+INFO: 2026-03-17 08:55:20.642291: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-03-17 08:55:20.647246: 
+INFO: 2026-03-17 08:55:20.647320: 
+INFO: 2026-03-17 08:55:20.647330: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/test/util.c.o
+
+INFO: 2026-03-17 08:55:20.647888: 
+INFO: 2026-03-17 08:55:20.647907: 
+INFO: 2026-03-17 08:55:20.647916: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/observer.m.o
+
+INFO: 2026-03-17 08:55:20.651198: 
+INFO: 2026-03-17 08:55:20.651246: 
+INFO: 2026-03-17 08:55:20.651263: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/protocol.m.o
+
+INFO: 2026-03-17 08:55:20.836702: 
+INFO: 2026-03-17 08:55:20.836733: 
+INFO: 2026-03-17 08:55:20.836743: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/ns_number.m.o
+
+INFO: 2026-03-17 08:55:20.841597: 
+INFO: 2026-03-17 08:55:20.841626: 
+INFO: 2026-03-17 08:55:20.841635: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.m.o
+
+INFO: 2026-03-17 08:55:20.843044: 
+INFO: 2026-03-17 08:55:20.843059: 
+INFO: 2026-03-17 08:55:20.843067: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-03-17 08:55:20.853990: 
+INFO: 2026-03-17 08:55:20.854015: 
+INFO: 2026-03-17 08:55:20.854024: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-03-17 08:55:20.854290: Running: /Library/Developer/CommandLineTools/usr/bin/clang -shared -Wl,-encryptable -undefined dynamic_lookup -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/include/dart_api_dl.c.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.c.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/test/util.c.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/input_stream_adapter.m.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.m.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/observer.m.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/ns_number.m.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/protocol.m.o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c_bindings_generated.m.o -o /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/objective_c.dylib
+
+INFO: 2026-03-17 08:55:20.990031: 
+INFO: 2026-03-17 08:55:20.990072: 
+INFO: 2026-03-17 08:55:20.990082: Generated /Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/objective_c.dylib
+

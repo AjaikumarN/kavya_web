@@ -1,0 +1,29 @@
+{
+  "assets": {},
+  "config": {
+    "build_asset_types": [
+      "code_assets/code"
+    ],
+    "extensions": {
+      "code_assets": {
+        "android": {
+          "target_ndk_api": 24
+        },
+        "c_compiler": {
+          "ar": "/Users/ajaikumarn/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar",
+          "cc": "/Users/ajaikumarn/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang",
+          "ld": "/Users/ajaikumarn/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/ld.lld"
+        },
+        "link_mode_preference": "dynamic",
+        "target_architecture": "arm",
+        "target_os": "android"
+      }
+    },
+    "linking_enabled": false
+  },
+  "out_dir_shared": "/Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/shared/objective_c/build/",
+  "out_file": "/Users/ajaikumarn/Desktop/kavya_transport_erp/flutter_driver_app/.dart_tool/hooks_runner/objective_c/01877430fc53bcd191f53043411c66fa/output.json",
+  "package_name": "objective_c",
+  "package_root": "/Users/ajaikumarn/.pub-cache/hosted/pub.dev/objective_c-9.3.0/",
+  "user_defines": {}
+}

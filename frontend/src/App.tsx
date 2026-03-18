@@ -51,6 +51,10 @@ import LedgerPage from '@/pages/finance/LedgerPage';
 import ReceivablesPage from '@/pages/finance/ReceivablesPage';
 import PayablesPage from '@/pages/finance/PayablesPage';
 import BankingEntryPage from '@/pages/finance/BankingEntryPage';
+import ReconciliationPage from '@/pages/finance/ReconciliationPage';
+import SettlementsPage from '@/pages/finance/SettlementsPage';
+import FinanceAlertsPage from '@/pages/finance/FinanceAlertsPage';
+import FinanceReportsPage from '@/pages/finance/FinanceReportsPage';
 
 // Tracking
 import LiveTrackingPage from '@/pages/tracking/LiveTrackingPage';
@@ -83,7 +87,20 @@ import FleetFuelPage from '@/pages/fleet/FleetFuelPage';
 import FleetAlertsPage from '@/pages/fleet/FleetAlertsPage';
 import FleetReportsPage from '@/pages/fleet/FleetReportsPage';
 import TyrePage from '@/pages/fleet/TyrePage';
+import GeofenceManagementPage from '@/pages/fleet/GeofenceManagementPage';
+import ComplianceDashboardPage from '@/pages/fleet/ComplianceDashboardPage';
+import DriverLeaderboardPage from '@/pages/fleet/DriverLeaderboardPage';
+import TPMSDashboardPage from '@/pages/fleet/TPMSDashboardPage';
+import CustomerLoginPage from '@/pages/portal/CustomerLoginPage';
+import CustomerDashboardPage from '@/pages/portal/CustomerDashboardPage';
+import CustomerTrackingPage from '@/pages/portal/CustomerTrackingPage';
+import SupplierLoginPage from '@/pages/portal/SupplierLoginPage';
+import SupplierDashboardPage from '@/pages/portal/SupplierDashboardPage';
 import RoutesPage from '@/pages/masters/RoutesPage';
+import SuppliersPage from '@/pages/suppliers/SuppliersPage';
+import SupplierDetailPage from '@/pages/suppliers/SupplierDetailPage';
+import MarketTripsPage from '@/pages/market-trips/MarketTripsPage';
+import MarketTripDetailPage from '@/pages/market-trips/MarketTripDetailPage';
 
 // Pump Operator
 import PumpDashboardPage from '@/pages/pump/PumpDashboardPage';
@@ -106,6 +123,8 @@ import AccountantReportsPage from '@/pages/accountant/AccountantReportsPage';
 import ConnectivityPage from '@/pages/admin/ConnectivityPage';
 import EmployeesPage from '@/pages/admin/EmployeesPage';
 import AttendancePage from '@/pages/admin/AttendancePage';
+import BranchesPage from '@/pages/admin/BranchesPage';
+import BranchDetailPage from '@/pages/admin/BranchDetailPage';
 import NotFoundPage from '@/pages/common/NotFoundPage';
 import { getRoleHomePage } from '@/utils/roleRouting';
 
@@ -184,6 +203,10 @@ function App() {
           <Route path="/finance/receivables" element={<ReceivablesPage />} />
           <Route path="/finance/payables" element={<PayablesPage />} />
           <Route path="/finance/banking/new" element={<BankingEntryPage />} />
+          <Route path="/finance/reconciliation" element={<ReconciliationPage />} />
+          <Route path="/finance/settlements" element={<SettlementsPage />} />
+          <Route path="/finance/alerts" element={<FinanceAlertsPage />} />
+          <Route path="/finance/reports" element={<FinanceReportsPage />} />
 
           {/* Tracking */}
           <Route path="/tracking" element={<LiveTrackingPage />} />
@@ -220,9 +243,19 @@ function App() {
           <Route path="/fleet/tyres" element={<TyrePage />} />
           <Route path="/fleet/alerts" element={<FleetAlertsPage />} />
           <Route path="/fleet/reports" element={<FleetReportsPage />} />
+          <Route path="/fleet/geofences" element={<GeofenceManagementPage />} />
+          <Route path="/fleet/compliance" element={<ComplianceDashboardPage />} />
+          <Route path="/fleet/driver-leaderboard" element={<DriverLeaderboardPage />} />
+          <Route path="/fleet/tpms" element={<TPMSDashboardPage />} />
 
           {/* Masters */}
           <Route path="/routes" element={<RoutesPage />} />
+          <Route path="/suppliers" element={<SuppliersPage />} />
+          <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
+
+          {/* Market Trips */}
+          <Route path="/market-trips" element={<MarketTripsPage />} />
+          <Route path="/market-trips/:id" element={<MarketTripDetailPage />} />
 
           {/* Accountant */}
           <Route path="/accountant/dashboard" element={<AccountantDashboardPage />} />
@@ -278,7 +311,30 @@ function App() {
               </AuthGuard>
             }
           />
+          <Route
+            path="/admin/branches"
+            element={
+              <AuthGuard requiredRole="admin">
+                <BranchesPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/branches/:id"
+            element={
+              <AuthGuard requiredRole="admin">
+                <BranchDetailPage />
+              </AuthGuard>
+            }
+          />
         </Route>
+
+        {/* Portal routes (standalone, no AuthGuard/DashboardLayout) */}
+        <Route path="/portal/customer" element={<CustomerLoginPage />} />
+        <Route path="/portal/customer/dashboard" element={<CustomerDashboardPage />} />
+        <Route path="/portal/track/:token" element={<CustomerTrackingPage />} />
+        <Route path="/portal/supplier" element={<SupplierLoginPage />} />
+        <Route path="/portal/supplier/dashboard" element={<SupplierDashboardPage />} />
 
         {/* Catch all */}
         <Route path="*" element={<NotFoundPage />} />

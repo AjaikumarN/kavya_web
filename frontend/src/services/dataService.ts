@@ -4,7 +4,10 @@ import type {
   Invoice, Payment, LedgerEntry, Receivable, Payable,
   VehicleTracking, TripTrail, Alert, DashboardStats,
   Notification, ChartDataPoint, PaginatedResponse, FilterParams,
-  Route, EwayBill, Document, DocumentStats
+  Route, EwayBill, Document, DocumentStats,
+  Supplier, MarketTrip,
+  Geofence, ComplianceAlertRecord, DriverEvent, AuditNote,
+  AIS140CheckResult, FleetComplianceReport, ComplianceAlertSummary, DriverEventSummary
 } from '@/types';
 
 const unwrap = <T = any>(payload: any): T => (payload?.data ?? payload) as T;
@@ -631,6 +634,136 @@ export const financeService = {
   },
   getNextBankingEntryNumber: async () => {
     const data = await api.get('/finance/banking/next-entry-number');
+    return unwrap(data);
+  },
+
+  // ── Finance Automation ──
+
+  // Payment Links
+  createPaymentLink: async (invoiceId: number) => {
+    const data = await api.post('/finance/payment-links', { invoice_id: invoiceId });
+    return unwrap(data);
+  },
+  listPaymentLinks: async (params?: FilterParams) => {
+    const data = await api.get('/finance/payment-links', { params });
+    return data;
+  },
+  resendPaymentLink: async (linkId: number) => {
+    const data = await api.post(`/finance/payment-links/${linkId}/resend`);
+    return data;
+  },
+
+  // Bank Reconciliation
+  importBankStatement: async (accountId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const data = await api.post(`/finance/bank-statements/import?account_id=${accountId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(data);
+  },
+  autoReconcile: async (statementId: number) => {
+    const data = await api.post(`/finance/bank-statements/${statementId}/reconcile`);
+    return unwrap(data);
+  },
+  getReconciliationSummary: async (statementId: number) => {
+    const data = await api.get(`/finance/bank-statements/${statementId}/summary`);
+    return unwrap(data);
+  },
+  listStatementLines: async (statementId: number, params?: FilterParams) => {
+    const data = await api.get(`/finance/bank-statements/${statementId}/lines`, { params });
+    return data;
+  },
+  manualMatchLine: async (lineId: number, payload: { payment_id?: number; invoice_id?: number }) => {
+    const data = await api.post(`/finance/bank-statements/lines/${lineId}/match`, payload);
+    return data;
+  },
+  ignoreStatementLine: async (lineId: number) => {
+    const data = await api.post(`/finance/bank-statements/lines/${lineId}/ignore`);
+    return data;
+  },
+
+  // Driver Settlements
+  createSettlement: async (payload: { driver_id: number; period_from: string; period_to: string }) => {
+    const data = await api.post('/finance/settlements', payload);
+    return unwrap(data);
+  },
+  listSettlements: async (params?: FilterParams) => {
+    const data = await api.get('/finance/settlements', { params });
+    return data;
+  },
+  approveSettlement: async (id: number) => {
+    const data = await api.post(`/finance/settlements/${id}/approve`);
+    return data;
+  },
+  paySettlement: async (id: number) => {
+    const data = await api.post(`/finance/settlements/${id}/pay`);
+    return data;
+  },
+
+  // Supplier Payables
+  createSupplierPayable: async (payload: any) => {
+    const data = await api.post('/finance/supplier-payables', payload);
+    return unwrap(data);
+  },
+  listSupplierPayables: async (params?: FilterParams) => {
+    const data = await api.get('/finance/supplier-payables', { params });
+    return data;
+  },
+  paySupplierPayable: async (id: number) => {
+    const data = await api.post(`/finance/supplier-payables/${id}/pay`);
+    return data;
+  },
+
+  // FASTag
+  listFASTagTransactions: async (params?: FilterParams) => {
+    const data = await api.get('/finance/fastag', { params });
+    return data;
+  },
+
+  // Finance Alerts
+  listFinanceAlerts: async (params?: FilterParams) => {
+    const data = await api.get('/finance/alerts', { params });
+    return data;
+  },
+  markAlertRead: async (id: number) => {
+    const data = await api.post(`/finance/alerts/${id}/read`);
+    return data;
+  },
+  resolveAlert: async (id: number) => {
+    const data = await api.post(`/finance/alerts/${id}/resolve`);
+    return data;
+  },
+
+  // Finance Reports
+  getDailyDigest: async (reportDate?: string) => {
+    const data = await api.get('/finance/reports/daily-digest', { params: reportDate ? { report_date: reportDate } : undefined });
+    return unwrap(data);
+  },
+  getWeeklyPL: async (weekEnding?: string) => {
+    const data = await api.get('/finance/reports/weekly-pl', { params: weekEnding ? { week_ending: weekEnding } : undefined });
+    return unwrap(data);
+  },
+  getMonthlyClose: async (year: number, month: number) => {
+    const data = await api.get('/finance/reports/monthly-close', { params: { year, month } });
+    return unwrap(data);
+  },
+  getGSTR1Report: async (year: number, month: number) => {
+    const data = await api.get('/finance/reports/gstr1', { params: { year, month } });
+    return unwrap(data);
+  },
+
+  // Automation Checks
+  checkDuplicateBilling: async (clientId: number, tripId: number) => {
+    const data = await api.get('/finance/automation/duplicate-check', { params: { client_id: clientId, trip_id: tripId } });
+    return unwrap(data);
+  },
+  checkFreightLeakage: async (invoiceId: number) => {
+    const data = await api.get(`/finance/automation/freight-leakage/${invoiceId}`);
+    return unwrap(data);
+  },
+  getPartialPayments: async () => {
+    const data = await api.get('/finance/automation/partial-payments');
     return unwrap(data);
   },
 };
@@ -1420,6 +1553,366 @@ export const fuelPriceService = {
   },
   getBulkPrices: async () => {
     const data = await api.get('/fuel-prices/bulk');
+    return unwrap(data);
+  },
+};
+
+// ---- Suppliers ----
+export const supplierService = {
+  list: async (params?: FilterParams): Promise<PaginatedResponse<Supplier>> => {
+    const data = await api.get('/suppliers', { params });
+    return data;
+  },
+  get: async (id: number): Promise<Supplier> => {
+    const data = await api.get(`/suppliers/${id}`);
+    return unwrap(data);
+  },
+  create: async (payload: Partial<Supplier>): Promise<Supplier> => {
+    const data = await api.post('/suppliers', payload);
+    return unwrap(data);
+  },
+  update: async (id: number, payload: Partial<Supplier>): Promise<Supplier> => {
+    const data = await api.put(`/suppliers/${id}`, payload);
+    return unwrap(data);
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/suppliers/${id}`);
+  },
+  getVehicles: async (id: number) => {
+    const data = await api.get(`/suppliers/${id}/vehicles`);
+    return unwrap(data);
+  },
+  addVehicle: async (id: number, payload: { vehicle_id?: number; vehicle_registration?: string; vehicle_type?: string }) => {
+    const data = await api.post(`/suppliers/${id}/vehicles`, payload);
+    return unwrap(data);
+  },
+  removeVehicle: async (svId: number): Promise<void> => {
+    await api.delete(`/suppliers/vehicles/${svId}`);
+  },
+  getTrips: async (id: number, params?: FilterParams) => {
+    const data = await api.get(`/suppliers/${id}/trips`, { params });
+    return data;
+  },
+  getStatement: async (id: number) => {
+    const data = await api.get(`/suppliers/${id}/statement`);
+    return unwrap(data);
+  },
+};
+
+// ---- Market Trips ----
+export const marketTripService = {
+  list: async (params?: FilterParams): Promise<PaginatedResponse<MarketTrip>> => {
+    const data = await api.get('/market-trips', { params });
+    return data;
+  },
+  get: async (id: number): Promise<MarketTrip> => {
+    const data = await api.get(`/market-trips/${id}`);
+    return unwrap(data);
+  },
+  create: async (payload: Partial<MarketTrip>): Promise<MarketTrip> => {
+    const data = await api.post('/market-trips', payload);
+    return unwrap(data);
+  },
+  update: async (id: number, payload: Partial<MarketTrip>): Promise<MarketTrip> => {
+    const data = await api.put(`/market-trips/${id}`, payload);
+    return unwrap(data);
+  },
+  assign: async (id: number, payload: { vehicle_registration: string; driver_name: string; driver_phone: string; driver_license?: string }) => {
+    const data = await api.put(`/market-trips/${id}/assign`, payload);
+    return unwrap(data);
+  },
+  startTransit: async (id: number) => {
+    const data = await api.put(`/market-trips/${id}/start`);
+    return unwrap(data);
+  },
+  deliver: async (id: number) => {
+    const data = await api.put(`/market-trips/${id}/deliver`);
+    return unwrap(data);
+  },
+  settle: async (id: number, payload: { settlement_reference: string; settlement_remarks?: string }) => {
+    const data = await api.post(`/market-trips/${id}/settle`, payload);
+    return unwrap(data);
+  },
+  cancel: async (id: number) => {
+    const data = await api.put(`/market-trips/${id}/cancel`);
+    return unwrap(data);
+  },
+  getPnl: async (id: number) => {
+    const data = await api.get(`/market-trips/${id}/pnl`);
+    return unwrap(data);
+  },
+};
+
+// ---- Geofences ----
+export const geofenceService = {
+  list: async (params?: FilterParams): Promise<PaginatedResponse<Geofence>> => {
+    const data = await api.get('/geofences', { params });
+    return data;
+  },
+  get: async (id: number): Promise<Geofence> => {
+    const data = await api.get(`/geofences/${id}`);
+    return unwrap(data);
+  },
+  create: async (payload: Partial<Geofence>): Promise<Geofence> => {
+    const data = await api.post('/geofences', payload);
+    return unwrap(data);
+  },
+  update: async (id: number, payload: Partial<Geofence>): Promise<Geofence> => {
+    const data = await api.put(`/geofences/${id}`, payload);
+    return unwrap(data);
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/geofences/${id}`);
+  },
+  getTripGeofences: async (tripId: number): Promise<Geofence[]> => {
+    const data = await api.get(`/geofences/trip/${tripId}`);
+    return unwrap(data);
+  },
+  checkPosition: async (payload: { latitude: number; longitude: number; speed_kmph?: number; trip_id?: number }) => {
+    const data = await api.post('/geofences/check', payload);
+    return unwrap(data);
+  },
+};
+
+// ---- Compliance ----
+export const complianceService = {
+  // Alerts
+  listAlerts: async (params?: FilterParams): Promise<PaginatedResponse<ComplianceAlertRecord>> => {
+    const data = await api.get('/compliance/alerts', { params });
+    return data;
+  },
+  getAlertSummary: async (): Promise<ComplianceAlertSummary> => {
+    const data = await api.get('/compliance/alerts/summary');
+    return unwrap(data);
+  },
+  resolveAlert: async (id: number, payload: { notes?: string }): Promise<ComplianceAlertRecord> => {
+    const data = await api.put(`/compliance/alerts/${id}/resolve`, payload);
+    return unwrap(data);
+  },
+
+  // AIS-140
+  checkVehicleAIS140: async (vehicleId: number): Promise<AIS140CheckResult> => {
+    const data = await api.get(`/compliance/ais140/${vehicleId}`);
+    return unwrap(data);
+  },
+  getFleetComplianceReport: async (): Promise<FleetComplianceReport> => {
+    const data = await api.get('/compliance/ais140/report');
+    return unwrap(data);
+  },
+
+  // Driver Events
+  listEvents: async (params?: FilterParams): Promise<PaginatedResponse<DriverEvent>> => {
+    const data = await api.get('/compliance/events', { params });
+    return data;
+  },
+  createEvent: async (payload: Partial<DriverEvent>): Promise<DriverEvent> => {
+    const data = await api.post('/compliance/events', payload);
+    return unwrap(data);
+  },
+  getDriverEventSummary: async (driverId: number): Promise<DriverEventSummary[]> => {
+    const data = await api.get(`/compliance/events/driver/${driverId}/summary`);
+    return unwrap(data);
+  },
+
+  // Audit Notes
+  listAuditNotes: async (params?: FilterParams): Promise<PaginatedResponse<AuditNote>> => {
+    const data = await api.get('/compliance/audit-notes', { params });
+    return data;
+  },
+  createAuditNote: async (payload: Partial<AuditNote>): Promise<AuditNote> => {
+    const data = await api.post('/compliance/audit-notes', payload);
+    return unwrap(data);
+  },
+  resolveAuditNote: async (id: number): Promise<AuditNote> => {
+    const data = await api.put(`/compliance/audit-notes/${id}/resolve`);
+    return unwrap(data);
+  },
+};
+
+// ── Driver Scoring Service (Phase C) ──────────────────────────────
+export const driverScoringService = {
+  getLeaderboard: async (params?: { month?: number; year?: number; branch_id?: number; skip?: number; limit?: number }) => {
+    const data = await api.get('/driver-scoring/leaderboard', { params });
+    return unwrap(data);
+  },
+  getFleetDistribution: async (params?: { month?: number; year?: number }) => {
+    const data = await api.get('/driver-scoring/fleet-distribution', { params });
+    return unwrap(data);
+  },
+  getDriverScore: async (driverId: number, params?: { month?: number; year?: number }) => {
+    const data = await api.get(`/driver-scoring/${driverId}/score`, { params });
+    return unwrap(data);
+  },
+  getDriverScoreBreakdown: async (driverId: number, params?: { month?: number; year?: number }) => {
+    const data = await api.get(`/driver-scoring/${driverId}/score/breakdown`, { params });
+    return unwrap(data);
+  },
+  getDriverScoreTrend: async (driverId: number, months?: number) => {
+    const data = await api.get(`/driver-scoring/${driverId}/score/trend`, { params: { months } });
+    return unwrap(data);
+  },
+  getCoachingNotes: async (driverId: number, params?: { skip?: number; limit?: number }) => {
+    const data = await api.get(`/driver-scoring/${driverId}/coaching-notes`, { params });
+    return unwrap(data);
+  },
+  addCoachingNote: async (driverId: number, payload: { note_text: string; category?: string }) => {
+    const data = await api.post(`/driver-scoring/${driverId}/coaching-notes`, payload);
+    return unwrap(data);
+  },
+};
+
+// ── Customer Portal Service (Phase D) ──────────────────────
+
+export const customerPortalService = {
+  login: async (email: string) => {
+    const data = await api.post('/portal/customer/login', { email });
+    return unwrap(data);
+  },
+  getBookings: async (params?: { skip?: number; limit?: number }) => {
+    const data = await api.get('/portal/customer/bookings', { params });
+    return unwrap(data);
+  },
+  createBooking: async (payload: {
+    origin_city: string;
+    destination_city: string;
+    origin_address?: string;
+    destination_address?: string;
+    pickup_date?: string;
+    material_type?: string;
+    quantity?: number;
+    quantity_unit?: string;
+    vehicle_type_required?: string;
+    special_requirements?: string;
+  }) => {
+    const data = await api.post('/portal/customer/bookings', payload);
+    return unwrap(data);
+  },
+  getTrackingLink: async (jobId: number) => {
+    const data = await api.get(`/portal/customer/tracking/${jobId}`);
+    return unwrap(data);
+  },
+  getInvoices: async (params?: { skip?: number; limit?: number }) => {
+    const data = await api.get('/portal/customer/invoices', { params });
+    return unwrap(data);
+  },
+  getPayments: async (params?: { skip?: number; limit?: number }) => {
+    const data = await api.get('/portal/customer/payments', { params });
+    return unwrap(data);
+  },
+  getPaymentLink: async (invoiceId: number) => {
+    const data = await api.get(`/portal/customer/pay/${invoiceId}`);
+    return unwrap(data);
+  },
+};
+
+// ── Supplier Portal Service (Phase D) ──────────────────────
+
+export const supplierPortalService = {
+  login: async (email: string) => {
+    const data = await api.post('/portal/supplier/login', { email });
+    return unwrap(data);
+  },
+  getTrips: async (params?: { status?: string; skip?: number; limit?: number }) => {
+    const data = await api.get('/portal/supplier/trips', { params });
+    return unwrap(data);
+  },
+  getTripDetail: async (tripId: number) => {
+    const data = await api.get(`/portal/supplier/trips/${tripId}`);
+    return unwrap(data);
+  },
+  submitInvoice: async (tripId: number, payload: { amount: number; invoice_number?: string; remarks?: string }) => {
+    const data = await api.post(`/portal/supplier/trips/${tripId}/invoice`, payload);
+    return unwrap(data);
+  },
+  getPayments: async (params?: { skip?: number; limit?: number }) => {
+    const data = await api.get('/portal/supplier/payments', { params });
+    return unwrap(data);
+  },
+  getStatement: async () => {
+    const data = await api.get('/portal/supplier/statement');
+    return unwrap(data);
+  },
+};
+
+// ── Public Tracking (no auth) ──────────────────────────────
+
+export const publicTrackingService = {
+  getTracking: async (token: string) => {
+    const data = await api.get(`/portal/track/${token}`);
+    return unwrap(data);
+  },
+};
+
+// ── Branch Management Service (Phase E) ────────────────────
+
+export const branchService = {
+  list: async (params?: { search?: string; is_active?: boolean }) => {
+    const data = await api.get('/branches', { params });
+    return unwrap(data);
+  },
+  get: async (id: number) => {
+    const data = await api.get(`/branches/${id}`);
+    return unwrap(data);
+  },
+  create: async (payload: {
+    name: string; code: string; address?: string; city?: string;
+    state?: string; pincode?: string; phone?: string; email?: string;
+    is_active?: boolean; tenant_id: number;
+  }) => {
+    const data = await api.post('/branches', payload);
+    return unwrap(data);
+  },
+  update: async (id: number, payload: Record<string, any>) => {
+    const data = await api.put(`/branches/${id}`, payload);
+    return unwrap(data);
+  },
+  delete: async (id: number) => {
+    const data = await api.delete(`/branches/${id}`);
+    return unwrap(data);
+  },
+  getResources: async (id: number) => {
+    const data = await api.get(`/branches/${id}/resources`);
+    return unwrap(data);
+  },
+  getPnL: async (id: number, params?: { start_date?: string; end_date?: string }) => {
+    const data = await api.get(`/branches/${id}/pnl`, { params });
+    return unwrap(data);
+  },
+  getComparison: async (params?: { start_date?: string; end_date?: string }) => {
+    const data = await api.get('/branches/comparison', { params });
+    return unwrap(data);
+  },
+};
+
+// ── TPMS + Predictive Maintenance ─────────────────────────
+
+export const tpmsService = {
+  ingestReading: async (payload: { sensor_id: string; psi: number; temperature_c?: number; tread_depth_mm?: number }) => {
+    const data = await api.post('/tpms/reading', payload);
+    return unwrap(data);
+  },
+  getVehicleDashboard: async (vehicleId: number) => {
+    const data = await api.get(`/tpms/vehicle/${vehicleId}`);
+    return unwrap(data);
+  },
+  getFleetHealth: async () => {
+    const data = await api.get('/tpms/fleet');
+    return unwrap(data);
+  },
+  getAlerts: async (params?: { hours?: number; limit?: number }) => {
+    const data = await api.get('/tpms/alerts', { params });
+    return unwrap(data);
+  },
+  getReadingHistory: async (tyreId: number, params?: { hours?: number }) => {
+    const data = await api.get(`/tpms/history/${tyreId}`, { params });
+    return unwrap(data);
+  },
+  predictVehicle: async (vehicleId: number) => {
+    const data = await api.get(`/tpms/predict/${vehicleId}`);
+    return unwrap(data);
+  },
+  predictFleet: async () => {
+    const data = await api.get('/tpms/predict-fleet');
     return unwrap(data);
   },
 };

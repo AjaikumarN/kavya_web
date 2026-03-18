@@ -33,15 +33,14 @@ export default function PaymentsPage() {
   const createMutation = useMutation({
     mutationFn: () => financeService.createPayment({
       payment_date: form.payment_date,
-      payment_type: form.payment_type,
       amount: Number(form.amount || 0),
-      payment_method: form.payment_method,
+      method: form.payment_method as any,
       invoice_id: form.invoice_id ? Number(form.invoice_id) : undefined,
       client_id: form.client_id ? Number(form.client_id) : undefined,
       vendor_id: form.vendor_id ? Number(form.vendor_id) : undefined,
-      transaction_ref: form.transaction_ref || undefined,
-      remarks: form.remarks || undefined,
-    }),
+      reference_number: form.transaction_ref || undefined,
+      notes: form.remarks || undefined,
+    } as any),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] });
       qc.invalidateQueries({ queryKey: ['ledger'] });

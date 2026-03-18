@@ -11,27 +11,27 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class VehicleType(enum.Enum):
-    TRUCK = "truck"
-    TRAILER = "trailer"
-    TANKER = "tanker"
-    CONTAINER = "container"
-    LCV = "lcv"
-    MINI_TRUCK = "mini_truck"
+    TRUCK = "TRUCK"
+    TRAILER = "TRAILER"
+    TANKER = "TANKER"
+    CONTAINER = "CONTAINER"
+    LCV = "LCV"
+    MINI_TRUCK = "MINI_TRUCK"
 
 
 class VehicleStatus(enum.Enum):
-    AVAILABLE = "available"
-    ON_TRIP = "on_trip"
-    MAINTENANCE = "maintenance"
-    BREAKDOWN = "breakdown"
-    INACTIVE = "inactive"
+    AVAILABLE = "AVAILABLE"
+    ON_TRIP = "ON_TRIP"
+    MAINTENANCE = "MAINTENANCE"
+    BREAKDOWN = "BREAKDOWN"
+    INACTIVE = "INACTIVE"
 
 
 class OwnershipType(enum.Enum):
-    OWNED = "owned"
-    LEASED = "leased"
-    ATTACHED = "attached"
-    MARKET = "market"
+    OWNED = "OWNED"
+    LEASED = "LEASED"
+    ATTACHED = "ATTACHED"
+    MARKET = "MARKET"
 
 
 class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
@@ -159,5 +159,31 @@ class VehicleTyre(Base, TimestampMixin):
     condition = Column(String(20), default='good')  # new, good, average, worn, replaced
     is_active = Column(Boolean, default=True)
     
+    # TPMS sensor fields
+    sensor_id = Column(String(50), nullable=True, index=True)  # BLE/GPRS sensor ID
+    last_psi = Column(Numeric(5, 1), nullable=True)
+    last_temperature_c = Column(Numeric(5, 1), nullable=True)
+    tread_depth_mm = Column(Numeric(4, 1), nullable=True)
+    last_reading_at = Column(DateTime, nullable=True)
+    
     # Relationships
     vehicle = relationship("Vehicle", back_populates="tyres")
+    sensor_readings = relationship("TyreSensorReading", back_populates="tyre", cascade="all, delete-orphan")
+
+
+class TyreSensorReading(Base):
+    """Time-series TPMS sensor readings."""
+    
+    __tablename__ = "tyre_sensor_readings"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vehicle_tyre_id = Column(Integer, ForeignKey('vehicle_tyres.id', ondelete='CASCADE'), nullable=False, index=True)
+    psi = Column(Numeric(5, 1), nullable=False)
+    temperature_c = Column(Numeric(5, 1), nullable=True)
+    tread_depth_mm = Column(Numeric(4, 1), nullable=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    alert_triggered = Column(Boolean, default=False)
+    alert_type = Column(String(30), nullable=True)  # underinflated, overinflated, high_temp, low_tread
+    
+    # Relationships
+    tyre = relationship("VehicleTyre", back_populates="sensor_readings")

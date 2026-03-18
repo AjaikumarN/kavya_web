@@ -31,6 +31,7 @@ export default function LoginPage() {
     { label: 'Accountant', email: 'accountant@kavyatransports.com', password: 'demo123', color: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
     { label: 'Project Associate', email: 'pa@kavyatransports.com', password: 'demo123', color: 'bg-cyan-50 text-cyan-700 ring-cyan-600/20' },
     { label: 'Driver', email: 'driver@kavyatransports.com', password: 'demo123', color: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
+    { label: 'Pump Operator', email: 'pump@kavyatransports.com', password: 'demo123', color: 'bg-orange-50 text-orange-700 ring-orange-600/20' },
   ];
 
   return (

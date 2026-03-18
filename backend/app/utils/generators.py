@@ -46,3 +46,17 @@ def generate_client_code(name: str) -> str:
     prefix = ''.join(c for c in name[:4].upper() if c.isalpha())
     rand = ''.join(random.choices(string.digits, k=3))
     return f"CL-{prefix}-{rand}"
+
+
+def generate_supplier_code(name: str) -> str:
+    prefix = ''.join(c for c in name[:4].upper() if c.isalpha())
+    rand = ''.join(random.choices(string.digits, k=3))
+    return f"SUP-{prefix}-{rand}"
+
+
+def generate_settlement_number() -> str:
+    return generate_number("STL", 4)
+
+
+def generate_payable_number() -> str:
+    return generate_number("PBL", 4)

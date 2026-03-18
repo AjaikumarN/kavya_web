@@ -107,7 +107,7 @@ async def finance_next_banking_entry(db: AsyncSession = Depends(get_db), current
 @router.get("/finance/banking/entries", response_model=APIResponse)
 async def finance_banking_entries(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
@@ -264,7 +264,7 @@ async def fleet_active_trips(db: AsyncSession = Depends(get_db), current_user: T
 async def fleet_drivers(
     search: str = "",
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
@@ -1269,7 +1269,7 @@ async def accountant_cash_flow(period: str = "6_months"):
 
 
 @router.get("/accountant/dashboard/recent-transactions", response_model=APIResponse)
-async def accountant_recent_transactions(limit: int = Query(10, ge=1, le=100), db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def accountant_recent_transactions(limit: int = Query(10, ge=1, le=500), db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     rows = await db.execute(select(BankTransaction).order_by(BankTransaction.transaction_date.desc()).limit(limit))
     items = [{c.key: getattr(t, c.key) for c in t.__table__.columns} for t in rows.scalars().all()]
     return APIResponse(success=True, data=items)
@@ -1351,7 +1351,7 @@ async def accountant_banking_overview(db: AsyncSession = Depends(get_db), curren
 
 
 @router.get("/accountant/banking/transactions", response_model=APIResponse)
-async def accountant_banking_transactions(page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def accountant_banking_transactions(page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500), db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     rows, total = await finance_service.list_bank_transactions(db, page=page, limit=limit)
     pages = (total + limit - 1) // limit
     items = [{c.key: getattr(r, c.key) for c in r.__table__.columns} for r in rows]

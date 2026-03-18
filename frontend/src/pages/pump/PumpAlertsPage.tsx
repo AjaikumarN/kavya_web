@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fuelPumpService } from '@/services/fuelPumpService';
 

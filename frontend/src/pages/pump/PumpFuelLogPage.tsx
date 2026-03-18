@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { List, Plus, AlertTriangle, Search } from 'lucide-react';
+import { Plus, AlertTriangle, Search } from 'lucide-react';
 import { fuelPumpService } from '@/services/fuelPumpService';
 
 export default function PumpFuelLogPage() {

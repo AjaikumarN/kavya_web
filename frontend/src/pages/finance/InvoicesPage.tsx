@@ -6,7 +6,6 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { Modal, StatusBadge } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
-import { useAuthStore } from '@/store/authStore';
 import type { Invoice, FilterParams } from '@/types';
 import { CheckCircle2, Pencil, Receipt, Send, Trash2 } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
@@ -15,7 +14,6 @@ import { handleApiError } from '../../utils/handleApiError';
 
 export default function InvoicesPage() {
   const qc = useQueryClient();
-  const { hasPermission } = useAuthStore();
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
   const [deleteInvoice, setDeleteInvoice] = useState<Invoice | null>(null);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
@@ -106,7 +104,7 @@ export default function InvoicesPage() {
       fileName: `invoices-${new Date().toISOString().slice(0, 10)}.pdf`,
       columns: [
         { header: 'Invoice No', accessor: (inv) => inv.invoice_number },
-        { header: 'Client', accessor: (inv) => inv.client?.name || (inv as any).client_name || inv.billing_name || `Client #${inv.client_id}` },
+        { header: 'Client', accessor: (inv) => inv.client?.name || (inv as any).client_name || (inv as any).billing_name || `Client #${inv.client_id}` },
         { header: 'Date', accessor: (inv) => new Date(inv.invoice_date).toLocaleDateString('en-IN') },
         { header: 'Due Date', accessor: (inv) => new Date(inv.due_date).toLocaleDateString('en-IN') },
         { header: 'Amount', accessor: (inv) => Number((inv.total_amount || 0) ?? 0).toLocaleString('en-IN') },
@@ -128,7 +126,7 @@ export default function InvoicesPage() {
     {
       key: 'client',
       header: 'Client',
-      render: (inv) => inv.client?.name || (inv as any).client_name || inv.billing_name || `Client #${inv.client_id}`,
+      render: (inv) => inv.client?.name || (inv as any).client_name || (inv as any).billing_name || `Client #${inv.client_id}`,
     },
     {
       key: 'invoice_date',

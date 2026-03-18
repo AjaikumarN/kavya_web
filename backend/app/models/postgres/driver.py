@@ -11,18 +11,18 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class DriverStatus(enum.Enum):
-    AVAILABLE = "available"
-    ON_TRIP = "on_trip"
-    ON_LEAVE = "on_leave"
-    SUSPENDED = "suspended"
-    INACTIVE = "inactive"
+    AVAILABLE = "AVAILABLE"
+    ON_TRIP = "ON_TRIP"
+    ON_LEAVE = "ON_LEAVE"
+    SUSPENDED = "SUSPENDED"
+    INACTIVE = "INACTIVE"
 
 
 class LicenseType(enum.Enum):
-    LMV = "lmv"
-    HMV = "hmv"
-    HGMV = "hgmv"
-    TRANSPORT = "transport"
+    LMV = "LMV"
+    HMV = "HMV"
+    HGMV = "HGMV"
+    TRANSPORT = "TRANSPORT"
 
 
 class Driver(Base, TimestampMixin, SoftDeleteMixin):

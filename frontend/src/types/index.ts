@@ -12,9 +12,10 @@ export type OwnershipType = 'owned' | 'leased' | 'attached' | 'market';
 export type DriverStatus = 'available' | 'on_trip' | 'on_leave' | 'suspended' | 'inactive';
 export type LicenseType = 'LMV' | 'HMV' | 'HGMV' | 'HTV' | 'other';
 
-export type JobStatus = 'draft' | 'pending_approval' | 'approved' | 'in_progress' | 'completed' | 'cancelled' | 'on_hold';
+export type JobStatus = 'draft' | 'pending_approval' | 'approved' | 'documentation' | 'trip_created' | 'in_progress' | 'in_transit' | 'delivered' | 'closure_pending' | 'closed' | 'completed' | 'cancelled' | 'on_hold';
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type ContractType = 'spot' | 'contract' | 'dedicated';
+export type JobType = 'own' | 'market';
 
 export type LRStatus = 'draft' | 'generated' | 'in_transit' | 'delivered' | 'pod_received' | 'cancelled';
 export type PaymentMode = 'to_pay' | 'paid' | 'to_be_billed' | 'fod';
@@ -35,6 +36,15 @@ export type PaymentMethod = 'cash' | 'bank_transfer' | 'cheque' | 'upi' | 'card'
 export type LedgerType = 'receivable' | 'payable' | 'income' | 'expense' | 'asset' | 'liability' | 'debit' | 'credit';
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
+
+export type MarketTripStatus = 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'settled' | 'cancelled';
+export type SupplierType = 'broker' | 'fleet_owner' | 'individual';
+
+export type GeofenceType = 'route' | 'zone' | 'loading' | 'unloading' | 'fuel_station' | 'restricted';
+export type DriverEventType = 'harsh_brake' | 'harsh_accel' | 'overspeed' | 'night_driving' | 'excessive_idle' | 'geofence_breach' | 'unauthorized_halt' | 'sos';
+export type ComplianceAlertType = 'expired' | 'critical' | 'warning' | 'info';
+export type ComplianceAlertSeverity = 'critical' | 'high' | 'medium' | 'low';
+export type AuditNoteStatus = 'open' | 'resolved';
 
 // ---- Auth ----
 export interface LoginRequest {
@@ -94,10 +104,15 @@ export interface Branch {
   id: number;
   name: string;
   code: string;
-  address: string;
-  city: string;
-  state: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  phone?: string;
+  email?: string;
   is_active: boolean;
+  tenant_id?: number;
+  created_at?: string;
 }
 
 // ---- Client ----
@@ -380,6 +395,7 @@ export interface Job {
   status: JobStatus;
   priority: JobPriority;
   contract_type: ContractType;
+  job_type: JobType;
   origin: string;
   origin_address?: string;
   destination: string;
@@ -404,6 +420,260 @@ export interface Job {
   created_by: number;
   created_at: string;
   updated_at: string;
+}
+
+// ---- Supplier ----
+export interface Supplier {
+  id: number;
+  name: string;
+  code: string;
+  supplier_type: SupplierType;
+  contact_person?: string;
+  phone: string;
+  email?: string;
+  pan?: string;
+  gstin?: string;
+  aadhaar?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  bank_account_number?: string;
+  bank_ifsc?: string;
+  bank_name?: string;
+  rate_card?: Record<string, number>;
+  tds_applicable: boolean;
+  tds_rate: number;
+  credit_limit?: number;
+  credit_days?: number;
+  is_active: boolean;
+  tenant_id?: number;
+  branch_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Market Trip ----
+export interface MarketTrip {
+  id: number;
+  job_id: number;
+  job?: Job;
+  supplier_id: number;
+  supplier?: Supplier;
+  vehicle_registration: string;
+  driver_name?: string;
+  driver_phone?: string;
+  driver_license?: string;
+  client_rate: number;
+  contractor_rate: number;
+  margin?: number;
+  purchase_invoice_id?: number;
+  tds_rate?: number;
+  tds_amount?: number;
+  net_payable?: number;
+  status: MarketTripStatus;
+  assigned_at?: string;
+  delivered_at?: string;
+  settled_at?: string;
+  settlement_reference?: string;
+  tenant_id?: number;
+  branch_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Geofence ----
+export interface Geofence {
+  id: number;
+  name: string;
+  geofence_type: GeofenceType;
+  trip_id?: number;
+  route_id?: number;
+  polygon?: { lat: number; lng: number }[];
+  center_lat?: number;
+  center_lng?: number;
+  radius_meters?: number;
+  alert_threshold_meters: number;
+  speed_limit_kmph?: number;
+  is_active: boolean;
+  tenant_id?: number;
+  branch_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Compliance Alert ----
+export interface ComplianceAlertRecord {
+  id: number;
+  document_id?: number;
+  vehicle_id?: number;
+  driver_id?: number;
+  alert_type: ComplianceAlertType;
+  severity: ComplianceAlertSeverity;
+  title: string;
+  message: string;
+  entity_type?: string;
+  entity_id?: number;
+  due_date?: string;
+  resolved: boolean;
+  resolved_by?: number;
+  resolved_at?: string;
+  tenant_id?: number;
+  branch_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Driver Event ----
+export interface DriverEvent {
+  id: number;
+  driver_id: number;
+  trip_id?: number;
+  vehicle_id?: number;
+  event_type: DriverEventType;
+  severity: number;
+  latitude?: number;
+  longitude?: number;
+  location_name?: string;
+  speed_kmph?: number;
+  details?: Record<string, any>;
+  tenant_id?: number;
+  branch_id?: number;
+  created_at: string;
+}
+
+// ---- Audit Note ----
+export interface AuditNote {
+  id: number;
+  resource_type: string;
+  resource_id: number;
+  note_text: string;
+  status: AuditNoteStatus;
+  auditor_id: number;
+  resolved_by?: number;
+  resolved_at?: string;
+  tenant_id?: number;
+  branch_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- AIS-140 ----
+export interface AIS140CheckResult {
+  vehicle_id: number;
+  registration_number: string;
+  checks: {
+    gps_device: boolean;
+    emergency_button: boolean;
+    driver_mapped: boolean;
+    position_reporting: boolean;
+  };
+  compliant: boolean;
+  issues: string[];
+}
+
+export interface FleetComplianceReport {
+  total_vehicles: number;
+  compliant: number;
+  non_compliant: number;
+  compliance_pct: number;
+  vehicles: AIS140CheckResult[];
+}
+
+export interface ComplianceAlertSummary {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+}
+
+export interface DriverEventSummary {
+  event_type: string;
+  count: number;
+}
+
+// ---- Driver Scoring (Phase C) ----
+export type ScoreTier = 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'POOR' | 'UNSAFE';
+
+export interface DriverScore {
+  driver_id: number;
+  month: number;
+  year: number;
+  score: number;
+  tier: ScoreTier;
+  total_penalty: number;
+  total_events: number;
+  event_counts: Record<string, number>;
+}
+
+export interface DriverScoreBreakdown {
+  driver_id: number;
+  month: number;
+  year: number;
+  score: number;
+  tier: ScoreTier;
+  categories: DriverScoreCategory[];
+}
+
+export interface DriverScoreCategory {
+  event_type: string;
+  count: number;
+  penalty: number;
+  base_rate: number;
+}
+
+export interface DriverScoreTrend {
+  driver_id: number;
+  trend: DriverScoreTrendPoint[];
+}
+
+export interface DriverScoreTrendPoint {
+  month: number;
+  year: number;
+  label: string;
+  score: number;
+  tier: ScoreTier;
+  total_events: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  driver_id: number;
+  driver_name: string;
+  employee_code: string;
+  phone: string;
+  score: number;
+  tier: ScoreTier;
+  total_events: number;
+  total_penalty: number;
+}
+
+export interface LeaderboardData {
+  month: number;
+  year: number;
+  total_drivers: number;
+  entries: LeaderboardEntry[];
+}
+
+export interface FleetScoreDistribution {
+  month: number;
+  year: number;
+  total_drivers: number;
+  distribution: Record<ScoreTier, number>;
+  average_score: number;
+  top5: LeaderboardEntry[];
+  bottom5: LeaderboardEntry[];
+}
+
+export interface CoachingNote {
+  id: number;
+  driver_id: number;
+  coach_id: number;
+  note_text: string;
+  category?: string;
+  status: string;
+  created_at: string;
 }
 
 // ---- LR (Lorry Receipt) ----
@@ -1425,5 +1695,237 @@ export interface AccountantLedgerEntry {
   debit: number;
   credit: number;
   balance: number;
+}
+
+// ── Customer & Supplier Portal Types (Phase D) ──────────────
+
+export interface PortalLoginResponse {
+  access_token: string;
+  token_type: string;
+  name: string;
+  email: string;
+  role: 'customer' | 'supplier';
+}
+
+export interface CustomerBooking {
+  id: number;
+  job_number: string;
+  origin: string;
+  destination: string;
+  status: string;
+  pickup_date?: string;
+  material_type?: string;
+  vehicle_type?: string;
+  total_amount?: number;
+  created_at: string;
+}
+
+export interface CustomerInvoice {
+  id: number;
+  invoice_number: string;
+  date?: string;
+  total_amount: number;
+  amount_paid: number;
+  amount_due: number;
+  status: string;
+  pdf_url?: string;
+}
+
+export interface CustomerPayment {
+  id: number;
+  payment_number: string;
+  date: string;
+  amount: number;
+  payment_method?: string;
+  status: string;
+  reference_number?: string;
+}
+
+export interface TrackingInfo {
+  job_id: number;
+  client_id: number;
+  tracking_token: string;
+  tracking_url: string;
+}
+
+export interface PublicTrackingData {
+  job_id: number;
+  client_id: number;
+  generated_at: string;
+  status?: string;
+  location?: { lat: number; lng: number };
+}
+
+export interface BookingRequest {
+  origin_city: string;
+  destination_city: string;
+  origin_address?: string;
+  destination_address?: string;
+  pickup_date?: string;
+  material_type?: string;
+  quantity?: number;
+  quantity_unit?: string;
+  vehicle_type_required?: string;
+  special_requirements?: string;
+}
+
+export interface SupplierTrip {
+  id: number;
+  job_id?: number;
+  job_number?: string;
+  origin?: string;
+  destination?: string;
+  status: string;
+  contractor_rate?: number;
+  net_payable?: number;
+  vehicle_number?: string;
+  created_at: string;
+}
+
+export interface SupplierTripDetail extends SupplierTrip {
+  job_origin?: string;
+  job_destination?: string;
+  job_status?: string;
+  job_material_type?: string;
+}
+
+export interface SupplierPayment {
+  id: number;
+  job_number?: string;
+  net_payable: number;
+  settlement_reference?: string;
+  status: string;
+  settled_at?: string;
+}
+
+export interface SupplierStatement {
+  total_trips: number;
+  total_earned: number;
+  settled_trips: number;
+  settled_amount: number;
+  pending_amount: number;
+}
+
+// ── Branch Management Types (Phase E) ──────────────────────
+
+export interface BranchCreate {
+  name: string;
+  code: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  phone?: string;
+  email?: string;
+  is_active?: boolean;
+  tenant_id: number;
+}
+
+export interface BranchUpdate {
+  name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  phone?: string;
+  email?: string;
+  is_active?: boolean;
+}
+
+export interface BranchResources {
+  branch_id: number;
+  vehicles: number;
+  drivers: number;
+  staff: number;
+  clients: number;
+}
+
+export interface BranchPnL {
+  branch_id: number;
+  revenue: number;
+  collected: number;
+  outstanding: number;
+  jobs: number;
+}
+
+export interface BranchComparison extends BranchResources, BranchPnL {
+  id: number;
+  name: string;
+  code: string;
+  city?: string;
+}
+
+// ── TPMS + Predictive Maintenance Types (Phase F) ──────────
+
+export interface TPMSWheel {
+  tyre_id: number;
+  position: string;
+  brand?: string;
+  size?: string;
+  psi: number | null;
+  temperature_c: number | null;
+  tread_depth_mm: number | null;
+  condition: string;
+  sensor_id?: string;
+  last_reading_at?: string;
+  status: 'ok' | 'warning' | 'critical';
+}
+
+export interface TPMSVehicleDashboard {
+  vehicle_id: number;
+  registration_number: string;
+  num_tyres: number | null;
+  wheels: TPMSWheel[];
+}
+
+export interface TPMSFleetHealth {
+  total_tyres: number;
+  ok: number;
+  warning: number;
+  critical: number;
+  no_sensor: number;
+}
+
+export interface TPMSAlert {
+  reading_id: number;
+  vehicle_id: number;
+  registration_number: string;
+  position: string;
+  psi: number;
+  temperature_c: number | null;
+  alert_type: string;
+  timestamp: string;
+}
+
+export interface TPMSReading {
+  id: number;
+  psi: number;
+  temperature_c: number | null;
+  tread_depth_mm: number | null;
+  timestamp: string;
+  alert_triggered: boolean;
+  alert_type?: string;
+}
+
+export interface MaintenancePrediction {
+  vehicle_id?: number;
+  registration_number?: string;
+  type: string;
+  last_service_date?: string;
+  last_service_km?: number;
+  avg_interval_km?: number;
+  avg_interval_days?: number;
+  km_since_last?: number;
+  predicted_date?: string;
+  km_remaining?: number;
+  urgency: 'normal' | 'soon' | 'critical';
+  note?: string;
+}
+
+export interface VehiclePrediction {
+  vehicle_id: number;
+  registration_number: string;
+  current_odometer: number;
+  predictions: MaintenancePrediction[];
 }
 

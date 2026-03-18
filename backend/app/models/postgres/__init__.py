@@ -6,14 +6,24 @@ from .user import User, Role, Permission, RolePermission, UserRole, Branch, Tena
 from .client import Client, ClientContact
 from .vehicle import Vehicle, VehicleDocument, VehicleMaintenance
 from .driver import Driver, DriverDocument, DriverLicense, DriverAttendance
-from .job import Job, JobStatus
+from .job import Job, JobStatus, JobType
 from .lr import LR, LRItem, LRDocument
 from .trip import Trip, TripExpense, TripFuelEntry, TripStatus
 from .finance import Invoice, InvoiceItem, Payment, Ledger, GSTEntry, Vendor, Receivable, Payable
+from .finance_automation import (
+    PaymentLink, BankStatement, BankStatementLine, DriverSettlement,
+    SupplierPayable, FASTagTransaction, FinanceAlert, FinanceReportCache,
+)
 from .route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTransaction
 from .eway_bill import EwayBill, EwayItem
 from .document import Document, DocumentVersion
 from .fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
+from .supplier import Supplier, SupplierVehicle
+from .market_trip import MarketTrip
+from .geofence import Geofence, GeofenceType
+from .compliance_alert import ComplianceAlert, AlertType, AlertSeverity
+from .driver_event import DriverEvent, DriverEventType
+from .audit_note import AuditNote, AuditNoteStatus
 
 __all__ = [
     "Base",
@@ -34,6 +44,7 @@ __all__ = [
     "DriverLicense",
     "Job",
     "JobStatus",
+    "JobType",
     "LR",
     "LRItem",
     "Trip",
@@ -49,4 +60,24 @@ __all__ = [
     "RateChart",
     "Document",
     "DocumentVersion",
+    "Supplier",
+    "SupplierVehicle",
+    "MarketTrip",
+    "Geofence",
+    "GeofenceType",
+    "ComplianceAlert",
+    "AlertType",
+    "AlertSeverity",
+    "DriverEvent",
+    "DriverEventType",
+    "AuditNote",
+    "AuditNoteStatus",
+    "PaymentLink",
+    "BankStatement",
+    "BankStatementLine",
+    "DriverSettlement",
+    "SupplierPayable",
+    "FASTagTransaction",
+    "FinanceAlert",
+    "FinanceReportCache",
 ]

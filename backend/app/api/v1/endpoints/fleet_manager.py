@@ -19,7 +19,7 @@ async def fleet_dashboard(db: AsyncSession = Depends(get_db), current_user: Toke
 
 @router.get("/vehicles", response_model=APIResponse)
 async def fleet_vehicles(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
 ):
@@ -35,7 +35,7 @@ async def fleet_vehicles(
 
 @router.get("/trips", response_model=APIResponse)
 async def fleet_trips(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
 ):

@@ -17,6 +17,7 @@ from app.api.v1.endpoints import (
     eway_bill,
     trips,
     finance,
+    finance_automation,
     tracking,
     reports,
     dashboard,
@@ -34,6 +35,15 @@ from app.api.v1.endpoints import (
     fuel,
     fuel_pump,
     maps,
+    suppliers,
+    market_trips,
+    geofences,
+    compliance,
+    driver_scoring,
+    customer_portal,
+    supplier_portal,
+    branches,
+    tpms,
 )
 
 api_router = APIRouter()
@@ -60,8 +70,20 @@ api_router.include_router(lr.router, prefix="/lr", tags=["Lorry Receipts"])
 api_router.include_router(eway_bill.router, prefix="/eway-bills", tags=["E-way Bills"])
 api_router.include_router(trips.router, prefix="/trips", tags=["Trips"])
 
+# Suppliers & Market Trucks
+api_router.include_router(suppliers.router, prefix="/suppliers", tags=["Suppliers"])
+api_router.include_router(market_trips.router, prefix="/market-trips", tags=["Market Trips"])
+
+# Geofencing & Compliance
+api_router.include_router(geofences.router, prefix="/geofences", tags=["Geofences"])
+api_router.include_router(compliance.router, prefix="/compliance", tags=["Compliance"])
+
+# Driver Scoring
+api_router.include_router(driver_scoring.router, prefix="/driver-scoring", tags=["Driver Scoring"])
+
 # Finance
 api_router.include_router(finance.router, prefix="/finance", tags=["Finance"])
+api_router.include_router(finance_automation.router, prefix="/finance", tags=["Finance Automation"])
 
 # Tracking & Monitoring
 api_router.include_router(tracking.router, prefix="/tracking", tags=["Tracking"])
@@ -101,3 +123,13 @@ api_router.include_router(fuel.router, prefix="/fuel-prices", tags=["Fuel Prices
 
 # Fuel Pump Management
 api_router.include_router(fuel_pump.router, prefix="/fuel-pump", tags=["Fuel Pump"])
+
+# Customer & Supplier Portals
+api_router.include_router(customer_portal.router, prefix="/portal/customer", tags=["Customer Portal"])
+api_router.include_router(supplier_portal.router, prefix="/portal/supplier", tags=["Supplier Portal"])
+
+# Branch Management
+api_router.include_router(branches.router, prefix="/branches", tags=["Branches"])
+
+# TPMS + Predictive Maintenance
+api_router.include_router(tpms.router, prefix="/tpms", tags=["TPMS"])

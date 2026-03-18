@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Droplets, Plus, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fuelPumpService } from '@/services/fuelPumpService';
 

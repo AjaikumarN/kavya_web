@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/services/api';
-import { dashboardService, reportService } from '@/services/dataService';
+import { dashboardService, reportService, branchService } from '@/services/dataService';
 import { KPICard, TabPills, StatusBadge } from '@/components/common/Modal';
 import { useRealtimeDashboard } from '@/services/useRealtimeDashboard';
 import { safeArray } from '@/utils/helpers';
@@ -11,7 +11,7 @@ import {
   Truck, Users, Navigation, DollarSign, AlertTriangle,
   TrendingUp, Package, ArrowRight,
   RefreshCw, FileText, MapPin, ChevronRight,
-  Wallet, Activity
+  Wallet, Activity, Building2
 } from 'lucide-react';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -28,6 +28,23 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState('today');
   useRealtimeDashboard();
+
+  const isAdmin = hasRole('admin');
+
+  // Branch data for admin selector
+  const { data: branches } = useQuery({
+    queryKey: ['branches-list'],
+    queryFn: () => branchService.list(),
+    enabled: isAdmin,
+  });
+
+  const { data: branchComparison } = useQuery({
+    queryKey: ['branch-comparison'],
+    queryFn: () => branchService.getComparison(),
+    enabled: isAdmin,
+  });
+
+  const branchList = Array.isArray(branches) ? branches : [];
 
   if (hasRole('project_associate')) {
     return <ProjectAssociateDashboard />;
@@ -131,6 +148,15 @@ export default function DashboardPage() {
           <button onClick={() => refetch()} className="btn-icon" title="Refresh">
             <RefreshCw size={16} />
           </button>
+          {isAdmin && branchList.length > 0 && (
+            <button
+              onClick={() => navigate('/admin/branches')}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition"
+            >
+              <Building2 size={14} />
+              {branchList.length} Branches
+            </button>
+          )}
         </div>
       </div>
 
@@ -413,6 +439,54 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* ── Cross-Branch Comparison (Admin only) ── */}
+      {isAdmin && Array.isArray(branchComparison) && branchComparison.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Building2 size={18} className="text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Branch Comparison</h3>
+            </div>
+            <button onClick={() => navigate('/admin/branches')} className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
+              Manage Branches <ChevronRight size={12} />
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Branch</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-gray-500">Vehicles</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-gray-500">Drivers</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-gray-500">Jobs</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-gray-500">Revenue</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-gray-500">Collection %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {branchComparison.map((b: any) => {
+                  const collectPct = b.revenue > 0 ? Math.round((b.collected / b.revenue) * 100) : 0;
+                  return (
+                    <tr key={b.branch_id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/admin/branches/${b.branch_id}`)}>
+                      <td className="py-2.5 px-3 font-medium text-gray-900">{b.branch_name}</td>
+                      <td className="py-2.5 px-3 text-right text-gray-600">{b.vehicles}</td>
+                      <td className="py-2.5 px-3 text-right text-gray-600">{b.drivers}</td>
+                      <td className="py-2.5 px-3 text-right text-gray-600">{b.jobs}</td>
+                      <td className="py-2.5 px-3 text-right font-medium text-gray-900">{fmt(b.revenue)}</td>
+                      <td className="py-2.5 px-3 text-right">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${collectPct >= 75 ? 'bg-green-100 text-green-700' : collectPct >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                          {collectPct}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

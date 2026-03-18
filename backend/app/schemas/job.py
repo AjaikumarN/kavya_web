@@ -19,8 +19,9 @@ class JobCreate(BaseModel):
     destination_pincode: Optional[str] = None
     route_id: Optional[int] = None
     estimated_distance_km: Optional[float] = None
-    contract_type: str = "spot"
-    priority: str = "normal"
+    job_type: str = "OWN"
+    contract_type: str = "SPOT"
+    priority: str = "NORMAL"
     material_type: Optional[str] = None
     material_description: Optional[str] = None
     quantity: Optional[float] = None
@@ -47,6 +48,7 @@ class JobUpdate(BaseModel):
     destination_city: Optional[str] = None
     route_id: Optional[int] = None
     estimated_distance_km: Optional[float] = None
+    job_type: Optional[str] = None
     contract_type: Optional[str] = None
     priority: Optional[str] = None
     material_type: Optional[str] = None
@@ -75,6 +77,7 @@ class JobResponse(BaseModel):
     destination_state: Optional[str] = None
     route_id: Optional[int] = None
     estimated_distance_km: Optional[float] = None
+    job_type: str = "OWN"
     contract_type: Optional[str] = None
     priority: Optional[str] = None
     material_type: Optional[str] = None

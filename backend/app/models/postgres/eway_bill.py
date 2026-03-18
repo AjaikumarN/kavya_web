@@ -67,40 +67,40 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class EwayBillStatus(enum.Enum):
-    DRAFT = "draft"
-    GENERATED = "generated"
-    ACTIVE = "active"
-    IN_TRANSIT = "in_transit"
-    EXTENDED = "extended"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    EXPIRED = "expired"
+    DRAFT = "DRAFT"
+    GENERATED = "GENERATED"
+    ACTIVE = "ACTIVE"
+    IN_TRANSIT = "IN_TRANSIT"
+    EXTENDED = "EXTENDED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
 
 
 class TransactionType(enum.Enum):
-    OUTWARD = "outward"
-    INWARD = "inward"
+    OUTWARD = "OUTWARD"
+    INWARD = "INWARD"
 
 
 class DocumentType(enum.Enum):
-    TAX_INVOICE = "tax_invoice"
-    BILL_OF_SUPPLY = "bill_of_supply"
-    BILL_OF_ENTRY = "bill_of_entry"
-    DELIVERY_CHALLAN = "delivery_challan"
-    CREDIT_NOTE = "credit_note"
-    OTHERS = "others"
+    TAX_INVOICE = "TAX_INVOICE"
+    BILL_OF_SUPPLY = "BILL_OF_SUPPLY"
+    BILL_OF_ENTRY = "BILL_OF_ENTRY"
+    DELIVERY_CHALLAN = "DELIVERY_CHALLAN"
+    CREDIT_NOTE = "CREDIT_NOTE"
+    OTHERS = "OTHERS"
 
 
 class TransportMode(enum.Enum):
-    ROAD = "road"
-    RAIL = "rail"
-    AIR = "air"
-    SHIP = "ship"
+    ROAD = "ROAD"
+    RAIL = "RAIL"
+    AIR = "AIR"
+    SHIP = "SHIP"
 
 
 class VehicleCategory(enum.Enum):
-    REGULAR = "regular"
-    OVER_DIMENSIONAL_CARGO = "over_dimensional_cargo"
+    REGULAR = "REGULAR"
+    OVER_DIMENSIONAL_CARGO = "OVER_DIMENSIONAL_CARGO"
 
 
 class EwayBill(Base, TimestampMixin, SoftDeleteMixin):

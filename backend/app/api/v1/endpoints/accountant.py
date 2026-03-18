@@ -38,7 +38,7 @@ async def accountant_dashboard(db: AsyncSession = Depends(get_db), current_user:
 
 @router.get("/invoices", response_model=APIResponse)
 async def accountant_invoices(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     client_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
@@ -54,7 +54,7 @@ async def accountant_invoices(
 
 @router.get("/payments", response_model=APIResponse)
 async def accountant_payments(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     payment_type: Optional[str] = None, client_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.PAYMENT_READ)),
@@ -67,7 +67,7 @@ async def accountant_payments(
 
 @router.get("/ledger", response_model=APIResponse)
 async def accountant_ledger(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     ledger_type: Optional[str] = None, client_id: Optional[int] = None,
     date_from: Optional[date] = None, date_to: Optional[date] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
@@ -132,7 +132,7 @@ async def accountant_receivables(
 
 @router.get("/expenses", response_model=APIResponse)
 async def accountant_expenses(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     verified: Optional[bool] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.EXPENSE_READ)),

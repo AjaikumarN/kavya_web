@@ -11,31 +11,31 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class TripStatusEnum(enum.Enum):
-    PLANNED = "planned"
-    VEHICLE_ASSIGNED = "vehicle_assigned"
-    DRIVER_ASSIGNED = "driver_assigned"
-    READY = "ready"
-    STARTED = "started"
-    LOADING = "loading"
-    IN_TRANSIT = "in_transit"
-    UNLOADING = "unloading"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    PLANNED = "PLANNED"
+    VEHICLE_ASSIGNED = "VEHICLE_ASSIGNED"
+    DRIVER_ASSIGNED = "DRIVER_ASSIGNED"
+    READY = "READY"
+    STARTED = "STARTED"
+    LOADING = "LOADING"
+    IN_TRANSIT = "IN_TRANSIT"
+    UNLOADING = "UNLOADING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 
 class ExpenseCategory(enum.Enum):
-    FUEL = "fuel"
-    TOLL = "toll"
-    FOOD = "food"
-    PARKING = "parking"
-    LOADING = "loading"
-    UNLOADING = "unloading"
-    POLICE = "police"
-    RTO = "rto"
-    REPAIR = "repair"
-    TYRE = "tyre"
-    MISC = "misc"
-    ADVANCE = "advance"
+    FUEL = "FUEL"
+    TOLL = "TOLL"
+    FOOD = "FOOD"
+    PARKING = "PARKING"
+    LOADING = "LOADING"
+    UNLOADING = "UNLOADING"
+    POLICE = "POLICE"
+    RTO = "RTO"
+    REPAIR = "REPAIR"
+    TYRE = "TYRE"
+    MISC = "MISC"
+    ADVANCE = "ADVANCE"
 
 
 class Trip(Base, TimestampMixin, SoftDeleteMixin):

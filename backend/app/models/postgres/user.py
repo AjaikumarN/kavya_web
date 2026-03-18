@@ -11,22 +11,22 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class RoleType(enum.Enum):
-    ADMIN = "admin"
-    MANAGER = "manager"
-    FLEET_MANAGER = "fleet_manager"
-    ACCOUNTANT = "accountant"
-    PROJECT_ASSOCIATE = "project_associate"
-    DRIVER = "driver"
-    PUMP_OPERATOR = "pump_operator"
+    ADMIN = "ADMIN"
+    MANAGER = "MANAGER"
+    FLEET_MANAGER = "FLEET_MANAGER"
+    ACCOUNTANT = "ACCOUNTANT"
+    PROJECT_ASSOCIATE = "PROJECT_ASSOCIATE"
+    DRIVER = "DRIVER"
+    PUMP_OPERATOR = "PUMP_OPERATOR"
 
 
 class PermissionAction(enum.Enum):
-    CREATE = "create"
-    READ = "read"
-    UPDATE = "update"
-    DELETE = "delete"
-    APPROVE = "approve"
-    EXPORT = "export"
+    CREATE = "CREATE"
+    READ = "READ"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    APPROVE = "APPROVE"
+    EXPORT = "EXPORT"
 
 
 # Association table for User-Role many-to-many

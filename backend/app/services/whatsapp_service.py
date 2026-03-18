@@ -68,3 +68,25 @@ async def send_whatsapp_template(phone: str, template_id: str, params: list[str]
         raise HTTPException(status_code=e.response.status_code, detail=f"WhatsApp template error: {e.response.text[:200]}")
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="Cannot connect to Gupshup WhatsApp API.")
+
+
+async def send_tracking_link(phone: str, customer_name: str, job_number: str, tracking_url: str) -> dict:
+    """Send a shipment tracking link to a customer via WhatsApp."""
+    message = (
+        f"Hi {customer_name},\n\n"
+        f"Your shipment {job_number} is on the way! "
+        f"Track live here:\n{tracking_url}\n\n"
+        f"— {settings.APP_NAME}"
+    )
+    return await send_whatsapp_message(phone, message)
+
+
+async def send_milestone_notification(phone: str, customer_name: str, job_number: str, milestone: str) -> dict:
+    """Notify customer about a shipment milestone (picked up, in transit, delivered, etc.)."""
+    message = (
+        f"Hi {customer_name},\n\n"
+        f"Shipment update for {job_number}:\n"
+        f"Status: {milestone}\n\n"
+        f"— {settings.APP_NAME}"
+    )
+    return await send_whatsapp_message(phone, message)

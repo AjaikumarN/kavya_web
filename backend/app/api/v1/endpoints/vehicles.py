@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("", response_model=APIResponse)
 async def list_vehicles(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     vehicle_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),

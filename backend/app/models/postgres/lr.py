@@ -11,18 +11,18 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class LRStatus(enum.Enum):
-    DRAFT = "draft"
-    GENERATED = "generated"
-    IN_TRANSIT = "in_transit"
-    DELIVERED = "delivered"
-    POD_RECEIVED = "pod_received"
-    CANCELLED = "cancelled"
+    DRAFT = "DRAFT"
+    GENERATED = "GENERATED"
+    IN_TRANSIT = "IN_TRANSIT"
+    DELIVERED = "DELIVERED"
+    POD_RECEIVED = "POD_RECEIVED"
+    CANCELLED = "CANCELLED"
 
 
 class PaymentMode(enum.Enum):
-    TO_PAY = "to_pay"
-    PAID = "paid"
-    TO_BE_BILLED = "to_be_billed"
+    TO_PAY = "TO_PAY"
+    PAID = "PAID"
+    TO_BE_BILLED = "TO_BE_BILLED"
 
 
 class LR(Base, TimestampMixin, SoftDeleteMixin):

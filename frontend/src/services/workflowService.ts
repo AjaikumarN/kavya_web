@@ -87,6 +87,40 @@ export const TRIP_TRANSITIONS: TransitionRule[] = [
   { from: 'closure_pending', to: 'closed',         requiredConditions: ['expenses_verified', 'documents_complete'],            autoBlocks: ['pending_dispute'], description: 'Trip fully closed' },
 ];
 
+export const INVOICE_TRANSITIONS: TransitionRule[] = [
+  { from: 'draft',    to: 'pending',  requiredConditions: ['line_items_added'],         autoBlocks: [],                description: 'Submit invoice for review' },
+  { from: 'draft',    to: 'sent',     requiredConditions: ['line_items_added'],         autoBlocks: [],                description: 'Send invoice directly to client' },
+  { from: 'pending',  to: 'sent',     requiredConditions: ['reviewed'],                 autoBlocks: [],                description: 'Send to client after review' },
+  { from: 'sent',     to: 'partial',  requiredConditions: ['partial_payment_received'], autoBlocks: [],                description: 'Partial payment received' },
+  { from: 'sent',     to: 'paid',     requiredConditions: ['full_payment_received'],    autoBlocks: [],                description: 'Full payment received' },
+  { from: 'partial',  to: 'paid',     requiredConditions: ['remaining_payment_received'], autoBlocks: [],              description: 'Balance payment received' },
+  { from: 'sent',     to: 'overdue',  requiredConditions: ['past_due_date'],            autoBlocks: [],                description: 'Invoice past due date' },
+  { from: 'overdue',  to: 'paid',     requiredConditions: ['full_payment_received'],    autoBlocks: [],                description: 'Overdue invoice paid' },
+  { from: 'sent',     to: 'disputed', requiredConditions: ['dispute_raised'],           autoBlocks: [],                description: 'Client raised dispute' },
+  { from: 'disputed', to: 'sent',     requiredConditions: ['dispute_resolved'],         autoBlocks: [],                description: 'Dispute resolved, re-send' },
+  { from: 'sent',     to: 'cancelled', requiredConditions: ['cancellation_approved'],   autoBlocks: ['has_payments'],  description: 'Cancel invoice' },
+  { from: 'draft',    to: 'cancelled', requiredConditions: [],                          autoBlocks: [],                description: 'Cancel draft invoice' },
+];
+
+export const EWAY_TRANSITIONS: TransitionRule[] = [
+  { from: 'draft',     to: 'active',    requiredConditions: ['eway_number_generated'],    autoBlocks: [],                     description: 'E-way bill generated on portal' },
+  { from: 'active',    to: 'cancelled', requiredConditions: ['cancellation_within_24hrs'], autoBlocks: ['vehicle_in_transit'], description: 'Cancel before transit begins' },
+  { from: 'active',    to: 'expired',   requiredConditions: ['validity_expired'],          autoBlocks: [],                     description: 'Validity period expired' },
+  { from: 'active',    to: 'extended',  requiredConditions: ['extension_requested'],       autoBlocks: [],                     description: 'Extend validity (8hrs before expiry)' },
+  { from: 'extended',  to: 'expired',   requiredConditions: ['validity_expired'],          autoBlocks: [],                     description: 'Extended validity expired' },
+  { from: 'active',    to: 'completed', requiredConditions: ['goods_delivered'],            autoBlocks: [],                     description: 'Goods delivered, e-way bill completed' },
+  { from: 'extended',  to: 'completed', requiredConditions: ['goods_delivered'],            autoBlocks: [],                     description: 'Goods delivered after extension' },
+];
+
+export const MARKET_TRIP_TRANSITIONS: TransitionRule[] = [
+  { from: 'pending',    to: 'assigned',   requiredConditions: ['supplier_assigned', 'vehicle_assigned'], autoBlocks: [],                  description: 'Assign supplier and vehicle to market trip' },
+  { from: 'assigned',   to: 'in_transit', requiredConditions: ['departure_confirmed'],                   autoBlocks: [],                  description: 'Market vehicle departed' },
+  { from: 'in_transit', to: 'delivered',  requiredConditions: ['arrival_confirmed'],                     autoBlocks: [],                  description: 'Market vehicle delivered' },
+  { from: 'delivered',  to: 'settled',    requiredConditions: ['payment_settled', 'tds_deducted'],       autoBlocks: ['pending_dispute'],  description: 'Supplier payment settled' },
+  { from: 'pending',    to: 'cancelled',  requiredConditions: [],                                        autoBlocks: [],                  description: 'Cancel pending market trip' },
+  { from: 'assigned',   to: 'cancelled',  requiredConditions: [],                                        autoBlocks: ['in_transit'],       description: 'Cancel assigned market trip' },
+];
+
 // ---- Compliance Blockers ----
 
 export interface ComplianceBlocker {
@@ -188,14 +222,19 @@ export function checkDispatchBlockers(
 // ---- Status Transition Validator ----
 
 export function canTransition(
-  entityType: 'job' | 'lr' | 'trip',
+  entityType: 'job' | 'lr' | 'trip' | 'invoice' | 'eway_bill' | 'market_trip',
   currentStatus: string,
   targetStatus: string,
 ): { allowed: boolean; rule?: TransitionRule; message: string } {
-  const rules =
-    entityType === 'job' ? JOB_TRANSITIONS :
-    entityType === 'lr' ? LR_TRANSITIONS :
-    TRIP_TRANSITIONS;
+  const rulesMap: Record<string, TransitionRule[]> = {
+    job: JOB_TRANSITIONS,
+    lr: LR_TRANSITIONS,
+    trip: TRIP_TRANSITIONS,
+    invoice: INVOICE_TRANSITIONS,
+    eway_bill: EWAY_TRANSITIONS,
+    market_trip: MARKET_TRIP_TRANSITIONS,
+  };
+  const rules = rulesMap[entityType] || [];
 
   const rule = rules.find(r => r.from === currentStatus && r.to === targetStatus);
   if (!rule) {
@@ -271,6 +310,8 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; dot: stri
   closure_pending:    { bg: 'bg-orange-100',  text: 'text-orange-700',  dot: '#f97316' },
   closed:             { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: '#10b981' },
   cancelled:          { bg: 'bg-red-100',     text: 'text-red-700',     dot: '#ef4444' },
+  in_progress:        { bg: 'bg-blue-100',    text: 'text-blue-700',    dot: '#3b82f6' },
+  on_hold:            { bg: 'bg-purple-100',  text: 'text-purple-700',  dot: '#8b5cf6' },
   // Trips
   planned:            { bg: 'bg-slate-100',   text: 'text-slate-700',   dot: '#64748b' },
   dispatched:         { bg: 'bg-sky-100',     text: 'text-sky-700',     dot: '#0ea5e9' },
@@ -284,6 +325,21 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; dot: stri
   maintenance:        { bg: 'bg-amber-100',   text: 'text-amber-700',   dot: '#f59e0b' },
   breakdown:          { bg: 'bg-red-100',     text: 'text-red-700',     dot: '#ef4444' },
   inactive:           { bg: 'bg-gray-100',    text: 'text-gray-600',    dot: '#94a3b8' },
+  // Invoice
+  pending:            { bg: 'bg-yellow-100',  text: 'text-yellow-700',  dot: '#eab308' },
+  sent:               { bg: 'bg-blue-100',    text: 'text-blue-700',    dot: '#3b82f6' },
+  partial:            { bg: 'bg-amber-100',   text: 'text-amber-700',   dot: '#f59e0b' },
+  partially_paid:     { bg: 'bg-amber-100',   text: 'text-amber-700',   dot: '#f59e0b' },
+  paid:               { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: '#10b981' },
+  overdue:            { bg: 'bg-red-100',     text: 'text-red-700',     dot: '#ef4444' },
+  disputed:           { bg: 'bg-rose-100',    text: 'text-rose-700',    dot: '#f43f5e' },
+  // E-way Bill
+  active:             { bg: 'bg-green-100',   text: 'text-green-700',   dot: '#22c55e' },
+  expired:            { bg: 'bg-red-100',      text: 'text-red-700',    dot: '#ef4444' },
+  extended:           { bg: 'bg-violet-100',  text: 'text-violet-700',  dot: '#8b5cf6' },
+  // Market Trip
+  assigned:           { bg: 'bg-sky-100',     text: 'text-sky-700',     dot: '#0ea5e9' },
+  settled:            { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: '#10b981' },
 };
 
 export function getStatusColor(status: string) {

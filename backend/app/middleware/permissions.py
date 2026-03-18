@@ -68,6 +68,16 @@ class Permissions:
     # Finance - Ledger
     LEDGER_READ = "ledger:read"
     LEDGER_EXPORT = "ledger:export"
+
+    # Finance - Banking / Reconciliation
+    BANKING_READ = "banking:read"
+    BANKING_RECONCILE = "banking:reconcile"
+    BANKING_IMPORT = "banking:import"
+
+    # Finance - Settlements
+    SETTLEMENT_READ = "settlement:read"
+    SETTLEMENT_CREATE = "settlement:create"
+    SETTLEMENT_APPROVE = "settlement:approve"
     
     # Reports
     REPORT_VIEW = "report:view"
@@ -228,6 +238,10 @@ ROLE_PERMISSIONS = {
         Permissions.PAYMENT_UPDATE,
         # Ledger
         Permissions.LEDGER_READ, Permissions.LEDGER_EXPORT,
+        # Banking
+        Permissions.BANKING_READ, Permissions.BANKING_RECONCILE, Permissions.BANKING_IMPORT,
+        # Settlements
+        Permissions.SETTLEMENT_READ, Permissions.SETTLEMENT_CREATE, Permissions.SETTLEMENT_APPROVE,
         # Client (read only for billing)
         Permissions.CLIENT_READ,
         # Trip (read only for invoicing)

@@ -25,7 +25,7 @@ router = APIRouter()
 # --- Invoices ---
 @router.get("/invoices", response_model=APIResponse)
 async def list_invoices(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     client_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
@@ -172,7 +172,7 @@ async def generate_invoice_from_trip(
 # --- Payments ---
 @router.get("/payments", response_model=APIResponse)
 async def list_payments(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     payment_type: Optional[str] = None, client_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.PAYMENT_READ)),
@@ -222,7 +222,7 @@ async def create_payment(
 # --- Ledger ---
 @router.get("/ledger", response_model=APIResponse)
 async def list_ledger(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     ledger_type: Optional[str] = None, client_id: Optional[int] = None,
     date_from: Optional[date] = None, date_to: Optional[date] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
@@ -246,7 +246,7 @@ async def create_ledger(
 # --- Vendors ---
 @router.get("/vendors", response_model=APIResponse)
 async def list_vendors(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
 ):
@@ -280,7 +280,7 @@ async def create_bank_account(data: BankAccountCreate, db: AsyncSession = Depend
 @router.get("/bank-transactions", response_model=APIResponse)
 async def list_bank_transactions(
     account_id: Optional[int] = None,
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
 ):
     txns, total = await finance_service.list_bank_transactions(db, account_id, page, limit)
@@ -298,7 +298,7 @@ async def create_bank_transaction(data: BankTransactionCreate, db: AsyncSession 
 # --- Routes ---
 @router.get("/routes", response_model=APIResponse)
 async def list_routes(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
 ):

@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Calendar, ClipboardList, Package, CircleDot, Battery, AlertTriangle
+  Calendar, ClipboardList, Package, CircleDot, Battery, AlertTriangle, TrendingUp
 } from 'lucide-react';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
-import { fleetService } from '@/services/dataService';
-import type { MaintenanceScheduleItem, WorkOrder, PartInventory, TyreRecord, BatteryRecord } from '@/types';
+import { fleetService, tpmsService } from '@/services/dataService';
+import type { MaintenanceScheduleItem, WorkOrder, PartInventory, TyreRecord, BatteryRecord, MaintenancePrediction } from '@/types';
 import { safeArray } from '@/utils/helpers';
 
-type TabKey = 'schedule' | 'work-orders' | 'parts' | 'tyres' | 'battery';
+type TabKey = 'schedule' | 'work-orders' | 'parts' | 'tyres' | 'battery' | 'predictive';
 
 const tabs = [
   { key: 'schedule' as TabKey, label: 'Service Schedule', icon: Calendar },
@@ -17,6 +17,7 @@ const tabs = [
   { key: 'parts' as TabKey, label: 'Parts Inventory', icon: Package },
   { key: 'tyres' as TabKey, label: 'Tyre Management', icon: CircleDot },
   { key: 'battery' as TabKey, label: 'Battery Health', icon: Battery },
+  { key: 'predictive' as TabKey, label: 'Predictive', icon: TrendingUp },
 ];
 
 export default function FleetMaintenancePage() {
@@ -56,6 +57,12 @@ export default function FleetMaintenancePage() {
     queryKey: ['fleet-battery-monitoring'],
     queryFn: fleetService.getBatteryMonitoring,
     enabled: activeTab === 'battery',
+  });
+
+  const { data: predictData, isLoading: predictLoading } = useQuery<MaintenancePrediction[]>({
+    queryKey: ['fleet-predictive-maintenance'],
+    queryFn: tpmsService.predictFleet,
+    enabled: activeTab === 'predictive',
   });
 
   // Schedule columns
@@ -186,6 +193,66 @@ export default function FleetMaintenancePage() {
         )}
         {activeTab === 'battery' && (
           <DataTable columns={batteryColumns} data={safeArray<BatteryRecord>((batteryData as any)?.items ?? batteryData)} isLoading={batteryLoading} emptyMessage="No battery records" />
+        )}
+        {activeTab === 'predictive' && (
+          <PredictiveTab data={safeArray<MaintenancePrediction>(predictData)} isLoading={predictLoading} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Predictive Maintenance Tab ────────────────────── */
+
+function PredictiveTab({ data, isLoading }: { data: MaintenancePrediction[]; isLoading: boolean }) {
+  if (isLoading) return <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" /></div>;
+
+  const critical = data.filter(d => d.urgency === 'critical');
+  const soon = data.filter(d => d.urgency === 'soon');
+  const normal = data.filter(d => d.urgency === 'normal');
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-4 mb-2">
+        <KPICard title="Critical" value={critical.length} icon={<AlertTriangle className="w-5 h-5" />} color="bg-red-100 text-red-600" />
+        <KPICard title="Due Soon" value={soon.length} icon={<TrendingUp className="w-5 h-5" />} color="bg-yellow-100 text-yellow-600" />
+        <KPICard title="Normal" value={normal.length} icon={<Calendar className="w-5 h-5" />} color="bg-green-100 text-green-600" />
+      </div>
+
+      <div className="divide-y divide-gray-100">
+        {data.map((p, i) => {
+          const urgencyMap = {
+            critical: { bg: 'bg-red-50 border-red-200', badge: 'bg-red-100 text-red-700', label: 'Overdue / Critical' },
+            soon: { bg: 'bg-yellow-50 border-yellow-200', badge: 'bg-yellow-100 text-yellow-700', label: 'Due Soon' },
+            normal: { bg: 'bg-white border-gray-200', badge: 'bg-green-100 text-green-700', label: 'Normal' },
+          };
+          const style = urgencyMap[p.urgency];
+          return (
+            <div key={i} className={`flex items-center gap-4 p-4 rounded-lg border ${style.bg} mb-2`}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{p.registration_number}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Last service: {p.last_service_date ? new Date(p.last_service_date).toLocaleDateString('en-IN') : '—'}
+                  {p.km_since_last != null && ` • ${Number(p.km_since_last).toLocaleString()} km since`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {p.predicted_date ? new Date(p.predicted_date).toLocaleDateString('en-IN') : 'N/A'}
+                </p>
+                {p.km_remaining != null && (
+                  <p className="text-xs text-gray-500">{Number(p.km_remaining).toLocaleString()} km remaining</p>
+                )}
+              </div>
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${style.badge}`}>{style.label}</span>
+            </div>
+          );
+        })}
+        {data.length === 0 && (
+          <div className="text-center py-12 text-sm text-gray-400">
+            <TrendingUp className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+            No predictive maintenance data available yet
+          </div>
         )}
       </div>
     </div>

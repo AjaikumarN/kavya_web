@@ -17,14 +17,24 @@ from app.models.postgres.user import User, Role, Permission, RolePermission, Use
 from app.models.postgres.client import Client, ClientContact
 from app.models.postgres.vehicle import Vehicle, VehicleDocument, VehicleMaintenance
 from app.models.postgres.driver import Driver, DriverDocument, DriverLicense, DriverAttendance
-from app.models.postgres.job import Job, JobStatus
+from app.models.postgres.job import Job, JobStatus, JobType
 from app.models.postgres.lr import LR, LRItem, LRDocument
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatus
 from app.models.postgres.finance import Invoice, InvoiceItem, Payment, Ledger, GSTEntry, Vendor, Receivable, Payable
+from app.models.postgres.finance_automation import (
+    PaymentLink, BankStatement, BankStatementLine, DriverSettlement,
+    SupplierPayable, FASTagTransaction, FinanceAlert, FinanceReportCache,
+)
 from app.models.postgres.route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTransaction
 from app.models.postgres.eway_bill import EwayBill, EwayItem
 from app.models.postgres.document import Document, DocumentVersion
 from app.models.postgres.fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
+from app.models.postgres.supplier import Supplier, SupplierVehicle
+from app.models.postgres.market_trip import MarketTrip
+from app.models.postgres.geofence import Geofence, GeofenceType
+from app.models.postgres.compliance_alert import ComplianceAlert, AlertType, AlertSeverity
+from app.models.postgres.driver_event import DriverEvent, DriverEventType
+from app.models.postgres.audit_note import AuditNote, AuditNoteStatus
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -61,39 +61,39 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 # ── Enums ──
 
 class DocumentType(enum.Enum):
-    RC = "rc"
-    INSURANCE = "insurance"
-    FITNESS = "fitness"
-    LICENSE = "license"
-    POLLUTION = "pollution"
-    INVOICE = "invoice"
-    EWAY_BILL = "eway_bill"
-    LR_COPY = "lr_copy"
-    PERMIT = "permit"
-    CONTRACT = "contract"
-    POD = "pod"
-    TAX_RECEIPT = "tax_receipt"
-    OTHER = "other"
+    RC = "RC"
+    INSURANCE = "INSURANCE"
+    FITNESS = "FITNESS"
+    LICENSE = "LICENSE"
+    POLLUTION = "POLLUTION"
+    INVOICE = "INVOICE"
+    EWAY_BILL = "EWAY_BILL"
+    LR_COPY = "LR_COPY"
+    PERMIT = "PERMIT"
+    CONTRACT = "CONTRACT"
+    POD = "POD"
+    TAX_RECEIPT = "TAX_RECEIPT"
+    OTHER = "OTHER"
 
 
 class EntityType(enum.Enum):
-    VEHICLE = "vehicle"
-    DRIVER = "driver"
-    TRIP = "trip"
-    CLIENT = "client"
-    FINANCE = "finance"
+    VEHICLE = "VEHICLE"
+    DRIVER = "DRIVER"
+    TRIP = "TRIP"
+    CLIENT = "CLIENT"
+    FINANCE = "FINANCE"
 
 
 class ComplianceCategory(enum.Enum):
-    MANDATORY = "mandatory"
-    OPTIONAL = "optional"
+    MANDATORY = "MANDATORY"
+    OPTIONAL = "OPTIONAL"
 
 
 class DocumentApprovalStatus(enum.Enum):
-    DRAFT = "draft"
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
+    DRAFT = "DRAFT"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 # ── Models ──

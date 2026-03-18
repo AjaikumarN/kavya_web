@@ -1,5 +1,6 @@
 # Celery Application — background task processing
 from celery import Celery
+from celery.schedules import crontab
 from app.core.config import settings
 
 celery_app = Celery(
@@ -31,6 +32,67 @@ celery_app.conf.update(
         "update-fuel-prices": {
             "task": "app.tasks.fuel_price_tasks.refresh_fuel_prices",
             "schedule": 21600.0,  # every 6 hours
+        },
+        "check-geofences": {
+            "task": "app.tasks.geofence_tasks.check_geofences_periodic",
+            "schedule": 30.0,  # every 30 seconds
+        },
+        "check-unauthorized-halts": {
+            "task": "app.tasks.geofence_tasks.check_unauthorized_halts",
+            "schedule": 300.0,  # every 5 minutes
+        },
+        "check-night-movement": {
+            "task": "app.tasks.geofence_tasks.check_night_movement",
+            "schedule": 600.0,  # every 10 minutes
+        },
+        "compute-monthly-scores": {
+            "task": "app.tasks.scoring_tasks.compute_monthly_scores",
+            "schedule": 86400.0 * 30,  # ~monthly (triggered manually or by cron)
+        },
+        "capture-behavior-events": {
+            "task": "app.tasks.scoring_tasks.capture_behavior_events",
+            "schedule": 60.0,  # every 60 seconds
+        },
+        "send-milestone-notifications": {
+            "task": "app.tasks.notification_tasks.send_milestone_notifications",
+            "schedule": 300.0,  # every 5 minutes
+        },
+        "send-payment-reminders": {
+            "task": "app.tasks.notification_tasks.send_payment_reminders",
+            "schedule": 86400.0,  # daily
+        },
+        # ── Finance Automation Tasks ──
+        "detect-overdue-invoices": {
+            "task": "app.tasks.finance_tasks.detect_overdue_invoices",
+            "schedule": crontab(hour=7, minute=0),
+        },
+        "recalculate-aging": {
+            "task": "app.tasks.finance_tasks.recalculate_aging",
+            "schedule": crontab(hour=7, minute=30),
+        },
+        "check-payable-due-dates": {
+            "task": "app.tasks.finance_tasks.check_payable_due_dates",
+            "schedule": crontab(hour=8, minute=0),
+        },
+        "check-low-bank-balance": {
+            "task": "app.tasks.finance_tasks.check_low_bank_balance",
+            "schedule": crontab(hour=9, minute=0),
+        },
+        "generate-daily-digest": {
+            "task": "app.tasks.finance_tasks.generate_daily_digest",
+            "schedule": crontab(hour=21, minute=0),
+        },
+        "generate-weekly-pl": {
+            "task": "app.tasks.finance_tasks.generate_weekly_pl",
+            "schedule": crontab(hour=7, minute=0, day_of_week="monday"),
+        },
+        "generate-monthly-close": {
+            "task": "app.tasks.finance_tasks.generate_monthly_close",
+            "schedule": crontab(hour=6, minute=0, day_of_month=1),
+        },
+        "gst-filing-reminder": {
+            "task": "app.tasks.finance_tasks.gst_filing_reminder",
+            "schedule": crontab(hour=9, minute=0, day_of_month=20),
         },
     },
 )

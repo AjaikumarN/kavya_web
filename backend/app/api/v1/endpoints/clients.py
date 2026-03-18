@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("", response_model=APIResponse)
 async def list_clients(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(require_permission(Permissions.CLIENT_READ)),

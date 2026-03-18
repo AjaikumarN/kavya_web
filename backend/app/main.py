@@ -109,6 +109,19 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
+# ── Public tracking endpoint (no auth required) ────────────
+from fastapi import HTTPException as _HTTPException
+from app.services import portal_service as _portal_svc
+
+@app.get("/portal/track/{token}", tags=["Public Tracking"])
+async def public_tracking(token: str):
+    """Public shipment tracking by token — no authentication needed."""
+    info = _portal_svc.validate_tracking_token(token)
+    if not info:
+        raise _HTTPException(status_code=404, detail="Invalid or expired tracking link")
+    return {"success": True, "data": info}
+
+
 # Mount local uploads directory for serving uploaded files
 from pathlib import Path as _Path
 from fastapi.staticfiles import StaticFiles as _StaticFiles

@@ -129,7 +129,7 @@ async def issue_fuel(
 @router.get("/issues", response_model=APIResponse)
 async def list_fuel_issues(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     vehicle_id: Optional[int] = None,
     driver_id: Optional[int] = None,
     tank_id: Optional[int] = None,
@@ -195,7 +195,7 @@ async def add_stock(
 @router.get("/stock", response_model=APIResponse)
 async def list_stock_transactions(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     tank_id: Optional[int] = None,
     current_user: TokenData = Depends(require_any_permission([
         Permissions.FUEL_STOCK_VIEW, Permissions.FUEL_READ,
@@ -219,7 +219,7 @@ async def list_stock_transactions(
 @router.get("/alerts", response_model=APIResponse)
 async def list_theft_alerts(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     status: Optional[str] = None,
     current_user: TokenData = Depends(require_any_permission([
         Permissions.FUEL_REPORTS, Permissions.FUEL_READ, Permissions.ALERT_VIEW,

@@ -64,8 +64,13 @@ class KTWebSocketService {
       this.reconnectTimer = null;
     }
     if (this.ws) {
+      this.ws.onerror = null;
       this.ws.onclose = null;
-      this.ws.close();
+      this.ws.onmessage = null;
+      this.ws.onopen = null;
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close();
+      }
       this.ws = null;
     }
     this.reconnectAttempts = 0;

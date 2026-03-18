@@ -32,6 +32,9 @@ class ConnectionManager:
         
         # Trip tracking subscriptions
         self.trip_subscribers: Dict[int, Set[WebSocket]] = {}
+        
+        # Geofence alert subscriptions (per trip)
+        self.geofence_subscribers: Dict[int, Set[WebSocket]] = {}
     
     async def connect(self, websocket: WebSocket, channel: str = "general"):
         """Accept and register a WebSocket connection."""
@@ -68,6 +71,12 @@ class ConnectionManager:
             self.trip_subscribers[trip_id].discard(websocket)
             if not self.trip_subscribers[trip_id]:
                 del self.trip_subscribers[trip_id]
+        
+        # Clean up geofence subscriptions
+        for trip_id in list(self.geofence_subscribers.keys()):
+            self.geofence_subscribers[trip_id].discard(websocket)
+            if not self.geofence_subscribers[trip_id]:
+                del self.geofence_subscribers[trip_id]
         
         # Clean up user connections
         for user_id in list(self.user_connections.keys()):
@@ -161,6 +170,39 @@ class ConnectionManager:
         }
         await self.broadcast(message, channel="tracking")
     
+    def subscribe_geofence(self, websocket: WebSocket, trip_id: int):
+        """Subscribe to geofence alerts for a trip."""
+        if trip_id not in self.geofence_subscribers:
+            self.geofence_subscribers[trip_id] = set()
+        self.geofence_subscribers[trip_id].add(websocket)
+    
+    async def send_geofence_alert(self, trip_id: int, alert_data: dict):
+        """Push geofence breach event to subscribers."""
+        message = {
+            "type": "geofence_breach",
+            "trip_id": trip_id,
+            "data": alert_data,
+        }
+        if trip_id in self.geofence_subscribers:
+            disconnected = []
+            for ws in self.geofence_subscribers[trip_id]:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    disconnected.append(ws)
+            for ws in disconnected:
+                self.geofence_subscribers[trip_id].discard(ws)
+        # Also broadcast to general tracking channel
+        await self.broadcast(message, channel="tracking")
+    
+    async def send_compliance_alert(self, user_id: int, alert_data: dict):
+        """Push compliance alert to a specific user."""
+        message = {
+            "type": "compliance_alert",
+            "data": alert_data,
+        }
+        await self.send_to_user(user_id, message)
+    
     def get_stats(self) -> dict:
         """Get connection statistics."""
         return {
@@ -171,6 +213,7 @@ class ConnectionManager:
             "user_connections": len(self.user_connections),
             "vehicle_subscriptions": len(self.vehicle_subscribers),
             "trip_subscriptions": len(self.trip_subscribers),
+            "geofence_subscriptions": len(self.geofence_subscribers),
         }
 
 

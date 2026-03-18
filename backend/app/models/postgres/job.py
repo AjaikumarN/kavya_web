@@ -11,26 +11,37 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class JobStatusEnum(enum.Enum):
-    DRAFT = "draft"
-    PENDING_APPROVAL = "pending_approval"
-    APPROVED = "approved"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    ON_HOLD = "on_hold"
+    DRAFT = "DRAFT"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+    DOCUMENTATION = "DOCUMENTATION"
+    TRIP_CREATED = "TRIP_CREATED"
+    IN_PROGRESS = "IN_PROGRESS"
+    IN_TRANSIT = "IN_TRANSIT"
+    DELIVERED = "DELIVERED"
+    CLOSURE_PENDING = "CLOSURE_PENDING"
+    CLOSED = "CLOSED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    ON_HOLD = "ON_HOLD"
+
+
+class JobType(enum.Enum):
+    OWN = "OWN"
+    MARKET = "MARKET"
 
 
 class JobPriority(enum.Enum):
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    URGENT = "urgent"
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
 
 
 class ContractType(enum.Enum):
-    SPOT = "spot"
-    CONTRACT = "contract"
-    DEDICATED = "dedicated"
+    SPOT = "SPOT"
+    CONTRACT = "CONTRACT"
+    DEDICATED = "DEDICATED"
 
 
 class Job(Base, TimestampMixin, SoftDeleteMixin):
@@ -65,6 +76,7 @@ class Job(Base, TimestampMixin, SoftDeleteMixin):
     estimated_distance_km = Column(Numeric(10, 2), nullable=True)
     
     # Job Type & Priority
+    job_type = Column(SQLEnum(JobType), default=JobType.OWN, nullable=False, server_default='OWN')
     contract_type = Column(SQLEnum(ContractType), default=ContractType.SPOT)
     priority = Column(SQLEnum(JobPriority), default=JobPriority.NORMAL)
     

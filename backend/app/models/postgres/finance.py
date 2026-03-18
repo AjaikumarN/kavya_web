@@ -11,48 +11,48 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class InvoiceStatus(enum.Enum):
-    DRAFT = "draft"
-    PENDING = "pending"
-    SENT = "sent"
-    PARTIALLY_PAID = "partially_paid"
-    PAID = "paid"
-    OVERDUE = "overdue"
-    CANCELLED = "cancelled"
-    DISPUTED = "disputed"
+    DRAFT = "DRAFT"
+    PENDING = "PENDING"
+    SENT = "SENT"
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+    PAID = "PAID"
+    OVERDUE = "OVERDUE"
+    CANCELLED = "CANCELLED"
+    DISPUTED = "DISPUTED"
 
 
 class InvoiceType(enum.Enum):
-    TAX_INVOICE = "tax_invoice"
-    PROFORMA = "proforma"
-    CREDIT_NOTE = "credit_note"
-    DEBIT_NOTE = "debit_note"
+    TAX_INVOICE = "TAX_INVOICE"
+    PROFORMA = "PROFORMA"
+    CREDIT_NOTE = "CREDIT_NOTE"
+    DEBIT_NOTE = "DEBIT_NOTE"
 
 
 class PaymentStatus(enum.Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    REVERSED = "reversed"
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    REVERSED = "REVERSED"
 
 
 class PaymentMethod(enum.Enum):
-    CASH = "cash"
-    BANK_TRANSFER = "bank_transfer"
-    CHEQUE = "cheque"
-    UPI = "upi"
-    CARD = "card"
-    NEFT = "neft"
-    RTGS = "rtgs"
-    ADJUST = "adjustment"
+    CASH = "CASH"
+    BANK_TRANSFER = "BANK_TRANSFER"
+    CHEQUE = "CHEQUE"
+    UPI = "UPI"
+    CARD = "CARD"
+    NEFT = "NEFT"
+    RTGS = "RTGS"
+    ADJUST = "ADJUST"
 
 
 class LedgerType(enum.Enum):
-    RECEIVABLE = "receivable"
-    PAYABLE = "payable"
-    INCOME = "income"
-    EXPENSE = "expense"
-    ASSET = "asset"
-    LIABILITY = "liability"
+    RECEIVABLE = "RECEIVABLE"
+    PAYABLE = "PAYABLE"
+    INCOME = "INCOME"
+    EXPENSE = "EXPENSE"
+    ASSET = "ASSET"
+    LIABILITY = "LIABILITY"
 
 
 class Invoice(Base, TimestampMixin, SoftDeleteMixin):

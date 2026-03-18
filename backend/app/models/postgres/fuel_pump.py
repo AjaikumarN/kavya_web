@@ -11,25 +11,25 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class FuelType(enum.Enum):
-    DIESEL = "diesel"
-    PETROL = "petrol"
-    CNG = "cng"
-    DEF = "def"
+    DIESEL = "DIESEL"
+    PETROL = "PETROL"
+    CNG = "CNG"
+    DEF = "DEF"
 
 
 class TransactionType(enum.Enum):
-    TANKER_REFILL = "tanker_refill"
-    MANUAL_ADJUSTMENT = "manual_adjustment"
-    ISSUE = "issue"
-    LOSS = "loss"
+    TANKER_REFILL = "TANKER_REFILL"
+    MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT"
+    ISSUE = "ISSUE"
+    LOSS = "LOSS"
 
 
 class TheftAlertStatus(enum.Enum):
-    OPEN = "open"
-    INVESTIGATING = "investigating"
-    CONFIRMED = "confirmed"
-    FALSE_ALARM = "false_alarm"
-    RESOLVED = "resolved"
+    OPEN = "OPEN"
+    INVESTIGATING = "INVESTIGATING"
+    CONFIRMED = "CONFIRMED"
+    FALSE_ALARM = "FALSE_ALARM"
+    RESOLVED = "RESOLVED"
 
 
 class DepotFuelTank(Base, TimestampMixin, SoftDeleteMixin):

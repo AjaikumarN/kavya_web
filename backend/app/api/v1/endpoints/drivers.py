@@ -64,7 +64,7 @@ async def get_driver_dashboard(
 
 @router.get("", response_model=APIResponse)
 async def list_drivers(
-    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
@@ -99,7 +99,7 @@ async def list_drivers(
 @router.get("/me/trips", response_model=APIResponse)
 async def get_my_trips(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
@@ -338,7 +338,7 @@ async def add_license(driver_id: int, data: DriverLicenseCreate, db: AsyncSessio
 async def get_driver_trips(
     driver_id: int,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):

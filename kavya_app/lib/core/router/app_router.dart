@@ -42,6 +42,7 @@ import '../../screens/pump/pump_fuel_log_screen.dart';
 import '../../screens/pump/pump_dispense_screen.dart';
 import '../../screens/pump/pump_reports_screen.dart';
 import '../../screens/pump/pump_tank_refill_screen.dart';
+import '../../screens/pump/pump_create_tank_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -282,6 +283,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pump/refill',
         builder: (context, state) => const PumpTankRefillScreen(),
+      ),
+      // Standalone create tank screen (no bottom nav)
+      GoRoute(
+        path: '/pump/create-tank',
+        builder: (context, state) => const PumpCreateTankScreen(),
       ),
     ],
   );

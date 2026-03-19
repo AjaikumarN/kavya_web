@@ -395,6 +395,117 @@ async def resolve_theft_alert(
     return alert
 
 
+# ──────────────────── Fuel Cross-Verification ────────────────────
+
+async def get_fuel_verification(
+    db: AsyncSession,
+    tenant_id: Optional[int],
+    days: int = 30,
+) -> List[dict]:
+    """Cross-verify depot fuel issues against driver trip fuel expense claims.
+
+    Joins FuelIssue records with TripExpense (FUEL) records on vehicle_id + date,
+    classifying each record as MATCHED / MISMATCH / PUMP_ONLY / DRIVER_ONLY.
+    """
+    from app.models.postgres.trip import Trip, TripExpense, ExpenseCategory
+
+    since = datetime.utcnow() - timedelta(days=days)
+    since_date = since.date()
+
+    # 1. Fetch fuel issues with vehicle registration
+    issues_result = await db.execute(
+        select(
+            FuelIssue.id,
+            FuelIssue.vehicle_id,
+            FuelIssue.driver_id,
+            FuelIssue.issued_at,
+            FuelIssue.quantity_litres,
+            FuelIssue.total_amount,
+            FuelIssue.receipt_number,
+            FuelIssue.is_flagged,
+            Vehicle.registration_number,
+        )
+        .join(Vehicle, Vehicle.id == FuelIssue.vehicle_id)
+        .where(FuelIssue.tenant_id == tenant_id)
+        .where(FuelIssue.issued_at >= since)
+        .order_by(FuelIssue.issued_at.desc())
+    )
+    issues = issues_result.all()
+
+    # 2. Fetch trip fuel expenses grouped by vehicle + date
+    expenses_result = await db.execute(
+        select(
+            Trip.vehicle_id,
+            Trip.trip_date,
+            func.sum(TripExpense.amount).label("total_expense"),
+        )
+        .join(TripExpense, TripExpense.trip_id == Trip.id)
+        .where(TripExpense.category == ExpenseCategory.FUEL)
+        .where(Trip.tenant_id == tenant_id)
+        .where(Trip.trip_date >= since_date)
+        .group_by(Trip.vehicle_id, Trip.trip_date)
+    )
+    expenses = expenses_result.all()
+
+    # Build lookup: (vehicle_id, date) -> driver_claimed_amount
+    expense_map: dict = {}
+    for e in expenses:
+        expense_map[(e.vehicle_id, e.trip_date)] = float(e.total_expense)
+
+    # 3. Merge and classify each fuel issue
+    records: List[dict] = []
+    seen_keys: set = set()
+
+    for issue in issues:
+        issue_date = issue.issued_at.date()
+        key = (issue.vehicle_id, issue_date)
+        seen_keys.add(key)
+
+        pump_amount = float(issue.total_amount)
+        driver_amount = expense_map.get(key)
+
+        if driver_amount is not None:
+            variance = abs(pump_amount - driver_amount) / pump_amount if pump_amount > 0 else 0
+            status = "MATCHED" if variance <= 0.10 else "MISMATCH"
+        else:
+            variance = None
+            status = "PUMP_ONLY"
+
+        records.append({
+            "issue_id": issue.id,
+            "vehicle_id": issue.vehicle_id,
+            "registration_number": issue.registration_number,
+            "issue_date": issue_date.isoformat(),
+            "quantity_litres": float(issue.quantity_litres),
+            "pump_amount": pump_amount,
+            "driver_amount": driver_amount,
+            "variance_pct": round(variance * 100, 1) if variance is not None else None,
+            "status": status,
+            "is_flagged": bool(issue.is_flagged),
+            "receipt_number": issue.receipt_number,
+        })
+
+    # 4. Add driver-only records (expense with no matching depot fuel issue)
+    for (vehicle_id, exp_date), exp_amount in expense_map.items():
+        if (vehicle_id, exp_date) not in seen_keys:
+            records.append({
+                "issue_id": None,
+                "vehicle_id": vehicle_id,
+                "registration_number": None,
+                "issue_date": exp_date.isoformat(),
+                "quantity_litres": None,
+                "pump_amount": None,
+                "driver_amount": exp_amount,
+                "variance_pct": None,
+                "status": "DRIVER_ONLY",
+                "is_flagged": False,
+                "receipt_number": None,
+            })
+
+    records.sort(key=lambda r: r["issue_date"], reverse=True)
+    return records
+
+
 # ──────────────────── Dashboard Stats ────────────────────
 
 async def get_dashboard_stats(

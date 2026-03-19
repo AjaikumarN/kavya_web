@@ -261,6 +261,19 @@ async def resolve_alert(
 
 # ──────────────────── Dashboard ────────────────────
 
+@router.get("/verification", response_model=APIResponse)
+async def get_fuel_verification(
+    days: int = Query(30, ge=1, le=365),
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_READ, Permissions.FUEL_REPORTS,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cross-verify depot fuel issues vs driver expense claims. Returns MATCHED/MISMATCH/PUMP_ONLY/DRIVER_ONLY."""
+    records = await fuel_pump_service.get_fuel_verification(db, current_user.tenant_id, days)
+    return APIResponse(success=True, data=records)
+
+
 @router.get("/dashboard", response_model=APIResponse)
 async def fuel_dashboard(
     current_user: TokenData = Depends(require_any_permission([

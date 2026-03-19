@@ -23,4 +23,7 @@ export const fuelPumpService = {
   // Theft Alerts
   getAlerts: (params?: Record<string, any>) => api.get('/fuel-pump/alerts', { params }),
   resolveAlert: (id: number, data: any) => api.put(`/fuel-pump/alerts/${id}`, data),
+
+  // Cross-Verification
+  getVerification: (days?: number) => api.get('/fuel-pump/verification', { params: days ? { days } : {} }),
 };

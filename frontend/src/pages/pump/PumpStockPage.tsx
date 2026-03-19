@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, RefreshCw, Fuel } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fuelPumpService } from '@/services/fuelPumpService';
 
 export default function PumpStockPage() {
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showCreateTank, setShowCreateTank] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedTank, setSelectedTank] = useState<string>('');
 
@@ -36,6 +37,15 @@ export default function PumpStockPage() {
     remarks: '',
   });
 
+  const [tankForm, setTankForm] = useState({
+    name: '',
+    fuel_type: 'DIESEL',
+    capacity_litres: '',
+    current_stock_litres: '',
+    min_stock_alert: '',
+    location: '',
+  });
+
   const mutation = useMutation({
     mutationFn: (data: any) => fuelPumpService.addStock(data),
     onSuccess: () => {
@@ -51,6 +61,20 @@ export default function PumpStockPage() {
     },
   });
 
+  const createTankMutation = useMutation({
+    mutationFn: (data: any) => fuelPumpService.createTank(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fuel-tanks'] });
+      queryClient.invalidateQueries({ queryKey: ['pump-dashboard'] });
+      toast.success('Tank created successfully');
+      setShowCreateTank(false);
+      setTankForm({ name: '', fuel_type: 'DIESEL', capacity_litres: '', current_stock_litres: '', min_stock_alert: '', location: '' });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to create tank');
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     mutation.mutate({
@@ -63,6 +87,18 @@ export default function PumpStockPage() {
     });
   };
 
+  const handleCreateTank = (e: React.FormEvent) => {
+    e.preventDefault();
+    createTankMutation.mutate({
+      name: tankForm.name,
+      fuel_type: tankForm.fuel_type,
+      capacity_litres: Number(tankForm.capacity_litres),
+      current_stock_litres: tankForm.current_stock_litres ? Number(tankForm.current_stock_litres) : 0,
+      min_stock_alert: tankForm.min_stock_alert ? Number(tankForm.min_stock_alert) : null,
+      location: tankForm.location || null,
+    });
+  };
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -70,13 +106,105 @@ export default function PumpStockPage() {
           <h1 className="text-2xl font-bold text-gray-900">Tank Stock Management</h1>
           <p className="text-sm text-gray-500">Refills, adjustments, and stock history</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm"
-        >
-          <Plus size={16} /> Add Stock Transaction
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowCreateTank(!showCreateTank); setShowAddForm(false); }}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm"
+          >
+            <Fuel size={16} /> Create Tank
+          </button>
+          <button
+            onClick={() => { setShowAddForm(!showAddForm); setShowCreateTank(false); }}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm"
+          >
+            <Plus size={16} /> Add Stock Transaction
+          </button>
+        </div>
       </div>
+
+      {/* Create Tank Form */}
+      {showCreateTank && (
+        <div className="bg-white rounded-xl shadow-sm border border-emerald-200 p-6">
+          <h2 className="text-lg font-semibold mb-1">Create New Fuel Tank</h2>
+          <p className="text-sm text-gray-500 mb-4">Add a new depot fuel tank to the system</p>
+          <form onSubmit={handleCreateTank} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tank Name *</label>
+              <input
+                type="text"
+                value={tankForm.name}
+                onChange={(e) => setTankForm({ ...tankForm, name: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. Main Diesel Tank"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type *</label>
+              <select
+                value={tankForm.fuel_type}
+                onChange={(e) => setTankForm({ ...tankForm, fuel_type: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                required
+              >
+                <option value="DIESEL">Diesel</option>
+                <option value="PETROL">Petrol</option>
+                <option value="CNG">CNG</option>
+                <option value="DEF">DEF (AdBlue)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Capacity (Litres) *</label>
+              <input
+                type="number" step="0.01" min="1"
+                value={tankForm.capacity_litres}
+                onChange={(e) => setTankForm({ ...tankForm, capacity_litres: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. 5000"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Opening Stock (Litres)</label>
+              <input
+                type="number" step="0.01" min="0"
+                value={tankForm.current_stock_litres}
+                onChange={(e) => setTankForm({ ...tankForm, current_stock_litres: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert (Litres)</label>
+              <input
+                type="number" step="0.01" min="0"
+                value={tankForm.min_stock_alert}
+                onChange={(e) => setTankForm({ ...tankForm, min_stock_alert: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. 500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+              <input
+                type="text"
+                value={tankForm.location}
+                onChange={(e) => setTankForm({ ...tankForm, location: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. Depot Gate A"
+              />
+            </div>
+            <div className="sm:col-span-2 flex gap-3">
+              <button type="button" onClick={() => setShowCreateTank(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                Cancel
+              </button>
+              <button type="submit" disabled={createTankMutation.isPending} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50">
+                {createTankMutation.isPending ? 'Creating...' : 'Create Tank'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Add Stock Form */}
       {showAddForm && (

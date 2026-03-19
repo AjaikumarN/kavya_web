@@ -439,6 +439,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'Theft Alerts', route: '/pump/alerts', icon: 'alert', description: 'Anomaly detection alerts' },
           { label: 'Reports', route: '/pump/reports', icon: 'chart', description: 'Fuel consumption reports' },
+          { label: 'Fuel Audit', route: '/pump/fuel-verification', icon: 'shield', description: 'Cross-verify pump vs driver records' },
         ],
       },
     ],

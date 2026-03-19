@@ -112,6 +112,7 @@ import PumpFuelLogPage from '@/pages/pump/PumpFuelLogPage';
 import PumpStockPage from '@/pages/pump/PumpStockPage';
 import PumpAlertsPage from '@/pages/pump/PumpAlertsPage';
 import PumpReportsPage from '@/pages/pump/PumpReportsPage';
+import FuelVerificationPage from '@/pages/pump/FuelVerificationPage';
 
 // Accountant
 import AccountantDashboardPage from '@/pages/accountant/AccountantDashboardPage';
@@ -283,6 +284,7 @@ function App() {
           <Route path="/pump/stock" element={<PumpStockPage />} />
           <Route path="/pump/alerts" element={<PumpAlertsPage />} />
           <Route path="/pump/reports" element={<PumpReportsPage />} />
+          <Route path="/pump/fuel-verification" element={<FuelVerificationPage />} />
 
           {/* Generic profile redirect — roles each have their own profile section */}
           <Route path="/profile" element={<Navigate to={getRoleHomePage(user?.roles?.[0])} replace />} />

@@ -436,7 +436,7 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      initialValue: initialValue,
+      value: initialValue,
       hint: Text(hint, style: const TextStyle(color: _textSecondary)),
       items: items,
       onChanged: onChanged,

@@ -91,9 +91,9 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
                 error: (_, __) => const Text('Failed to load tanks',
                     style: TextStyle(color: Colors.red)),
                 data: (tanks) => DropdownButtonFormField<int>(
-                  initialValue: _selectedTankId,
-                  hint: Text('Choose tank to refill',
-                      style: const TextStyle(color: _textSecondary)),
+                  value: _selectedTankId,
+                  hint: const Text('Choose tank to refill',
+                      style: TextStyle(color: Color(0xFF94A3B8))),
                   dropdownColor: _card,
                   style: const TextStyle(color: _textPrimary, fontSize: 14),
                   decoration: _inputDecoration(''),

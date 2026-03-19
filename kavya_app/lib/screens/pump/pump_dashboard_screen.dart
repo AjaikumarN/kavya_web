@@ -51,13 +51,22 @@ class PumpDashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _actionButton(
                     context: context,
                     icon: Icons.local_shipping_outlined,
                     label: 'Refill Tank',
                     onTap: () => context.push('/pump/refill'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _actionButton(
+                    context: context,
+                    icon: Icons.add_circle_outline,
+                    label: 'Create Tank',
+                    onTap: () => context.push('/pump/create-tank'),
                   ),
                 ),
               ],

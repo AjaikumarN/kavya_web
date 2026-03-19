@@ -34,8 +34,10 @@ class AdminHomeScreen extends ConsumerWidget {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
-              if (value == 'logout') {
-                ref.read(authProvider.notifier).logout();
+              if (value == 'profile') {
+                _showProfileDialog(context, ref);
+              } else if (value == 'logout') {
+                _showLogoutDialog(context, ref);
               }
             },
             itemBuilder: (_) => [
@@ -80,6 +82,74 @@ class AdminHomeScreen extends ConsumerWidget {
           ),
         ],
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      ),
+    );
+  }
+
+  void _showProfileDialog(BuildContext context, WidgetRef ref) {
+    final user = ref.read(authProvider).user;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('My Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: const Color(0xFFF59E0B).withAlpha(30),
+                child: Text(
+                  (user?.fullName ?? 'A').substring(0, 1).toUpperCase(),
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _profileRow('Name', user?.fullName ?? 'Admin'),
+            _profileRow('Email', user?.email ?? '-'),
+            _profileRow('Phone', user?.phone ?? '-'),
+            _profileRow('Role', user?.role ?? 'admin'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 60, child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12))),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(authProvider.notifier).logout();
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

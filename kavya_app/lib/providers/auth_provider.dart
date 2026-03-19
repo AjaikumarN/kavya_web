@@ -42,6 +42,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = AuthState();
+    await _authService.logout(); // Clear storage & navigate to login
   }
 
   void setUser(User user) {

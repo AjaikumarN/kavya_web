@@ -22,12 +22,13 @@ final tripSearchProvider = FutureProvider.autoDispose<List<Trip>>((ref) async {
   try {
     final api = ref.read(apiServiceProvider);
     final data = await api.get(
-      '/trips/?search=$query',
+      '/trips?search=$query',
     );
     
-    final items = (data['items'] as List<dynamic>?)
-        ?.map((e) => Trip.fromJson(e as Map<String, dynamic>))
-        .toList() ?? [];
+    final rawData = data['data'];
+    final items = (rawData is List ? rawData as List<dynamic> : [])
+        .map((e) => Trip.fromJson(e as Map<String, dynamic>))
+        .toList();
     
     return items;
   } catch (e) {
@@ -51,10 +52,11 @@ final expenseSearchProvider = FutureProvider.autoDispose<List<Expense>>((ref) as
   try {
     final api = ref.read(apiServiceProvider);
     final data = await api.get(
-      '/expenses/?search=$query',
+      '/expenses?search=$query',
     );
     
-    final items = (data['items'] as List<dynamic>?)
+    final innerData = (data['data'] is Map ? data['data'] as Map<String, dynamic> : {});
+    final items = (innerData['items'] as List<dynamic>?)
         ?.map((e) => Expense.fromJson(e as Map<String, dynamic>))
         .toList() ?? [];
     

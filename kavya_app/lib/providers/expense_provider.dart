@@ -80,15 +80,16 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
 
     try {
       final tripFilter = tripId != null ? '&trip_id=$tripId' : '';
-      final data = await _api.get(
-        '/expenses/?page=$_currentPage&page_size=$_pageSize$tripFilter',
+      final response = await _api.get(
+        '/expenses?page=$_currentPage&page_size=$_pageSize$tripFilter',
       );
-
-      final items = (data['items'] as List<dynamic>?)
+      // API response: {success, data: {items: [...], total: ...}}
+      final innerData = (response['data'] is Map ? response['data'] as Map<String, dynamic> : {}) ;
+      final items = (innerData['items'] as List<dynamic>?)
           ?.map((e) => Expense.fromJson(e as Map<String, dynamic>))
           .toList() ?? [];
 
-      final total = data['total'] as int? ?? 0;
+      final total = innerData['total'] as int? ?? 0;
 
       if (reset) {
         _allExpenses = items;
@@ -139,8 +140,12 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
 
       // Send to server (include biometric flag)
       final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
-      final response = await _api.post('/expenses/', data: payload);
-      final createdExpense = Expense.fromJson(response);
+      final response = await _api.post('/expenses', data: payload);
+      // API response: {success, data: {...expense...}}
+      final expenseData = (response is Map && response['data'] is Map)
+          ? Map<String, dynamic>.from(response['data'] as Map)
+          : (response is Map ? Map<String, dynamic>.from(response) : <String, dynamic>{});
+      final createdExpense = Expense.fromJson(expenseData);
 
       // Update with server response (includes ID)
       if (current != null) {
@@ -166,7 +171,7 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
         // On error, queue for offline sync
         await _offline.enqueueRequest(
           method: 'POST',
-          path: '/expenses/',
+          path: '/expenses',
           data: expense.toJson(),
         );
 
@@ -227,9 +232,10 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
 
     state = const AsyncValue.loading();
     try {
-      final path = tripId != null ? '/expenses/?trip_id=$tripId' : '/expenses/';
-      final data = await _api.get(path);
-      final items = (data['items'] as List<dynamic>?)
+      final path = tripId != null ? '/expenses?trip_id=$tripId' : '/expenses';
+      final response = await _api.get(path);
+      final innerData = (response['data'] is Map ? response['data'] as Map<String, dynamic> : {});
+      final items = (innerData['items'] as List<dynamic>?)
               ?.map((e) => Expense.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];
@@ -255,7 +261,7 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
 
       // Send to server (include biometric flag)
       final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
-      await _api.post('/expenses/', data: payload);
+      await _api.post('/expenses', data: payload);
 
       // Success - refresh to get server ID
       await refresh();
@@ -264,7 +270,7 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
         // Offline-first: queue the write
         await _offline.enqueueRequest(
           method: 'POST',
-          path: '/expenses/',
+          path: '/expenses',
           data: expense.toJson(),
         );
         // Keep optimistic update with pending status

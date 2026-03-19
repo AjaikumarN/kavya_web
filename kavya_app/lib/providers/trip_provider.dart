@@ -44,15 +44,16 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
     }
 
     try {
-      final data = await _api.get(
-        '/trips/?page=$_currentPage&page_size=$_pageSize',
+      final response = await _api.get(
+        '/trips?page=$_currentPage&page_size=$_pageSize',
       );
-      
-      final items = (data['items'] as List<dynamic>?)
-          ?.map((e) => Trip.fromJson(e as Map<String, dynamic>))
-          .toList() ?? [];
-      
-      final total = data['total'] as int? ?? 0;
+      // API response: {success, data: [...trips], pagination: {total, pages}}
+      final rawData = response['data'];
+      final rawItems = rawData is List ? rawData : <dynamic>[];
+      final items = rawItems
+          .map((e) => Trip.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      final total = (response['pagination']?['total'] as int?) ?? items.length;
       
       if (reset) {
         _allTrips = items;
@@ -219,11 +220,13 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
 
     state = const AsyncValue.loading();
     try {
-      final data = await _api.get('/trips/');
-      final items = (data['items'] as List<dynamic>?)
-              ?.map((e) => Trip.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [];
+      final response = await _api.get('/trips');
+      // API response: {success, data: [...trips], pagination: {total}}
+      final rawData = response['data'];
+      final rawItems = rawData is List ? rawData : <dynamic>[];
+      final items = rawItems
+          .map((e) => Trip.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
       state = AsyncValue.data(items);
       
       // Cache results
@@ -298,8 +301,12 @@ final tripDetailProvider =
   }
 
   final api = ref.read(apiServiceProvider);
-  final data = await api.get('/trips/$tripId');
-  final trip = Trip.fromJson(data as Map<String, dynamic>);
+  final response = await api.get('/trips/$tripId');
+  // API response: {success, data: {...trip...}}
+  final tripData = (response is Map && response['data'] is Map)
+      ? Map<String, dynamic>.from(response['data'] as Map)
+      : Map<String, dynamic>.from(response as Map);
+  final trip = Trip.fromJson(tripData);
   
   // Cache the result
   ref.read(tripsCacheProvider).set('trip_detail_$tripId', [trip.toJson()]);

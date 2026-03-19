@@ -72,6 +72,7 @@ import FuelPricePage from '@/pages/fleet/FuelPricePage';
 import RouteCalculatorPage from '@/pages/trips/RouteCalculatorPage';
 import PaymentLinkPage from '@/pages/finance/PaymentLinkPage';
 import NotificationCenterPage from '@/pages/settings/NotificationCenterPage';
+import ProfilePage from '@/pages/settings/ProfilePage';
 import DocumentUploadPage from '@/pages/documents/DocumentUploadPage';
 
 // Settings
@@ -169,12 +170,13 @@ function App() {
 
           {/* Jobs */}
           <Route path="/jobs" element={<JobsPage />} />
-          <Route path="/jobs/new" element={<CreateJobPage />} />
+          <Route path="/jobs/new" element={<Navigate to="/lr/new" replace />} />
           <Route path="/jobs/:id/edit" element={<CreateJobPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
 
           {/* LR */}
           <Route path="/lr" element={<LRListPage />} />
+          <Route path="/lr/create" element={<CreateLRPage />} />
           <Route path="/lr/new" element={<CreateLRPage />} />
           <Route path="/lr/:id/edit" element={<CreateLRPage />} />
           <Route path="/lr/:id" element={<LRDetailPage />} />
@@ -218,6 +220,7 @@ function App() {
           <Route path="/reports" element={<ReportsPage />} />
 
           {/* Settings */}
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
 
           {/* Compliance & Tools */}

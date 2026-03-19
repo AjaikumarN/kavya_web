@@ -19,6 +19,8 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=6)
     role_names: Optional[List[str]] = None
     branch_id: Optional[int] = None
     is_active: Optional[bool] = None

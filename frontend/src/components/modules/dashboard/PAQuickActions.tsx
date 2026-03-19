@@ -12,15 +12,15 @@ interface Props {
 
 const quickActions = [
   {
-    label: 'Create Job',
+    label: 'Create LR',
     icon: <Plus size={18} />,
-    path: '/jobs?action=create',
+    path: '/lr/new',
     color: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200',
   },
   {
-    label: 'Create LR',
+    label: 'LR Details',
     icon: <FileText size={18} />,
-    path: '/lr?action=create',
+    path: '/lr',
     color: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200',
   },
   {

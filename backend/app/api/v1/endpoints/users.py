@@ -31,7 +31,7 @@ async def list_users(
         roles = await user_service.get_user_roles(db, u.id)
         items.append({
             "id": u.id, "email": u.email, "first_name": u.first_name,
-            "last_name": u.last_name, "phone": u.phone, "roles": roles,
+            "last_name": u.last_name, "phone": u.phone, "avatar_url": u.avatar_url, "roles": roles,
             "is_active": u.is_active,
             "last_login": str(u.last_login) if u.last_login else None,
             "created_at": str(u.created_at) if u.created_at else None,
@@ -47,7 +47,7 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
     roles = await user_service.get_user_roles(db, user.id)
     return APIResponse(success=True, data={
         "id": user.id, "email": user.email, "first_name": user.first_name,
-        "last_name": user.last_name, "phone": user.phone, "roles": roles,
+        "last_name": user.last_name, "phone": user.phone, "avatar_url": user.avatar_url, "roles": roles,
         "is_active": user.is_active, "created_at": str(user.created_at) if user.created_at else None,
     })
 
@@ -86,6 +86,9 @@ async def update_user(
     _perm=Depends(require_permission(Permissions.USER_UPDATE)),
 ):
     payload = data.model_dump(exclude_unset=True)
+    if "password" in payload and payload["password"]:
+        if not any((role or "").lower() == "admin" for role in current_user.roles):
+            raise HTTPException(status_code=403, detail="Only admin can update employee password")
     normalized_phone = None
     if "phone" in payload:
         normalized_phone = (payload.get("phone") or "").strip() or None

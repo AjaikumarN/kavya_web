@@ -19,6 +19,8 @@ import {
 } from 'recharts';
 import ProjectAssociateDashboard from './ProjectAssociateDashboard';
 import DriverDashboardPage from '@/pages/driver/DriverDashboardPage';
+import FleetDashboardPage from '@/pages/fleet/FleetDashboardPage';
+import ManagerDashboardPage from './ManagerDashboardPage';
 import SmartSuggestions from '@/components/modules/dashboard/SmartSuggestions';
 
 const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -52,6 +54,14 @@ export default function DashboardPage() {
 
   if (hasRole('driver')) {
     return <DriverDashboardPage />;
+  }
+
+  if (hasRole('fleet_manager')) {
+    return <FleetDashboardPage />;
+  }
+
+  if (hasRole('manager')) {
+    return <ManagerDashboardPage />;
   }
 
   const { data: overview, refetch } = useQuery({
@@ -117,7 +127,7 @@ export default function DashboardPage() {
   const alertItems = Array.isArray(notifications) ? notifications : [];
 
   const quickActions = [
-    { label: 'New Job', icon: <Package size={18} />, path: '/jobs', color: 'bg-primary-50 text-primary-600' },
+    { label: 'View Jobs', icon: <Package size={18} />, path: '/jobs', color: 'bg-primary-50 text-primary-600' },
     { label: 'Create LR', icon: <FileText size={18} />, path: '/lr', color: 'bg-green-50 text-green-600' },
     { label: 'Plan Trip', icon: <MapPin size={18} />, path: '/trips', color: 'bg-purple-50 text-purple-600' },
     { label: 'Add Invoice', icon: <Wallet size={18} />, path: '/finance', color: 'bg-amber-50 text-amber-600' },

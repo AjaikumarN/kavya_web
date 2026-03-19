@@ -281,7 +281,7 @@ export default function Header() {
               </div>
               <div className="p-1.5">
                 <button
-                  onClick={() => { setShowProfile(false); navigate('/settings'); }}
+                  onClick={() => { setShowProfile(false); navigate('/profile'); }}
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <User size={16} className="text-gray-400" /> Profile

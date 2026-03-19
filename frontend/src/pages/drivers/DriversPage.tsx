@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { driverService } from '@/services/dataService';
+import api from '@/services/api';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { StatusBadge, KPICard, Modal } from '@/components/common/Modal';
@@ -41,6 +42,13 @@ export default function DriversPage() {
   const { data: dashboard } = useQuery<DriverDashboard>({
     queryKey: ['driver-dashboard'],
     queryFn: () => driverService.getDashboard(),
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: ['drivers-users-catalog'],
+    queryFn: () => api.get('/users', { suppressErrorToast: true } as any),
+    retry: false,
+    throwOnError: false,
   });
 
   const { data, isLoading, refetch } = useQuery({
@@ -115,6 +123,56 @@ export default function DriversPage() {
   });
 
   const kpis = dashboard?.kpis;
+
+  const normalizePhone = (value?: string) => String(value || '').replace(/\D/g, '').slice(-10);
+  const normalizeStatus = (value?: string) => String(value || '').trim().toLowerCase();
+  const rawDrivers = safeArray<Driver>(data);
+  const allUsers = safeArray<any>(usersData);
+  const driverUsers = allUsers.filter((u: any) => {
+    const role = String(u?.role || '').toLowerCase();
+    const roles = safeArray<string>(u?.roles).map((r) => String(r || '').toLowerCase());
+    return role === 'driver' || roles.includes('driver');
+  });
+  const hasUsersCatalog = allUsers.length > 0;
+  const driverUserIds = new Set(driverUsers.map((u: any) => Number(u?.id)).filter((id) => Number.isFinite(id) && id > 0));
+  const driverUserPhones = new Set(driverUsers.map((u: any) => normalizePhone(u?.phone)).filter(Boolean));
+  const driverUserEmails = new Set(driverUsers.map((u: any) => String(u?.email || '').trim().toLowerCase()).filter(Boolean));
+
+  const visibleDrivers = hasUsersCatalog
+    ? rawDrivers.filter((d: any) => {
+        const userId = Number(d?.user_id);
+        if (Number.isFinite(userId) && driverUserIds.has(userId)) return true;
+        const phone = normalizePhone(d?.phone);
+        if (phone && driverUserPhones.has(phone)) return true;
+        const email = String(d?.email || '').trim().toLowerCase();
+        if (email && driverUserEmails.has(email)) return true;
+        return false;
+      })
+    : rawDrivers;
+
+  const computedKpis = {
+    total_drivers: visibleDrivers.length,
+    available: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'available').length,
+    on_trip: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'on_trip').length,
+    on_leave: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'on_leave').length,
+    license_expiring_soon: visibleDrivers.filter((d) => {
+      const expiry = (d as any)?.license_expiry;
+      if (!expiry) return false;
+      const dt = new Date(expiry);
+      if (isNaN(dt.getTime())) return false;
+      const daysLeft = Math.ceil((dt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      return daysLeft >= 0 && daysLeft <= 30;
+    }).length,
+    avg_rating: visibleDrivers.length
+      ? Number((visibleDrivers.reduce((sum, d) => sum + Number((d as any)?.rating || 0), 0) / visibleDrivers.length).toFixed(1))
+      : 0,
+  };
+  const kpiView = hasUsersCatalog
+    ? {
+        ...computedKpis,
+        active_drivers: computedKpis.available + computedKpis.on_trip,
+      }
+    : kpis;
 
   const columns: Column<Driver>[] = [
     {
@@ -231,14 +289,14 @@ export default function DriversPage() {
       </div>
 
       {/* KPI Strip */}
-      {kpis && (
+      {kpiView && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <KPICard title="Total" value={kpis.total_drivers} icon={<Users size={18} />} color="blue" />
-          <KPICard title="Active" value={kpis.active_drivers} icon={<UserCheck size={18} />} color="green" />
-          <KPICard title="On Trip" value={kpis.on_trip} icon={<Truck size={18} />} color="purple" />
-          <KPICard title="Available" value={kpis.available} icon={<Clock size={18} />} color="blue" />
-          <KPICard title="License Expiring" value={kpis.license_expiring_soon} icon={<AlertTriangle size={18} />} color="yellow" />
-          <KPICard title="Avg Rating" value={kpis.avg_rating} icon={<Star size={18} />} color="yellow" />
+          <KPICard title="Total" value={kpiView.total_drivers} icon={<Users size={18} />} color="blue" />
+          <KPICard title="Active" value={kpiView.active_drivers} icon={<UserCheck size={18} />} color="green" />
+          <KPICard title="On Trip" value={kpiView.on_trip} icon={<Truck size={18} />} color="purple" />
+          <KPICard title="Available" value={kpiView.available} icon={<Clock size={18} />} color="blue" />
+          <KPICard title="License Expiring" value={kpiView.license_expiring_soon} icon={<AlertTriangle size={18} />} color="yellow" />
+          <KPICard title="Avg Rating" value={kpiView.avg_rating} icon={<Star size={18} />} color="yellow" />
         </div>
       )}
 
@@ -261,8 +319,8 @@ export default function DriversPage() {
 
       <DataTable
         columns={columns}
-        data={safeArray<Driver>(data)}
-        total={data?.total || 0}
+        data={visibleDrivers}
+        total={hasUsersCatalog ? visibleDrivers.length : (data?.total || 0)}
         page={filters.page}
         pageSize={filters.page_size}
         isLoading={isLoading}

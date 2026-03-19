@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user, create_tokens
-from app.schemas.auth import LoginRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest
+from app.schemas.auth import LoginRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest
 from app.schemas.base import APIResponse
 from app.services.auth_service import authenticate_user, get_user_roles, refresh_access_token, change_password, get_user_by_id
 from app.middleware.permissions import get_user_permissions
@@ -49,7 +49,8 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     user_info = UserInfo(
         id=user.id, email=user.email, first_name=user.first_name,
-        last_name=user.last_name, roles=roles, permissions=all_perms,
+        last_name=user.last_name, phone=user.phone, roles=roles, permissions=all_perms,
+        avatar_url=user.avatar_url, is_active=user.is_active, created_at=user.created_at,
         branch_id=user.branch_id, tenant_id=user.tenant_id,
         redirect_to=_get_redirect(roles),
     )
@@ -78,10 +79,29 @@ async def get_profile(current_user: TokenData = Depends(get_current_user), db: A
     all_perms = get_user_permissions(roles)
     return APIResponse(success=True, data=UserInfo(
         id=user.id, email=user.email, first_name=user.first_name,
-        last_name=user.last_name, roles=roles, permissions=all_perms,
+        last_name=user.last_name, phone=user.phone, roles=roles, permissions=all_perms,
+        avatar_url=user.avatar_url, is_active=user.is_active, created_at=user.created_at,
         branch_id=user.branch_id, tenant_id=user.tenant_id,
         redirect_to=_get_redirect(roles),
     ).model_dump())
+
+
+@router.put("/me/photo", response_model=APIResponse)
+async def update_my_photo(
+    payload: UpdatePhotoRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_user_by_id(db, current_user.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    avatar_url = (payload.avatar_url or "").strip()
+    if not avatar_url:
+        raise HTTPException(status_code=400, detail="Photo is required")
+
+    user.avatar_url = avatar_url
+    return APIResponse(success=True, message="Profile photo updated successfully")
 
 
 @router.post("/change-password", response_model=APIResponse)

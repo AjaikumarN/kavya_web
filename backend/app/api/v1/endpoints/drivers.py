@@ -14,6 +14,7 @@ from app.schemas.driver import DriverCreate, DriverUpdate, DriverLicenseCreate
 from app.services import driver_service, trip_service
 from app.models.postgres.driver import Driver
 from app.models.postgres.trip import Trip
+from app.models.postgres.lr import LR
 from app.models.postgres.user import User
 
 router = APIRouter()
@@ -123,6 +124,11 @@ async def get_my_trips(
     items = []
     for t in trips:
         status_val = getattr(t.status, 'value', t.status) if t.status else 'planned'
+        lr_result = await db.execute(
+            select(LR).where(LR.trip_id == t.id, LR.is_deleted == False).order_by(LR.id.desc())
+        )
+        trip_lrs = lr_result.scalars().all()
+        lr_numbers = [lr.lr_number for lr in trip_lrs if lr.lr_number]
         items.append({
             "id": t.id,
             "trip_number": t.trip_number,
@@ -133,6 +139,8 @@ async def get_my_trips(
             "status": str(status_val),
             "driver_id": driver.id,
             "driver_name": driver.full_name,
+            "lr_numbers": lr_numbers,
+            "lr_count": len(lr_numbers),
         })
 
     pages = (total + page_size - 1) // page_size
@@ -163,6 +171,22 @@ async def get_my_trip_detail(
         raise HTTPException(status_code=404, detail="Trip not found")
 
     status_val = getattr(trip.status, 'value', trip.status) if trip.status else 'planned'
+    lr_result = await db.execute(
+        select(LR).where(LR.trip_id == trip.id, LR.is_deleted == False).order_by(LR.id.desc())
+    )
+    trip_lrs = lr_result.scalars().all()
+    lr_details = [
+        {
+            "id": lr.id,
+            "lr_number": lr.lr_number,
+            "status": getattr(lr.status, "value", lr.status),
+            "consignor_name": lr.consignor_name,
+            "consignee_name": lr.consignee_name,
+            "origin": lr.origin,
+            "destination": lr.destination,
+        }
+        for lr in trip_lrs
+    ]
     data = {
         "id": trip.id,
         "trip_number": trip.trip_number,
@@ -182,6 +206,9 @@ async def get_my_trip_detail(
         "planned_distance_km": float(trip.planned_distance_km) if trip.planned_distance_km is not None else None,
         "actual_distance_km": float(trip.actual_distance_km) if trip.actual_distance_km is not None else None,
         "remarks": trip.remarks,
+        "lr_numbers": [lr["lr_number"] for lr in lr_details if lr.get("lr_number")],
+        "lr_count": len(lr_details),
+        "lr_details": lr_details,
     }
     return APIResponse(success=True, data=data, message="Trip details")
 
@@ -211,7 +238,7 @@ async def complete_my_trip(
     close_remark = remarks or "Trip completed by driver"
 
     current_status = getattr(trip.status, "value", trip.status) if trip.status else "planned"
-    current_status = str(current_status)
+    current_status = str(current_status).strip().lower()
 
     if current_status in {"completed", "cancelled"}:
         raise HTTPException(status_code=400, detail=f"Trip is already {current_status}")

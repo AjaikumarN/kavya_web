@@ -109,6 +109,9 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
     if not user:
         return None
     role_names = data.pop("role_names", None)
+    raw_password = data.pop("password", None)
+    if raw_password:
+        user.password_hash = get_password_hash(raw_password)
     for k, v in data.items():
         if k == "phone":
             v = _normalize_optional_phone(v)

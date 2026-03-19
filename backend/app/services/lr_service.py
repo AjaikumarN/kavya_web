@@ -6,7 +6,8 @@ from app.models.postgres.lr import LR, LRItem, LRDocument, LRStatus, PaymentMode
 from app.models.postgres.job import Job
 from app.models.postgres.vehicle import Vehicle
 from app.models.postgres.driver import Driver
-from app.utils.generators import generate_lr_number
+from app.models.postgres.trip import Trip, TripStatusEnum
+from app.utils.generators import generate_lr_number, generate_trip_number
 
 
 VALID_LR_TRANSITIONS = {
@@ -97,6 +98,8 @@ async def create_lr(db: AsyncSession, data: dict, user_id: int = None) -> LR:
     db.add(lr)
     await db.flush()
 
+    await _ensure_trip_for_lr_assignment(db, lr)
+
     # Add items
     for idx, item_data in enumerate(items_data, 1):
         item = LRItem(lr_id=lr.id, item_number=idx, **item_data)
@@ -122,7 +125,62 @@ async def update_lr(db: AsyncSession, lr_id: int, data: dict):
             setattr(lr, k, v)
     # Recalculate freight
     lr.total_freight = float(lr.freight_amount or 0) + float(lr.loading_charges or 0) + float(lr.unloading_charges or 0) + float(lr.detention_charges or 0) + float(lr.other_charges or 0)
+
+    await _ensure_trip_for_lr_assignment(db, lr)
+
     return lr
+
+
+async def _ensure_trip_for_lr_assignment(db: AsyncSession, lr: LR) -> None:
+    """Ensure LR assignment is represented as a trip so it appears in driver pages."""
+    if not lr.vehicle_id or not lr.driver_id or not lr.job_id:
+        return
+
+    # Keep linked trip aligned when already present.
+    existing_trip = None
+    if lr.trip_id:
+        trip_result = await db.execute(select(Trip).where(Trip.id == lr.trip_id, Trip.is_deleted == False))
+        existing_trip = trip_result.scalar_one_or_none()
+
+    vehicle_result = await db.execute(select(Vehicle).where(Vehicle.id == lr.vehicle_id, Vehicle.is_deleted == False))
+    vehicle = vehicle_result.scalar_one_or_none()
+    driver_result = await db.execute(select(Driver).where(Driver.id == lr.driver_id, Driver.is_deleted == False))
+    driver = driver_result.scalar_one_or_none()
+    if not vehicle or not driver:
+        return
+
+    origin = lr.origin or "Unknown"
+    destination = lr.destination or "Unknown"
+
+    if existing_trip:
+        existing_trip.vehicle_id = lr.vehicle_id
+        existing_trip.driver_id = lr.driver_id
+        existing_trip.vehicle_registration = vehicle.registration_number
+        existing_trip.driver_name = driver.full_name
+        existing_trip.driver_phone = driver.phone
+        existing_trip.origin = origin
+        existing_trip.destination = destination
+        if not existing_trip.trip_date:
+            existing_trip.trip_date = lr.lr_date
+        return
+
+    new_trip = Trip(
+        trip_number=generate_trip_number(),
+        trip_date=lr.lr_date,
+        job_id=lr.job_id,
+        vehicle_id=lr.vehicle_id,
+        vehicle_registration=vehicle.registration_number,
+        driver_id=lr.driver_id,
+        driver_name=driver.full_name,
+        driver_phone=driver.phone,
+        origin=origin,
+        destination=destination,
+        status=TripStatusEnum.DRIVER_ASSIGNED,
+        created_by=lr.created_by,
+    )
+    db.add(new_trip)
+    await db.flush()
+    lr.trip_id = new_trip.id
 
 
 async def delete_lr(db: AsyncSession, lr_id: int) -> bool:
@@ -138,14 +196,15 @@ async def change_lr_status(db: AsyncSession, lr_id: int, new_status: str, user_i
     if not lr:
         return None, "LR not found"
 
-    current = lr.status.value if hasattr(lr.status, 'value') else str(lr.status)
+    current = (lr.status.value if hasattr(lr.status, 'value') else str(lr.status)).lower()
+    normalized_new_status = str(new_status).lower()
     allowed = VALID_LR_TRANSITIONS.get(current, [])
-    if new_status not in allowed:
-        return None, f"Cannot transition from '{current}' to '{new_status}'. Allowed: {allowed}"
+    if normalized_new_status not in allowed:
+        return None, f"Cannot transition from '{current}' to '{normalized_new_status}'. Allowed: {allowed}"
 
-    lr.status = LRStatus(new_status)
+    lr.status = LRStatus(normalized_new_status)
 
-    if new_status == "delivered":
+    if normalized_new_status == "delivered":
         from datetime import datetime
         lr.delivered_at = datetime.utcnow()
         lr.delivery_remarks = remarks

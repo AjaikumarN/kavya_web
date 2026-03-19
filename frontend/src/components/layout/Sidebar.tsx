@@ -64,7 +64,13 @@ export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebarCollapse } = useAppStore();
   const location = useLocation();
   const userRole = resolveRole((user as any)?.role || user?.roles?.[0]);
-  const sections = NAV_CONFIG[userRole]?.sections ?? [];
+  const sections = [
+    ...(NAV_CONFIG[userRole]?.sections ?? []),
+    {
+      label: 'ACCOUNT',
+      items: [{ label: 'Profile', route: '/profile', icon: 'user' }],
+    },
+  ];
 
   // Collect all routes so we can find the best (longest) match
   const allRoutes = sections.flatMap((s) => s.items.map((i) => i.route));

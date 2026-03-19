@@ -115,7 +115,7 @@ export default function ClientDetailPage() {
       toast.success('Job created and assigned successfully!');
       resetModal();
     },
-    onError: (err) => handleApiError(err, 'Failed to create job'),
+    onError: (err) => handleApiError(err, 'Failed to create LR'),
   });
 
   const updateClientMutation = useMutation({
@@ -188,8 +188,8 @@ export default function ClientDetailPage() {
           </div>
           <p className="text-gray-500">{client.code} · {client.client_type}</p>
         </div>
-        <button onClick={() => setShowCreateJob(true)} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Create Job
+        <button onClick={() => navigate('/lr/new')} className="btn-primary flex items-center gap-2">
+          <Plus size={16} /> Create LR
         </button>
         <button onClick={() => setShowEditClient(true)} className="btn-secondary flex items-center gap-2">
           <Edit size={16} /> Edit
@@ -234,7 +234,7 @@ export default function ClientDetailPage() {
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-2">
-            <button onClick={() => setShowCreateJob(true)} className="btn-primary w-full text-sm flex items-center justify-center gap-2"><Plus size={14} /> Create Job</button>
+            <button onClick={() => navigate('/lr/new')} className="btn-primary w-full text-sm flex items-center justify-center gap-2"><Plus size={14} /> Create LR</button>
             <button onClick={() => navigate(`/finance/invoices?client_id=${id}`)} className="btn-secondary w-full text-sm">View Invoices</button>
             <button onClick={() => navigate(`/finance/ledger?client_id=${id}`)} className="btn-secondary w-full text-sm">View Ledger</button>
             <button onClick={() => navigate(`/jobs?client_id=${id}`)} className="btn-secondary w-full text-sm">All Jobs</button>
@@ -246,8 +246,8 @@ export default function ClientDetailPage() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900">Jobs ({jobs.length})</h3>
-          <button onClick={() => setShowCreateJob(true)} className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-            <Plus size={14} /> New Job
+          <button onClick={() => navigate('/lr/new')} className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
+            <Plus size={14} /> New LR
           </button>
         </div>
         {jobsLoading ? (
@@ -256,7 +256,7 @@ export default function ClientDetailPage() {
           <div className="py-8 text-center text-gray-400">
             <Package size={40} className="mx-auto mb-2 text-gray-300" />
             <p>No jobs yet.</p>
-            <button onClick={() => setShowCreateJob(true)} className="text-primary-600 hover:underline text-sm mt-1">Create your first job</button>
+            <button onClick={() => navigate('/lr/new')} className="text-primary-600 hover:underline text-sm mt-1">Create your first LR</button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -385,8 +385,8 @@ export default function ClientDetailPage() {
         </form>
       </Modal>
 
-      {/* ─── Multi-Step Create Job Modal ─── */}
-      <Modal isOpen={showCreateJob} onClose={resetModal} title={`Create Job — Step ${step} of 4`} size="lg">
+      {/* ─── Multi-Step Create LR Modal ─── */}
+      <Modal isOpen={showCreateJob} onClose={resetModal} title={`Create LR — Step ${step} of 4`} size="lg">
         {/* Step Indicator */}
         <div className="flex items-center gap-2 mb-6">
           {['Details', 'Vehicle', 'Driver', 'Confirm'].map((label, i) => (
@@ -550,7 +550,7 @@ export default function ClientDetailPage() {
             </div>
             <div className="flex justify-between pt-3 border-t">
               <button className="btn-secondary" onClick={() => setStep(3)}>← Back</button>
-              <SubmitButton isLoading={createJobMutation.isPending} label="Create Job & Assign" loadingLabel="Creating..." onClick={() => createJobMutation.mutate()} />
+              <SubmitButton isLoading={createJobMutation.isPending} label="Create LR & Assign" loadingLabel="Creating..." onClick={() => createJobMutation.mutate()} />
             </div>
           </div>
         )}

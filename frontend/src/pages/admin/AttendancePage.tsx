@@ -8,6 +8,7 @@ import { safeArray } from '@/utils/helpers';
 
 interface AttendanceRecord {
   id: number;
+  user_id?: number;
   employee_name: string;
   employee_email?: string;
   employee_role?: string;
@@ -31,13 +32,43 @@ export default function AttendancePage() {
     },
   });
 
+  const { data: usersData } = useQuery({
+    queryKey: ['attendance-users-role-map'],
+    queryFn: async () => {
+      const res = await api.get('/users', {
+        params: { page: 1, limit: 500 },
+      });
+      return res;
+    },
+  });
+
+  const formatRole = (value: string) => value.replace(/_/g, ' ').trim();
+
+  const users = safeArray<any>((usersData as any)?.data?.items ?? (usersData as any)?.items ?? usersData);
+  const roleByUserId = new Map<number, string>();
+  const roleByEmail = new Map<string, string>();
+  users.forEach((u: any) => {
+    const roleCandidates = [u?.role, ...safeArray<string>(u?.roles)].filter(Boolean);
+    const role = roleCandidates.length > 0 ? formatRole(String(roleCandidates[0])) : '';
+    const userId = Number(u?.id);
+    const email = String(u?.email || '').trim().toLowerCase();
+    if (role && Number.isFinite(userId) && userId > 0) roleByUserId.set(userId, role);
+    if (role && email) roleByEmail.set(email, role);
+  });
+
   const rows = safeArray<any>((data as any)?.data?.items ?? (data as any)?.items ?? data);
 
   const records: AttendanceRecord[] = rows.map((r: any) => ({
     id: r.id,
+    user_id: Number(r.user_id || 0) || undefined,
     employee_name: r.employee_name || `Employee #${r.user_id}`,
     employee_email: r.employee_email,
-    employee_role: r.employee_role || '-',
+    employee_role: (
+      r.employee_role ||
+      roleByUserId.get(Number(r.user_id)) ||
+      roleByEmail.get(String(r.employee_email || '').trim().toLowerCase()) ||
+      '-'
+    ),
     date: r.date || dateFilter,
     check_in: r.check_in_time || '-',
     status: r.status || 'present',

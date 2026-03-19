@@ -21,9 +21,12 @@ class UserInfo(BaseModel):
     email: str
     first_name: str
     last_name: Optional[str] = None
+    phone: Optional[str] = None
     roles: List[str] = []
     permissions: List[str] = []
     avatar_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    created_at: Optional[datetime] = None
     branch_id: Optional[int] = None
     tenant_id: Optional[int] = None
     redirect_to: Optional[str] = None
@@ -41,6 +44,10 @@ class FCMTokenRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=6)
+
+
+class UpdatePhotoRequest(BaseModel):
+    avatar_url: str = Field(..., min_length=1)
 
 
 TokenResponse.model_rebuild()

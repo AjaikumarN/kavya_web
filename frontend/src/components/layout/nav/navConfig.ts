@@ -141,8 +141,8 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Quick Actions',
         items: [
-          { label: 'Create Job', route: '/jobs/new', icon: 'plus', description: 'Create a new transport job' },
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
+          { label: 'LR Details', route: '/lr', icon: 'file', description: 'View and manage lorry receipt details' },
           { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
           { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
@@ -244,8 +244,8 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Quick Actions',
         items: [
-          { label: 'Create Job', route: '/jobs/new', icon: 'plus', description: 'Create a new transport job' },
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
+          { label: 'LR Details', route: '/lr', icon: 'file', description: 'View and manage lorry receipt details' },
           { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
           { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
@@ -263,7 +263,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
   },
   FLEET_MANAGER: {
     sections: [
-      { label: 'Overview', items: [{ label: 'Dashboard', route: '/dashboard', icon: 'home', description: 'Company overview and quick KPIs' }] },
+      { label: 'Overview', items: [{ label: 'Dashboard', route: '/fleet/dashboard', icon: 'home', description: 'Fleet KPIs and operational overview' }] },
       {
         label: 'Operations',
         items: [
@@ -392,8 +392,8 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Quick Actions',
         items: [
-          { label: 'Create Job', route: '/jobs/new', icon: 'plus', description: 'Create a new transport job' },
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
+          { label: 'LR Details', route: '/lr', icon: 'file', description: 'View and manage lorry receipt details' },
           { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
           { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },

@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { driverService } from '@/services/dataService';
+import api from '@/services/api';
 import { KPICard, LoadingPage } from '@/components/common/Modal';
-import type { DriverDashboard, DriverAlert } from '@/types';
+import type { DriverDashboard, DriverAlert, Driver } from '@/types';
 import {
   Users, UserCheck, Truck, Clock, ShieldAlert,
   AlertTriangle, Star, TrendingUp, ChevronRight, Bell,
 } from 'lucide-react';
+import { safeArray } from '@/utils/helpers';
 
 function SeverityBadge({ severity }: { severity: string }) {
   const cls = severity === 'critical'
@@ -24,10 +26,100 @@ export default function DriverDashboardPage() {
     queryFn: () => driverService.getDashboard(),
   });
 
+  const { data: driversData } = useQuery({
+    queryKey: ['driver-dashboard-drivers'],
+    queryFn: () => driverService.list({ page: 1, page_size: 500 } as any),
+    retry: false,
+    throwOnError: false,
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: ['driver-dashboard-users'],
+    queryFn: () => api.get('/users', { suppressErrorToast: true } as any),
+    retry: false,
+    throwOnError: false,
+  });
+
   if (isLoading) return <LoadingPage />;
   if (!data) return null;
 
   const { kpis, charts, alerts } = data;
+
+  const normalizePhone = (value?: string) => String(value || '').replace(/\D/g, '').slice(-10);
+  const normalizeStatus = (value?: string) => String(value || '').trim().toLowerCase();
+  const rawDrivers = safeArray<Driver>((driversData as any)?.items ?? driversData);
+  const allUsers = safeArray<any>(usersData);
+  const driverUsers = allUsers.filter((u: any) => {
+    const role = String(u?.role || '').toLowerCase();
+    const roles = safeArray<string>(u?.roles).map((r) => String(r || '').toLowerCase());
+    return role === 'driver' || roles.includes('driver');
+  });
+  const hasUsersCatalog = allUsers.length > 0;
+  const driverUserIds = new Set(driverUsers.map((u: any) => Number(u?.id)).filter((id) => Number.isFinite(id) && id > 0));
+  const driverUserPhones = new Set(driverUsers.map((u: any) => normalizePhone(u?.phone)).filter(Boolean));
+  const driverUserEmails = new Set(driverUsers.map((u: any) => String(u?.email || '').trim().toLowerCase()).filter(Boolean));
+
+  const visibleDrivers = hasUsersCatalog
+    ? rawDrivers.filter((d: any) => {
+        const userId = Number(d?.user_id);
+        if (Number.isFinite(userId) && driverUserIds.has(userId)) return true;
+        const phone = normalizePhone(d?.phone);
+        if (phone && driverUserPhones.has(phone)) return true;
+        const email = String(d?.email || '').trim().toLowerCase();
+        if (email && driverUserEmails.has(email)) return true;
+        return false;
+      })
+    : rawDrivers;
+
+  const computed = {
+    total: visibleDrivers.length,
+    available: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'available').length,
+    onTrip: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'on_trip').length,
+    onLeave: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'on_leave').length,
+    resting: visibleDrivers.filter((d) => normalizeStatus((d as any)?.status) === 'rest').length,
+    licenseExpiringSoon: visibleDrivers.filter((d) => {
+      const expiry = (d as any)?.license_expiry;
+      if (!expiry) return false;
+      const dt = new Date(expiry);
+      if (isNaN(dt.getTime())) return false;
+      const daysLeft = Math.ceil((dt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      return daysLeft >= 0 && daysLeft <= 30;
+    }).length,
+    licenseExpired: visibleDrivers.filter((d) => {
+      const expiry = (d as any)?.license_expiry;
+      if (!expiry) return false;
+      const dt = new Date(expiry);
+      if (isNaN(dt.getTime())) return false;
+      return dt.getTime() < Date.now();
+    }).length,
+    avgRating: visibleDrivers.length
+      ? Number((visibleDrivers.reduce((sum, d) => sum + Number((d as any)?.rating || 0), 0) / visibleDrivers.length).toFixed(1))
+      : 0,
+  };
+
+  const kpiView = hasUsersCatalog
+    ? {
+        ...kpis,
+        total_drivers: computed.total,
+        active_drivers: computed.available + computed.onTrip,
+        on_trip: computed.onTrip,
+        available: computed.available,
+        on_leave: computed.onLeave,
+        resting: computed.resting,
+        license_expiring_soon: computed.licenseExpiringSoon,
+        license_expired: computed.licenseExpired,
+        avg_rating: computed.avgRating,
+      }
+    : kpis;
+
+  const statusDistribution = hasUsersCatalog
+    ? [
+        { label: 'Available', value: computed.available, color: '#10b981' },
+        { label: 'On Trip', value: computed.onTrip, color: '#8b5cf6' },
+        { label: 'On Leave', value: computed.onLeave, color: '#ef4444' },
+        { label: 'Resting', value: computed.resting, color: '#6b7280' },
+      ]
+    : charts.status_distribution;
 
   return (
     <div className="space-y-6">
@@ -44,12 +136,12 @@ export default function DriverDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard title="Total Drivers" value={kpis.total_drivers} icon={<Users size={20} />} color="blue" />
-        <KPICard title="Active" value={kpis.active_drivers} icon={<UserCheck size={20} />} color="green" />
-        <KPICard title="On Trip" value={kpis.on_trip} icon={<Truck size={20} />} color="purple" />
-        <KPICard title="Available" value={kpis.available} icon={<Clock size={20} />} color="blue" />
-        <KPICard title="License Expiring" value={kpis.license_expiring_soon} icon={<AlertTriangle size={20} />} color="yellow" />
-        <KPICard title="Alerts" value={kpis.total_alerts} icon={<ShieldAlert size={20} />} color="red" />
+        <KPICard title="Total Drivers" value={kpiView.total_drivers} icon={<Users size={20} />} color="blue" />
+        <KPICard title="Active" value={kpiView.active_drivers} icon={<UserCheck size={20} />} color="green" />
+        <KPICard title="On Trip" value={kpiView.on_trip} icon={<Truck size={20} />} color="purple" />
+        <KPICard title="Available" value={kpiView.available} icon={<Clock size={20} />} color="blue" />
+        <KPICard title="License Expiring" value={kpiView.license_expiring_soon} icon={<AlertTriangle size={20} />} color="yellow" />
+        <KPICard title="Alerts" value={kpiView.total_alerts} icon={<ShieldAlert size={20} />} color="red" />
       </div>
 
       {/* Charts Row */}
@@ -58,8 +150,8 @@ export default function DriverDashboardPage() {
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4">Status Distribution</h3>
           <div className="space-y-3">
-            {charts.status_distribution.map((item) => {
-              const pct = kpis.total_drivers > 0 ? (item.value / kpis.total_drivers) * 100 : 0;
+            {statusDistribution.map((item) => {
+              const pct = kpiView.total_drivers > 0 ? (item.value / kpiView.total_drivers) * 100 : 0;
               return (
                 <div key={item.label} className="flex items-center gap-3">
                   <span className="text-sm text-gray-600 w-24">{item.label}</span>
@@ -179,19 +271,19 @@ export default function DriverDashboardPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card text-center">
-          <p className="text-2xl font-bold text-primary-600">{kpis.avg_rating}</p>
+          <p className="text-2xl font-bold text-primary-600">{kpiView.avg_rating}</p>
           <p className="text-sm text-gray-500 mt-1">Avg Rating</p>
         </div>
         <div className="card text-center">
-          <p className="text-2xl font-bold text-green-600">{kpis.avg_safety_score}</p>
+          <p className="text-2xl font-bold text-green-600">{kpiView.avg_safety_score}</p>
           <p className="text-sm text-gray-500 mt-1">Avg Safety Score</p>
         </div>
         <div className="card text-center">
-          <p className="text-2xl font-bold text-amber-600">{kpis.on_leave}</p>
+          <p className="text-2xl font-bold text-amber-600">{kpiView.on_leave}</p>
           <p className="text-sm text-gray-500 mt-1">On Leave</p>
         </div>
         <div className="card text-center">
-          <p className="text-2xl font-bold text-red-600">{kpis.license_expired}</p>
+          <p className="text-2xl font-bold text-red-600">{kpiView.license_expired}</p>
           <p className="text-sm text-gray-500 mt-1">Expired Licenses</p>
         </div>
       </div>

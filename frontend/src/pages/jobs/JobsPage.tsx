@@ -400,8 +400,8 @@ export default function JobsPage() {
         onPageChange={(p) => setFilters({ ...filters, page: p })}
         onSort={(key, order) => setFilters({ ...filters, sort_by: key, sort_order: order })}
         onRowClick={(j) => navigate(`/jobs/${j.id}`)}
-        onAdd={hasPermission('jobs:create') ? () => setIsCreateOpen(true) : undefined}
-        addLabel="Create Job"
+        onAdd={hasPermission('jobs:create') ? () => navigate('/lr/new') : undefined}
+        addLabel="Create LR"
         onRefresh={() => refetch()}
         onExport={handleExportPdf}
       />
@@ -636,7 +636,7 @@ export default function JobsPage() {
       <Modal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="Create Job"
+        title="Create LR"
         size="lg"
       >
         {/** Keep create fields aligned with required backend create contract. */}
@@ -726,7 +726,7 @@ export default function JobsPage() {
           </div>
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
             <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-            <SubmitButton isLoading={createMutation.isPending} label="Create Job" loadingLabel="Creating..." disabled={!createForm.client_id || !createForm.origin || !createForm.destination || !createForm.material_type} />
+            <SubmitButton isLoading={createMutation.isPending} label="Create LR" loadingLabel="Creating..." disabled={!createForm.client_id || !createForm.origin || !createForm.destination || !createForm.material_type} />
           </div>
         </form>
       </Modal>

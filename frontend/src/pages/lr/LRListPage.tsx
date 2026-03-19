@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { jobService, lrService } from '@/services/dataService';
+import { lrService } from '@/services/dataService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { Modal, StatusBadge } from '@/components/common/Modal';
@@ -54,7 +54,8 @@ export default function LRListPage() {
 
   const { data: jobsData } = useQuery({
     queryKey: ['lr-create-jobs'],
-    queryFn: () => jobService.list({ page: 1, page_size: 500 }),
+    queryFn: () => lrService.getJobs(),
+    enabled: isCreateOpen && hasPermission('lr:create'),
   });
 
   const deleteMutation = useMutation({

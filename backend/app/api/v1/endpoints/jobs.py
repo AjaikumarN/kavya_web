@@ -167,6 +167,7 @@ async def assign_job(
         return trip.id
 
     current = job.status.value if hasattr(job.status, "value") else str(job.status)
+    current = str(current).strip().lower()
     # Auto-approve if needed to reach in_progress
     if current == "draft":
         _, err = await job_service.change_job_status(db, job_id, "pending_approval", current_user.user_id, "Auto-submitted during assignment")

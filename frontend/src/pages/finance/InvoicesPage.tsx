@@ -57,6 +57,18 @@ export default function InvoicesPage() {
     mutationFn: (id: number) => financeService.markInvoicePaid(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['payments'] });
+      qc.invalidateQueries({ queryKey: ['ledger'] });
+      qc.invalidateQueries({ queryKey: ['receivables'] });
+      qc.invalidateQueries({ queryKey: ['accountant-invoices'] });
+      qc.invalidateQueries({ queryKey: ['accountant-ledger-entries'] });
+      qc.invalidateQueries({ queryKey: ['accountant-receivables'] });
+      qc.invalidateQueries({ queryKey: ['accountant-kpis'] });
+      qc.invalidateQueries({ queryKey: ['accountant-reports-dashboard'] });
+      qc.invalidateQueries({ queryKey: ['accountant-revenue-trend'] });
+      qc.invalidateQueries({ queryKey: ['accountant-cash-flow'] });
+      qc.invalidateQueries({ queryKey: ['accountant-recent-transactions'] });
+      qc.invalidateQueries({ queryKey: ['accountant-pending-actions'] });
       toast.success('Invoice marked as paid.');
     },
     onError: (error) => handleApiError(error, 'Operation failed'),
@@ -139,7 +151,8 @@ export default function InvoicesPage() {
       header: 'Due Date',
       sortable: true,
       render: (inv) => {
-        const isOverdue = new Date(inv.due_date) < new Date() && inv.status !== 'paid';
+        const status = String(inv.status || '').toLowerCase();
+        const isOverdue = new Date(inv.due_date) < new Date() && status !== 'paid';
         return <span className={isOverdue ? 'text-red-600 font-medium' : ''}>{new Date(inv.due_date).toLocaleDateString('en-IN')}</span>;
       },
     },
@@ -152,14 +165,14 @@ export default function InvoicesPage() {
     {
       key: 'paid_amount',
       header: 'Paid',
-      render: (inv) => `₹${Number((inv.paid_amount || 0) ?? 0).toLocaleString('en-IN')}`,
+      render: (inv) => `₹${Number(((inv as any).amount_paid ?? (inv as any).paid_amount ?? 0) || 0).toLocaleString('en-IN')}`,
     },
     {
       key: 'balance_amount',
       header: 'Balance',
       render: (inv) => (
-        <span className={inv.balance_amount > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
-          ₹{Number((inv.balance_amount || 0) ?? 0).toLocaleString('en-IN')}
+        <span className={Number(((inv as any).amount_due ?? (inv as any).balance_amount ?? 0) || 0) > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
+          ₹{Number(((inv as any).amount_due ?? (inv as any).balance_amount ?? 0) || 0).toLocaleString('en-IN')}
         </span>
       ),
     },
@@ -173,15 +186,19 @@ export default function InvoicesPage() {
       header: 'Actions',
       render: (inv) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {(() => {
+            const status = String(inv.status || '').toLowerCase();
+            return (
+              <>
           <button onClick={() => handleEdit(inv)} className="p-1.5 rounded-md hover:bg-gray-100" title="Edit">
             <Pencil size={14} className="text-gray-600" />
           </button>
-          {inv.status === 'draft' && (
+          {status === 'draft' && (
             <button onClick={() => sendMutation.mutate(inv.id)} className="p-1.5 rounded-md hover:bg-blue-50" title="Send">
               <Send size={14} className="text-blue-600" />
             </button>
           )}
-          {(inv.status === 'sent' || inv.status === 'partial' || inv.status === 'partially_paid') && (
+          {(status === 'sent' || status === 'partial' || status === 'partially_paid') && (
             <button onClick={() => markPaidMutation.mutate(inv.id)} className="p-1.5 rounded-md hover:bg-green-50" title="Mark Paid">
               <CheckCircle2 size={14} className="text-green-600" />
             </button>
@@ -189,6 +206,9 @@ export default function InvoicesPage() {
           <button onClick={() => handleDelete(inv)} className="p-1.5 rounded-md hover:bg-red-50" title="Delete">
             <Trash2 size={14} className="text-red-600" />
           </button>
+              </>
+            );
+          })()}
         </div>
       ),
     },

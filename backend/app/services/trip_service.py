@@ -4,7 +4,7 @@ from sqlalchemy import select, func, or_
 from datetime import datetime, timezone
 
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatus, TripStatusEnum, ExpenseCategory
-from app.models.postgres.job import Job, JobStatusEnum
+from app.models.postgres.job import Job, JobStatusEnum, JobStatus
 from app.models.postgres.vehicle import Vehicle, VehicleStatus
 from app.models.postgres.driver import Driver, DriverStatus
 from app.models.postgres.lr import LR, LRStatus
@@ -14,7 +14,7 @@ from app.utils.generators import generate_trip_number
 VALID_TRIP_TRANSITIONS = {
     "planned": ["vehicle_assigned", "started", "cancelled"],
     "vehicle_assigned": ["driver_assigned", "planned", "cancelled"],
-    "driver_assigned": ["ready", "vehicle_assigned", "cancelled"],
+    "driver_assigned": ["ready", "started", "vehicle_assigned", "cancelled"],
     "ready": ["started", "cancelled"],
     "started": ["loading", "in_transit", "cancelled"],
     "loading": ["in_transit"],
@@ -178,26 +178,64 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
         return None, "Trip not found"
 
     current = trip.status.value if hasattr(trip.status, 'value') else str(trip.status)
-    allowed = VALID_TRIP_TRANSITIONS.get(current, [])
-    if new_status not in allowed:
-        return None, f"Cannot transition from '{current}' to '{new_status}'. Allowed: {allowed}"
+    current_normalized = str(current).strip().lower()
+    target_status = str(new_status).strip().lower()
 
-    old_status = current
-    trip.status = _coerce_enum(TripStatusEnum, new_status)
+    allowed = VALID_TRIP_TRANSITIONS.get(current_normalized, [])
+    if target_status not in allowed:
+        return None, f"Cannot transition from '{current_normalized}' to '{target_status}'. Allowed: {allowed}"
+
+    old_status = current_normalized
+    trip.status = _coerce_enum(TripStatusEnum, target_status)
 
     now = datetime.utcnow()
-    if new_status == "started":
+    if target_status == "started":
         trip.actual_start = now
         if odometer_reading:
             trip.start_odometer = odometer_reading
-    elif new_status == "loading":
+
+        # Ensure linked resources reflect active trip state.
+        if trip.vehicle_id:
+            vr = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
+            v = vr.scalar_one_or_none()
+            if v:
+                v.status = VehicleStatus.ON_TRIP
+
+        if trip.driver_id:
+            dr = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
+            d = dr.scalar_one_or_none()
+            if d:
+                d.status = DriverStatus.ON_TRIP
+
+        if trip.job_id:
+            jr = await db.execute(select(Job).where(Job.id == trip.job_id))
+            j = jr.scalar_one_or_none()
+            if j:
+                job_status = getattr(j.status, "value", j.status)
+                job_status = str(job_status).strip().lower()
+                if job_status not in {"in_progress", "completed", "cancelled", "closed"}:
+                    j.status = JobStatusEnum.IN_PROGRESS
+                    db.add(JobStatus(
+                        job_id=j.id,
+                        from_status=job_status,
+                        to_status="in_progress",
+                        changed_by=user_id,
+                        remarks="Auto-moved to in_progress when trip started",
+                    ))
+
+        # Keep linked LRs in transit once the trip starts.
+        from sqlalchemy import update
+        await db.execute(
+            update(LR).where(LR.trip_id == trip.id).values(status=LRStatus.IN_TRANSIT)
+        )
+    elif target_status == "loading":
         trip.loading_start = now
-    elif new_status == "in_transit":
+    elif target_status == "in_transit":
         if not trip.loading_end and trip.loading_start:
             trip.loading_end = now
-    elif new_status == "unloading":
+    elif target_status == "unloading":
         trip.unloading_start = now
-    elif new_status == "completed":
+    elif target_status == "completed":
         trip.actual_end = now
         if trip.unloading_start and not trip.unloading_end:
             trip.unloading_end = now
@@ -205,6 +243,28 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
             trip.end_odometer = odometer_reading
             if trip.start_odometer:
                 trip.actual_distance_km = float(odometer_reading) - float(trip.start_odometer)
+
+        # Backfill revenue from linked LR/job if it is missing so financials are meaningful.
+        current_revenue = float(trip.revenue or 0)
+        if current_revenue <= 0:
+            lr_rows = (await db.execute(select(LR).where(LR.trip_id == trip.id))).scalars().all()
+            lr_revenue = sum(float(getattr(lr, "total_freight", 0) or 0) for lr in lr_rows)
+            if lr_revenue <= 0:
+                lr_revenue = sum(float(getattr(lr, "freight_amount", 0) or 0) for lr in lr_rows)
+
+            if lr_revenue > 0:
+                trip.revenue = lr_revenue
+            elif trip.job_id:
+                jr = await db.execute(select(Job).where(Job.id == trip.job_id))
+                job_for_revenue = jr.scalar_one_or_none()
+                if job_for_revenue:
+                    job_rate = float(getattr(job_for_revenue, "agreed_rate", 0) or 0)
+                    job_total = float(getattr(job_for_revenue, "total_amount", 0) or 0)
+                    if job_rate > 0:
+                        trip.revenue = job_rate
+                    elif job_total > 0:
+                        trip.revenue = job_total
+
         # Release vehicle and driver
         if trip.vehicle_id:
             vr = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
@@ -240,8 +300,47 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
             import logging
             logging.getLogger(__name__).warning(f"Auto-invoice generation failed for trip {trip.id}: {e}")
 
+        # Keep job lifecycle aligned with trip completion.
+        if trip.job_id:
+            jr = await db.execute(select(Job).where(Job.id == trip.job_id))
+            job = jr.scalar_one_or_none()
+            if job:
+                current_job_status = str(getattr(job.status, "value", job.status) or "").strip().lower()
+
+                active_trip_count = (await db.execute(
+                    select(func.count(Trip.id)).where(
+                        Trip.job_id == trip.job_id,
+                        Trip.is_deleted == False,
+                        Trip.id != trip.id,
+                        Trip.status.notin_([
+                            _coerce_enum(TripStatusEnum, "completed"),
+                            _coerce_enum(TripStatusEnum, "cancelled"),
+                        ])
+                    )
+                )).scalar() or 0
+
+                if active_trip_count == 0 and current_job_status not in {"completed", "cancelled", "closed"}:
+                    job.status = _coerce_enum(JobStatusEnum, "completed")
+                    job.completed_at = now
+                    db.add(JobStatus(
+                        job_id=job.id,
+                        from_status=current_job_status or None,
+                        to_status="completed",
+                        changed_by=user_id,
+                        remarks="Auto-completed when all trips were completed",
+                    ))
+                elif active_trip_count > 0 and current_job_status != "in_progress":
+                    job.status = _coerce_enum(JobStatusEnum, "in_progress")
+                    db.add(JobStatus(
+                        job_id=job.id,
+                        from_status=current_job_status or None,
+                        to_status="in_progress",
+                        changed_by=user_id,
+                        remarks="Auto-updated while other trips are still active",
+                    ))
+
     history = TripStatus(
-        trip_id=trip.id, from_status=old_status, to_status=new_status,
+        trip_id=trip.id, from_status=old_status, to_status=target_status,
         changed_by=user_id, remarks=remarks,
         latitude=latitude, longitude=longitude, location_name=location_name,
     )

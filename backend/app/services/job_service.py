@@ -140,23 +140,26 @@ async def change_job_status(db: AsyncSession, job_id: int, new_status: str, user
         return None, "Job not found"
 
     current = job.status.value if hasattr(job.status, 'value') else str(job.status)
-    allowed = VALID_STATUS_TRANSITIONS.get(current, [])
-    if new_status not in allowed:
-        return None, f"Cannot transition from '{current}' to '{new_status}'. Allowed: {allowed}"
+    current_normalized = str(current).strip().lower()
+    target_status = str(new_status).strip().lower()
 
-    old_status = current
-    job.status = JobStatusEnum(new_status)
+    allowed = VALID_STATUS_TRANSITIONS.get(current_normalized, [])
+    if target_status not in allowed:
+        return None, f"Cannot transition from '{current_normalized}' to '{target_status}'. Allowed: {allowed}"
 
-    if new_status == "approved":
+    old_status = current_normalized
+    job.status = _coerce_enum(JobStatusEnum, target_status)
+
+    if target_status == "approved":
         job.approved_by = user_id
         job.approved_at = datetime.utcnow()
         job.approval_remarks = remarks
-    elif new_status == "completed":
+    elif target_status == "completed":
         job.completed_at = datetime.utcnow()
         job.completion_remarks = remarks
 
     history = JobStatus(
-        job_id=job.id, from_status=old_status, to_status=new_status, changed_by=user_id, remarks=remarks
+        job_id=job.id, from_status=old_status, to_status=target_status, changed_by=user_id, remarks=remarks
     )
     db.add(history)
     await db.flush()

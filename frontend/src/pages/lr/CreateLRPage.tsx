@@ -6,56 +6,41 @@
 // ============================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { lrService } from '@/services/dataService';
+import toast from 'react-hot-toast';
+import { lrService, clientService, jobService } from '@/services/dataService';
+import api from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 import { safeArray } from '@/utils/helpers';
 import {
   ChevronRight, Save, FileCheck, ArrowLeft, FileText, Package,
   MapPin, Truck, IndianRupee, StickyNote, Printer, Download,
   AlertCircle, CheckCircle2, XCircle, User, Phone, Hash,
-  Loader2, Calendar, Building2, Search, X, Shield,
+  Loader2, Calendar, Building2, Shield,
   ChevronDown, Plus, Trash2, Copy, ReceiptText
 } from 'lucide-react';
 
 // ── Types ──
 interface FormErrors { [key: string]: string; }
 
-interface JobOption {
-  id: number;
-  job_number: string;
-  client_name: string;
-  client_gstin: string;
-  origin_city: string;
-  origin_state: string;
-  origin_address: string;
-  destination_city: string;
-  destination_state: string;
-  destination_address: string;
-  material_type: string;
-  quantity: number;
-  quantity_unit: string;
-  agreed_rate: number;
-  status: string;
-  vehicle_type_required: string;
-}
-
 interface VehicleOption {
   id: number;
   registration_number: string;
-  vehicle_type: string;
-  capacity_tons: number;
-  status: string;
+  vehicle_type?: string;
+  capacity_tons?: number;
+  status?: string;
 }
 
 interface DriverOption {
   id: number;
   name: string;
-  phone: string;
-  license_number: string;
-  license_type: string;
-  status: string;
+  phone?: string;
+  email?: string;
+  user_id?: number;
+  license_number?: string;
+  license_type?: string;
+  status?: string;
 }
 
 interface ConsignmentItem {
@@ -91,6 +76,18 @@ const GST_OPTIONS = [
   { value: 28, label: 'GST 28%' },
 ];
 
+const DEFAULT_COMPANY_CONSIGNOR = {
+  name: 'Kavya Transports',
+  address: 'Kavya Transports Depot, Chennai',
+  gstin: '33AABCK1234M1ZP',
+  phone: '9876543210',
+};
+
+const DEFAULT_COMPANY_ORIGIN = {
+  city: 'Chennai',
+  state: 'Tamil Nadu',
+};
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   draft:     { label: 'Draft',          color: 'text-gray-700',    bg: 'bg-gray-100 border-gray-300',    icon: <FileText size={14} /> },
   generated: { label: 'Generated',      color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-300', icon: <CheckCircle2 size={14} /> },
@@ -122,10 +119,10 @@ const INITIAL_FORM = {
   job_id: 0,
 
   // Consignor
-  consignor_name: '',
-  consignor_address: '',
-  consignor_gstin: '',
-  consignor_phone: '',
+  consignor_name: DEFAULT_COMPANY_CONSIGNOR.name,
+  consignor_address: DEFAULT_COMPANY_CONSIGNOR.address,
+  consignor_gstin: DEFAULT_COMPANY_CONSIGNOR.gstin,
+  consignor_phone: DEFAULT_COMPANY_CONSIGNOR.phone,
 
   // Consignee
   consignee_name: '',
@@ -134,8 +131,8 @@ const INITIAL_FORM = {
   consignee_phone: '',
 
   // Route (auto-fetched from job)
-  origin: '',
-  origin_state: '',
+  origin: DEFAULT_COMPANY_ORIGIN.city,
+  origin_state: DEFAULT_COMPANY_ORIGIN.state,
   destination: '',
   destination_state: '',
 
@@ -186,7 +183,7 @@ function SectionCard({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible">
       <button
         type="button"
         onClick={() => collapsible && setIsOpen(!isOpen)}
@@ -226,15 +223,17 @@ function FormField({ label, required, error, hint, children, className = '' }: {
 }
 
 function TextInput({ value, onChange, placeholder, type = 'text', error, disabled, prefix, suffix }: {
-  value: string | number; onChange: (v: string) => void; placeholder?: string; type?: string;
+  value: string | number | null | undefined; onChange: (v: string) => void; placeholder?: string; type?: string;
   error?: boolean; disabled?: boolean; prefix?: React.ReactNode; suffix?: React.ReactNode;
 }) {
+  const normalizedValue = value ?? '';
+
   return (
     <div className={`flex items-center border rounded-lg transition-colors ${
       error ? 'border-red-300 ring-1 ring-red-200' : 'border-gray-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-200'
     } ${disabled ? 'bg-gray-50 opacity-60' : 'bg-white'}`}>
       {prefix && <div className="pl-3 text-gray-400">{prefix}</div>}
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input type={type} value={normalizedValue} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         disabled={disabled} className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none placeholder-gray-400" />
       {suffix && <div className="pr-3 text-gray-400 text-sm">{suffix}</div>}
     </div>
@@ -278,22 +277,18 @@ function TextArea({ value, onChange, placeholder, rows = 3, error, disabled }: {
 export default function CreateLRPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const isEdit = !!id;
   const { user } = useAuthStore();
+  const linkedJobId = Number(searchParams.get('job_id') || searchParams.get('jobId') || searchParams.get('job') || 0);
 
   const [form, setForm] = useState({ ...INITIAL_FORM });
   const [items, setItems] = useState<ConsignmentItem[]>([{ ...EMPTY_ITEM }]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
-  const [jobSearch, setJobSearch] = useState('');
-  const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleOption | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<DriverOption | null>(null);
-  const [vehicleSearch, setVehicleSearch] = useState('');
-  const [driverSearch, setDriverSearch] = useState('');
-  const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
-  const [showDriverDropdown, setShowDriverDropdown] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<number>(0);
   const [createdLrId, setCreatedLrId] = useState<number | null>(null);
 
   // ── Data Queries ──
@@ -303,32 +298,31 @@ export default function CreateLRPage() {
     enabled: !isEdit,
   });
 
-  const { data: jobsData } = useQuery({
-    queryKey: ['lr-lookup-jobs', jobSearch],
-    queryFn: () => lrService.getJobs(jobSearch),
-    enabled: showJobDropdown,
-  });
-
   const { data: vehiclesData } = useQuery({
-    queryKey: ['lr-lookup-vehicles', vehicleSearch],
-    queryFn: () => lrService.getVehicles(vehicleSearch),
-    enabled: showVehicleDropdown,
+    queryKey: ['lr-lookup-vehicles'],
+    queryFn: () => lrService.getVehicles(),
   });
 
   const { data: driversData } = useQuery({
-    queryKey: ['lr-lookup-drivers', driverSearch],
-    queryFn: () => lrService.getDrivers(driverSearch),
-    enabled: showDriverDropdown,
+    queryKey: ['lr-lookup-drivers'],
+    queryFn: () => lrService.getDrivers(),
   });
 
-  const { data: packageTypesData } = useQuery({
-    queryKey: ['lr-lookup-package-types'],
-    queryFn: () => lrService.getPackageTypes(),
+  const { data: usersData } = useQuery({
+    queryKey: ['lr-lookup-driver-users'],
+    queryFn: () => api.get('/users', { suppressErrorToast: true } as any),
+    retry: false,
+    throwOnError: false,
   });
 
   const { data: quantityUnitsData } = useQuery({
     queryKey: ['lr-lookup-quantity-units'],
     queryFn: () => lrService.getQuantityUnits(),
+  });
+
+  const { data: clientsData } = useQuery({
+    queryKey: ['lr-lookup-clients'],
+    queryFn: () => clientService.list({ page: 1, limit: 200 } as any),
   });
 
   // Load existing LR for edit
@@ -397,6 +391,18 @@ export default function CreateLRPage() {
     }
   }, [isEdit, id, navigate]);
 
+  // LR is now expected to be opened from Jobs / Orders with a linked job id.
+  useEffect(() => {
+    if (!isEdit && linkedJobId > 0 && !form.job_id) {
+      setForm((prev) => ({ ...prev, job_id: linkedJobId }));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.job_id;
+        return next;
+      });
+    }
+  }, [isEdit, linkedJobId, form.job_id]);
+
   // ── Helpers ──
   const updateField = useCallback((field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -433,40 +439,18 @@ export default function CreateLRPage() {
     });
   }, []);
 
-  // ── Select job and auto-fill route ──
-  const selectJob = useCallback((job: JobOption) => {
-    setSelectedJob(job);
-    setShowJobDropdown(false);
-    setJobSearch('');
-    updateField('job_id', job.id);
-    // Auto-fill route from job
-    updateField('origin', job.origin_city);
-    updateField('origin_state', job.origin_state);
-    updateField('destination', job.destination_city);
-    updateField('destination_state', job.destination_state);
-    // Auto-fill consignor from client
-    updateField('consignor_name', job.client_name);
-    updateField('consignor_gstin', job.client_gstin);
-    // Auto-fill freight from agreed rate
-    updateField('freight_amount', job.agreed_rate);
-  }, [updateField]);
-
   const selectVehicle = useCallback((vehicle: VehicleOption) => {
     setSelectedVehicle(vehicle);
-    setShowVehicleDropdown(false);
-    setVehicleSearch('');
     updateField('vehicle_id', vehicle.id);
     updateField('vehicle_number', vehicle.registration_number);
   }, [updateField]);
 
   const selectDriver = useCallback((driver: DriverOption) => {
     setSelectedDriver(driver);
-    setShowDriverDropdown(false);
-    setDriverSearch('');
     updateField('driver_id', driver.id);
-    updateField('driver_name', driver.name);
-    updateField('driver_phone', driver.phone);
-    updateField('driver_license', driver.license_number);
+    updateField('driver_name', driver.name || '');
+    updateField('driver_phone', driver.phone || '');
+    updateField('driver_license', '');
   }, [updateField]);
 
   // ── Price Calculations ──
@@ -496,29 +480,30 @@ export default function CreateLRPage() {
   }, [items]);
 
   // ── Validation ──
-  const validate = useCallback((asDraft: boolean): boolean => {
+  const validate = useCallback((asDraft: boolean, currentForm = form): boolean => {
+    const f = currentForm;
     const e: FormErrors = {};
-    if (!form.job_id) e.job_id = 'Please select a job';
-    if (!form.consignor_name.trim()) e.consignor_name = 'Consignor name is required';
-    if (!form.consignee_name.trim()) e.consignee_name = 'Consignee name is required';
-    if (!form.origin.trim()) e.origin = 'Origin is required';
-    if (!form.destination.trim()) e.destination = 'Destination is required';
+    if (!f.job_id) e.job_id = 'No valid job found for this LR';
+    if (!f.consignor_name.trim()) e.consignor_name = 'Consignor name is required';
+    if (!f.consignee_name.trim()) e.consignee_name = 'Consignee name is required';
+    if (!f.origin.trim()) e.origin = 'Origin is required';
+    if (!f.destination.trim()) e.destination = 'Destination is required';
 
     if (!asDraft) {
       // Stricter validation for Generate
       if (items.length === 0 || !items[0].description.trim()) {
         e.items = 'At least one consignment item with description is required';
       }
-      if (!form.freight_amount || form.freight_amount <= 0) {
+      if (!f.freight_amount || f.freight_amount <= 0) {
         e.freight_amount = 'Freight amount must be greater than 0';
       }
-      if (form.consignor_gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d{1}[A-Z]{1}[A-Z\d]{1}$/.test(form.consignor_gstin)) {
+      if (f.consignor_gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d{1}[A-Z]{1}[A-Z\d]{1}$/.test(f.consignor_gstin)) {
         e.consignor_gstin = 'Invalid GSTIN format';
       }
-      if (form.consignee_gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d{1}[A-Z]{1}[A-Z\d]{1}$/.test(form.consignee_gstin)) {
+      if (f.consignee_gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}\d{1}[A-Z]{1}[A-Z\d]{1}$/.test(f.consignee_gstin)) {
         e.consignee_gstin = 'Invalid GSTIN format';
       }
-      if (form.eway_bill_number && form.eway_bill_number.length < 12) {
+      if (f.eway_bill_number && f.eway_bill_number.length < 12) {
         e.eway_bill_number = 'E-way bill number must be 12 digits';
       }
     }
@@ -546,7 +531,53 @@ export default function CreateLRPage() {
   // ── Save Handler ──
   const handleSave = useCallback(async (action: 'draft' | 'generate') => {
     const asDraft = action === 'draft';
-    if (!validate(asDraft)) {
+    let workingForm = form;
+
+    // If LR has no linked job, create one from current LR details so it appears in Jobs / Orders.
+    if (!workingForm.job_id && selectedClientId) {
+      try {
+        const firstItem = items.find((it) => it.description.trim()) || items[0];
+        const fallbackOriginAddress = [workingForm.consignor_address, workingForm.origin, workingForm.origin_state].filter(Boolean).join(', ');
+        const fallbackDestinationAddress = [workingForm.consignee_address, workingForm.destination, workingForm.destination_state].filter(Boolean).join(', ');
+
+        const jobPayload = {
+          job_date: workingForm.lr_date,
+          client_id: selectedClientId,
+          origin_address: fallbackOriginAddress || workingForm.origin || 'Origin address',
+          origin_city: workingForm.origin || 'Origin',
+          origin_state: workingForm.origin_state || undefined,
+          destination_address: fallbackDestinationAddress || workingForm.destination || 'Destination address',
+          destination_city: workingForm.destination || 'Destination',
+          destination_state: workingForm.destination_state || undefined,
+          material_type: firstItem?.description || 'General Goods',
+          quantity: Number(firstItem?.quantity || 0) || undefined,
+          quantity_unit: firstItem?.quantity_unit || undefined,
+          pickup_date: `${workingForm.lr_date}T00:00:00`,
+          expected_delivery_date: `${workingForm.lr_date}T00:00:00`,
+          agreed_rate: Number(workingForm.freight_amount || 0) || undefined,
+          priority: 'NORMAL',
+          contract_type: 'SPOT',
+          job_type: 'OWN',
+          rate_type: 'per_trip',
+        };
+
+        const createdJob: any = await jobService.create(jobPayload);
+        const createdJobId = Number(createdJob?.data?.id ?? createdJob?.id ?? 0);
+        if (createdJobId) {
+          workingForm = { ...workingForm, job_id: createdJobId };
+          setForm((prev) => ({ ...prev, job_id: createdJobId }));
+        }
+      } catch {
+        // Keep existing flow; validation below will show clear message if job still missing.
+      }
+    }
+
+    if (!validate(asDraft, workingForm)) {
+      if (!workingForm.job_id) {
+        toast.error('No valid job found. Select a client that has jobs.');
+      } else {
+        toast.error(asDraft ? 'Please fill required details for draft.' : 'Please complete required details before generating LR.');
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -554,7 +585,9 @@ export default function CreateLRPage() {
     setSaving(true);
     try {
       const payload = {
-        ...form,
+        ...workingForm,
+        eway_bill_date: workingForm.eway_bill_date || null,
+        eway_bill_valid_until: workingForm.eway_bill_valid_until || null,
         items: items.filter(it => it.description.trim()).map((it, idx) => ({
           item_number: idx + 1,
           description: it.description,
@@ -584,7 +617,56 @@ export default function CreateLRPage() {
       }
 
       if (action === 'generate' && lrId) {
-        await generateMutation.mutateAsync(lrId);
+        try {
+          // Avoid calling /generate when the LR is already generated/advanced.
+          const latestLr: any = await lrService.get(lrId);
+          const latestStatus = String(latestLr?.status || '').toLowerCase();
+
+          if (latestStatus === 'generated') {
+            updateField('status', 'generated');
+            toast.success('LR is already generated');
+          } else if (['in_transit', 'delivered', 'linked'].includes(latestStatus)) {
+            updateField('status', latestStatus as any);
+            toast.error(`LR is already in '${latestStatus}' state and cannot be generated again.`);
+            return;
+          } else {
+            try {
+              // Prefer direct status update to avoid transition-map mismatch errors.
+              await lrService.update(lrId, { status: 'generated' });
+            } catch {
+              // If update path fails, fallback to explicit generate endpoint.
+              await generateMutation.mutateAsync(lrId);
+            }
+            updateField('status', 'generated');
+            toast.success('LR generated successfully');
+          }
+        } catch (generateErr: any) {
+          const detail = String(generateErr?.response?.data?.detail || '').toLowerCase();
+          if (detail.includes('cannot transition from') && detail.includes('to') && detail.includes('generated')) {
+            try {
+              const latestLr: any = await lrService.get(lrId);
+              const latestStatus = String(latestLr?.status || '').toLowerCase();
+              if (latestStatus === 'generated') {
+                updateField('status', 'generated');
+                toast.success('LR is already generated');
+              } else if (['in_transit', 'delivered', 'linked'].includes(latestStatus)) {
+                updateField('status', latestStatus as any);
+                toast.error(`LR is already in '${latestStatus}' state and cannot be generated again.`);
+                return;
+              } else {
+                await lrService.update(lrId, { status: 'generated' });
+                updateField('status', 'generated');
+                toast.success('LR generated successfully');
+              }
+            } catch {
+              throw generateErr;
+            }
+          } else {
+            throw generateErr;
+          }
+        }
+      } else {
+        toast.success('LR saved as draft');
       }
 
       // Success — navigate or stay
@@ -595,13 +677,18 @@ export default function CreateLRPage() {
       const detail = err?.response?.data?.detail;
       if (typeof detail === 'string') {
         setErrors({ _server: detail });
+        toast.error(detail);
       } else if (detail?.errors) {
-        setErrors({ _server: detail.errors.join(', ') });
+        const message = detail.errors.join(', ');
+        setErrors({ _server: message });
+        toast.error(message);
+      } else {
+        toast.error('Failed to save LR');
       }
     } finally {
       setSaving(false);
     }
-  }, [form, items, validate, isEdit, createdLrId, createMutation, generateMutation]);
+  }, [form, items, validate, isEdit, createdLrId, createMutation, generateMutation, selectedClientId]);
 
   // ── Print Handler ──
   const handlePrint = useCallback(async () => {
@@ -640,8 +727,48 @@ export default function CreateLRPage() {
 
   const statusInfo = STATUS_CONFIG[form.status] || STATUS_CONFIG.draft;
   const isReadonly = form.status === 'generated' || form.status === 'cancelled';
-  const packageTypes = safeArray(packageTypesData);
   const quantityUnits = safeArray(quantityUnitsData);
+  const vehicleOptions = safeArray<VehicleOption>(vehiclesData);
+  const rawDriverOptions = safeArray<DriverOption>(driversData);
+  const normalizePhone = (value?: string) => String(value || '').replace(/\D/g, '').slice(-10);
+  const allUsers = safeArray<any>((usersData as any) || []);
+  const driverUsers = allUsers.filter((u: any) => {
+    const role = String(u?.role || '').toLowerCase();
+    const roles = safeArray<string>(u?.roles).map((r) => String(r || '').toLowerCase());
+    return role === 'driver' || roles.includes('driver');
+  });
+  const hasUsersCatalog = driverUsers.length > 0;
+  const driverUserIds = new Set(driverUsers.map((u: any) => Number(u?.id)).filter((id) => Number.isFinite(id) && id > 0));
+  const driverUserPhones = new Set(driverUsers.map((u: any) => normalizePhone(u?.phone)).filter(Boolean));
+  const driverUserEmails = new Set(driverUsers.map((u: any) => String(u?.email || '').trim().toLowerCase()).filter(Boolean));
+
+  let driverOptions = hasUsersCatalog
+    ? rawDriverOptions.filter((d: any) => {
+        const userId = Number(d?.user_id);
+        if (Number.isFinite(userId) && driverUserIds.has(userId)) return true;
+        const phone = normalizePhone(d?.phone);
+        if (phone && driverUserPhones.has(phone)) return true;
+        const email = String(d?.email || '').trim().toLowerCase();
+        if (email && driverUserEmails.has(email)) return true;
+        return false;
+      })
+    : rawDriverOptions;
+
+  // Keep currently selected driver visible in edit/view flows even if it is legacy data.
+  if (form.driver_id) {
+    const selectedId = Number(form.driver_id);
+    const exists = driverOptions.some((d) => Number(d.id) === selectedId);
+    if (!exists) {
+      const selectedRaw = rawDriverOptions.find((d) => Number(d.id) === selectedId);
+      if (selectedRaw) {
+        driverOptions = [selectedRaw, ...driverOptions];
+      }
+    }
+  }
+  const clients = safeArray<any>((clientsData as any)?.items ?? (clientsData as any)?.data?.items ?? clientsData);
+
+  const currentVehicle = selectedVehicle || vehicleOptions.find((v) => Number(v.id) === Number(form.vehicle_id)) || null;
+  const currentDriver = selectedDriver || driverOptions.find((d) => Number(d.id) === Number(form.driver_id)) || null;
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -705,76 +832,13 @@ export default function CreateLRPage() {
         {/* ══════════════════════════════════════════════════════
            SECTION 1: LR Basic Details
         ══════════════════════════════════════════════════════ */}
-        <SectionCard title="LR Basic Details" subtitle="Link to job and set LR date" icon={<ReceiptText size={20} />}>
+        <SectionCard title="LR Basic Details" subtitle="Set LR date" icon={<ReceiptText size={20} />}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Job Selection */}
-            <FormField label="Job Reference" required error={errors.job_id} className="md:col-span-2">
-              <div className="relative">
-                {selectedJob ? (
-                  <div className="flex items-center gap-3 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                    <div className="flex-1">
-                      <span className="font-mono font-semibold text-primary-600">{selectedJob.job_number}</span>
-                      <span className="mx-2 text-gray-400">|</span>
-                      <span className="text-sm text-gray-700">{selectedJob.client_name}</span>
-                      <span className="mx-2 text-gray-400">|</span>
-                      <span className="text-xs text-gray-500">{selectedJob.origin_city} → {selectedJob.destination_city}</span>
-                    </div>
-                    {!isReadonly && (
-                      <button type="button" onClick={() => { setSelectedJob(null); updateField('job_id', 0); }}
-                        className="p-1 hover:bg-gray-200 rounded"><X size={16} className="text-gray-400" /></button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="flex items-center border border-gray-300 rounded-lg focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-200">
-                      <div className="pl-3"><Search size={16} className="text-gray-400" /></div>
-                      <input
-                        type="text" value={jobSearch}
-                        onChange={(e) => { setJobSearch(e.target.value); setShowJobDropdown(true); }}
-                        onFocus={() => setShowJobDropdown(true)}
-                        placeholder="Search by Job Number, Client, or City..."
-                        disabled={isReadonly}
-                        className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none placeholder-gray-400"
-                      />
-                    </div>
-                    {showJobDropdown && (
-                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
-                        {jobsData?.items?.map((job: JobOption) => (
-                          <button key={job.id} type="button" onClick={() => selectJob(job)}
-                            className="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-50 last:border-0">
-                            <div className="flex items-center justify-between">
-                              <span className="font-mono font-semibold text-primary-600 text-sm">{job.job_number}</span>
-                              <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{job.status}</span>
-                            </div>
-                            <p className="text-sm text-gray-700 mt-0.5">{job.client_name}</p>
-                            <p className="text-xs text-gray-500">{job.origin_city} → {job.destination_city} | {job.material_type} | {job.quantity} {job.quantity_unit}</p>
-                          </button>
-                        ))}
-                        {jobsData?.items?.length === 0 && (
-                          <div className="px-4 py-6 text-center text-sm text-gray-400">No approved jobs found</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </FormField>
-
-            <FormField label="LR Date" required>
+            <FormField label="LR Date" required className="md:col-span-1">
               <TextInput type="date" value={form.lr_date} onChange={(v) => updateField('lr_date', v)}
                 disabled={isReadonly} prefix={<Calendar size={16} />} />
             </FormField>
           </div>
-
-          {/* Job info banner */}
-          {selectedJob && (
-            <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              <div><span className="text-blue-500 text-xs font-medium">Material</span><p className="font-semibold text-gray-800 mt-0.5">{selectedJob.material_type}</p></div>
-              <div><span className="text-blue-500 text-xs font-medium">Quantity</span><p className="font-semibold text-gray-800 mt-0.5">{selectedJob.quantity} {selectedJob.quantity_unit}</p></div>
-              <div><span className="text-blue-500 text-xs font-medium">Agreed Rate</span><p className="font-semibold text-gray-800 mt-0.5">₹{(selectedJob.agreed_rate ?? 0).toLocaleString('en-IN')}</p></div>
-              <div><span className="text-blue-500 text-xs font-medium">Vehicle Type</span><p className="font-semibold text-gray-800 mt-0.5">{selectedJob.vehicle_type_required.replace(/_/g, ' ')}</p></div>
-            </div>
-          )}
         </SectionCard>
 
         {/* ══════════════════════════════════════════════════════
@@ -826,10 +890,9 @@ export default function CreateLRPage() {
                     <TextInput type="number" value={item.packages} onChange={(v) => updateItem(item.id, 'packages', parseInt(v) || 0)}
                       disabled={isReadonly} />
                   </FormField>
-                  <FormField label="Package Type">
-                    <SelectInput value={item.package_type} onChange={(v) => updateItem(item.id, 'package_type', v)}
-                      options={packageTypes.map((p: any) => ({ value: p.value, label: p.label }))}
-                      placeholder="Select type" disabled={isReadonly} />
+                  <FormField label="Product Type">
+                    <TextInput value={item.package_type} onChange={(v) => updateItem(item.id, 'package_type', v)}
+                      placeholder="Type product" disabled={isReadonly} />
                   </FormField>
                   <FormField label="Quantity">
                     <div className="flex gap-2">
@@ -917,7 +980,7 @@ export default function CreateLRPage() {
         {/* ══════════════════════════════════════════════════════
            SECTION 3: Route Details (Auto-fetched from Job)
         ══════════════════════════════════════════════════════ */}
-        <SectionCard title="Route Details" subtitle="Origin & Destination — auto-fetched from Job" icon={<MapPin size={20} />}>
+        <SectionCard title="Route Details" subtitle="Origin defaults to company; destination from selected client" icon={<MapPin size={20} />}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Origin */}
             <div className="bg-green-50/50 border border-green-100 rounded-xl p-4 space-y-4">
@@ -939,6 +1002,37 @@ export default function CreateLRPage() {
                 <div className="w-3 h-3 bg-red-500 rounded-full" />
                 Destination (To)
               </div>
+              <FormField label="Select Client">
+                <SelectInput
+                  value={selectedClientId || ''}
+                  onChange={(v) => {
+                    const clientId = parseInt(v, 10) || 0;
+                    setSelectedClientId(clientId);
+                    if (!clientId) {
+                      updateField('job_id', 0);
+                      return;
+                    }
+
+                    const selectedClient = clients.find((c: any) => Number(c.id) === clientId);
+                    if (!selectedClient) {
+                      return;
+                    }
+
+                    updateField('destination', selectedClient.city || selectedClient.billing_city || '');
+                    updateField('destination_state', selectedClient.state || selectedClient.billing_state || '');
+                    updateField('consignee_name', selectedClient.name || '');
+                    updateField('consignee_gstin', selectedClient.gstin || selectedClient.gst_number || '');
+                    updateField('consignee_phone', selectedClient.phone || '');
+                    updateField('consignee_address', selectedClient.address_line1 || selectedClient.billing_address || '');
+                  }}
+                  options={clients.map((c: any) => ({
+                    value: c.id,
+                    label: `${c.name}${c.city ? ` | ${c.city}` : ''}`,
+                  }))}
+                  placeholder="Select client"
+                  disabled={isReadonly}
+                />
+              </FormField>
               <FormField label="City" required error={errors.destination}>
                 <TextInput value={form.destination} onChange={(v) => updateField('destination', v)} placeholder="Destination city" disabled={isReadonly} />
               </FormField>
@@ -1101,115 +1195,86 @@ export default function CreateLRPage() {
             {/* Vehicle Selection */}
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-gray-700">Vehicle</h4>
-              <div className="relative">
-                {selectedVehicle ? (
-                  <div className="flex items-center gap-3 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                    <Truck size={18} className="text-primary-600" />
-                    <div className="flex-1">
-                      <span className="font-mono font-bold text-gray-900">{selectedVehicle.registration_number}</span>
-                      <span className="ml-2 text-xs text-gray-500">{selectedVehicle.vehicle_type} | {selectedVehicle.capacity_tons}T</span>
-                    </div>
-                    {!isReadonly && (
-                      <button type="button" onClick={() => { setSelectedVehicle(null); updateField('vehicle_id', 0); updateField('vehicle_number', ''); }}
-                        className="p-1 hover:bg-gray-200 rounded"><X size={16} className="text-gray-400" /></button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="flex items-center border border-gray-300 rounded-lg focus-within:border-primary-500">
-                      <div className="pl-3"><Search size={16} className="text-gray-400" /></div>
-                      <input type="text" value={vehicleSearch}
-                        onChange={(e) => { setVehicleSearch(e.target.value); setShowVehicleDropdown(true); }}
-                        onFocus={() => setShowVehicleDropdown(true)}
-                        placeholder="Search vehicle number..."
-                        disabled={isReadonly}
-                        className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
-                    </div>
-                    {showVehicleDropdown && (
-                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
-                        {vehiclesData?.items?.map((v: VehicleOption) => (
-                          <button key={v.id} type="button" onClick={() => selectVehicle(v)}
-                            className="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-50 last:border-0">
-                            <div className="flex items-center justify-between">
-                              <span className="font-mono font-bold text-sm">{v.registration_number}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${v.status === 'available' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                {v.status}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-0.5">{v.vehicle_type} | {v.capacity_tons}T capacity</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <FormField label="Vehicle Number" hint="Or enter manually">
-                <TextInput value={form.vehicle_number} onChange={(v) => updateField('vehicle_number', v.toUpperCase())}
-                  placeholder="e.g. MH-04-AB-1234" disabled={isReadonly} />
+              <FormField label="Select Vehicle" hint="Pick from Vehicles master data">
+                <SelectInput
+                  value={form.vehicle_id || ''}
+                  onChange={(v) => {
+                    const vehicleId = parseInt(v, 10) || 0;
+                    if (!vehicleId) {
+                      setSelectedVehicle(null);
+                      updateField('vehicle_id', 0);
+                      updateField('vehicle_number', '');
+                      return;
+                    }
+                    const vehicle = vehicleOptions.find((opt) => Number(opt.id) === vehicleId);
+                    if (vehicle) {
+                      selectVehicle(vehicle);
+                    }
+                  }}
+                  options={vehicleOptions.map((v) => ({
+                    value: v.id,
+                    label: `${v.registration_number} ${v.vehicle_type ? `| ${String(v.vehicle_type).replace(/_/g, ' ')}` : ''}`,
+                  }))}
+                  placeholder="Select vehicle"
+                  disabled={isReadonly}
+                />
               </FormField>
+              <FormField label="Vehicle Number">
+                <TextInput value={form.vehicle_number} onChange={() => {}}
+                  placeholder="Vehicle number will auto-fill"
+                  disabled={true} />
+              </FormField>
+              {currentVehicle && (
+                <p className="text-xs text-gray-500">
+                  Selected: <span className="font-mono font-semibold text-gray-700">{currentVehicle.registration_number}</span>
+                </p>
+              )}
             </div>
 
             {/* Driver Selection */}
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-gray-700">Driver</h4>
-              <div className="relative">
-                {selectedDriver ? (
-                  <div className="flex items-center gap-3 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                    <User size={18} className="text-primary-600" />
-                    <div className="flex-1">
-                      <span className="font-semibold text-gray-900">{selectedDriver.name}</span>
-                      <span className="ml-2 text-xs text-gray-500">{selectedDriver.phone}</span>
-                    </div>
-                    {!isReadonly && (
-                      <button type="button" onClick={() => { setSelectedDriver(null); updateField('driver_name', ''); updateField('driver_phone', ''); updateField('driver_license', ''); }}
-                        className="p-1 hover:bg-gray-200 rounded"><X size={16} className="text-gray-400" /></button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="flex items-center border border-gray-300 rounded-lg focus-within:border-primary-500">
-                      <div className="pl-3"><Search size={16} className="text-gray-400" /></div>
-                      <input type="text" value={driverSearch}
-                        onChange={(e) => { setDriverSearch(e.target.value); setShowDriverDropdown(true); }}
-                        onFocus={() => setShowDriverDropdown(true)}
-                        placeholder="Search driver name or phone..."
-                        disabled={isReadonly}
-                        className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
-                    </div>
-                    {showDriverDropdown && (
-                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
-                        {driversData?.items?.map((d: DriverOption) => (
-                          <button key={d.id} type="button" onClick={() => selectDriver(d)}
-                            className="w-full text-left px-4 py-3 hover:bg-primary-50 border-b border-gray-50 last:border-0">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-sm">{d.name}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${d.status === 'available' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                {d.status}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-0.5">{d.phone} | {d.license_type} — {d.license_number}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <FormField label="Select Driver" hint="Pick from Drivers master data">
+                <SelectInput
+                  value={form.driver_id || ''}
+                  onChange={(v) => {
+                    const driverId = parseInt(v, 10) || 0;
+                    if (!driverId) {
+                      setSelectedDriver(null);
+                      updateField('driver_id', 0);
+                      updateField('driver_name', '');
+                      updateField('driver_phone', '');
+                      updateField('driver_license', '');
+                      return;
+                    }
+                    const driver = driverOptions.find((opt) => Number(opt.id) === driverId);
+                    if (driver) {
+                      selectDriver(driver);
+                    }
+                  }}
+                  options={driverOptions.map((d) => ({
+                    value: d.id,
+                    label: `${d.name}${d.phone ? ` | ${d.phone}` : ''}`,
+                  }))}
+                  placeholder="Select driver"
+                  disabled={isReadonly}
+                />
+              </FormField>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField label="Driver Name">
-                  <TextInput value={form.driver_name} onChange={(v) => updateField('driver_name', v)}
-                    placeholder="Driver full name" disabled={isReadonly} />
+                  <TextInput value={form.driver_name} onChange={() => {}}
+                    placeholder="Driver name will auto-fill" disabled={true} />
                 </FormField>
                 <FormField label="Driver Phone">
-                  <TextInput value={form.driver_phone} onChange={(v) => updateField('driver_phone', v)}
-                    placeholder="Phone number" disabled={isReadonly} prefix={<Phone size={14} />} />
+                  <TextInput value={form.driver_phone} onChange={() => {}}
+                    placeholder="Phone number will auto-fill" disabled={true} prefix={<Phone size={14} />} />
                 </FormField>
               </div>
-              <FormField label="License Number">
-                <TextInput value={form.driver_license} onChange={(v) => updateField('driver_license', v)}
-                  placeholder="DL number" disabled={isReadonly} />
-              </FormField>
+              {currentDriver && (
+                <p className="text-xs text-gray-500">
+                  Selected: <span className="font-semibold text-gray-700">{currentDriver.name}</span>
+                </p>
+              )}
             </div>
           </div>
         </SectionCard>
@@ -1217,8 +1282,11 @@ export default function CreateLRPage() {
         {/* ══════════════════════════════════════════════════════
            SECTION 7: Documents & Notes
         ══════════════════════════════════════════════════════ */}
-        <SectionCard title="Documents & Notes" subtitle="Insurance, remarks, and special instructions" icon={<StickyNote size={20} />} collapsible defaultOpen={false}>
+        <SectionCard title="Documents & Notes (Optional)" subtitle="Optional insurance, remarks, and special instructions" icon={<StickyNote size={20} />} collapsible defaultOpen={false}>
           <div className="space-y-6">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              This section is optional. You can save and generate LR without filling these fields.
+            </div>
             {/* Insurance */}
             <div>
               <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Shield size={16} className="text-blue-500" /> Insurance Details</h4>
@@ -1301,10 +1369,6 @@ export default function CreateLRPage() {
         <div className="h-8" />
       </form>
 
-      {/* Click outside to close dropdowns */}
-      {(showJobDropdown || showVehicleDropdown || showDriverDropdown) && (
-        <div className="fixed inset-0 z-40" onClick={() => { setShowJobDropdown(false); setShowVehicleDropdown(false); setShowDriverDropdown(false); }} />
-      )}
     </div>
   );
 }

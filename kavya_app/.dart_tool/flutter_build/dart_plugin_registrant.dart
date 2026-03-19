@@ -7,6 +7,7 @@
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
 import 'package:camera_android_camerax/camera_android_camerax.dart' as camera_android_camerax;
+import 'package:flutter_background_service_android/flutter_background_service_android.dart' as flutter_background_service_android;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geolocator_android/geolocator_android.dart' as geolocator_android;
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart' as google_maps_flutter_android;
@@ -15,6 +16,7 @@ import 'package:local_auth_android/local_auth_android.dart' as local_auth_androi
 import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
 import 'package:url_launcher_android/url_launcher_android.dart' as url_launcher_android;
 import 'package:camera_avfoundation/camera_avfoundation.dart' as camera_avfoundation;
+import 'package:flutter_background_service_ios/flutter_background_service_ios.dart' as flutter_background_service_ios;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geolocator_apple/geolocator_apple.dart' as geolocator_apple;
 import 'package:google_maps_flutter_ios/google_maps_flutter_ios.dart' as google_maps_flutter_ios;
@@ -23,6 +25,7 @@ import 'package:local_auth_darwin/local_auth_darwin.dart' as local_auth_darwin;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
 import 'package:url_launcher_ios/url_launcher_ios.dart' as url_launcher_ios;
 import 'package:connectivity_plus/connectivity_plus.dart' as connectivity_plus;
+import 'package:device_info_plus/device_info_plus.dart' as device_info_plus;
 import 'package:file_selector_linux/file_selector_linux.dart' as file_selector_linux;
 import 'package:flutter_local_notifications_linux/flutter_local_notifications_linux.dart' as flutter_local_notifications_linux;
 import 'package:geolocator_linux/geolocator_linux.dart' as geolocator_linux;
@@ -38,6 +41,7 @@ import 'package:image_picker_macos/image_picker_macos.dart' as image_picker_maco
 import 'package:local_auth_darwin/local_auth_darwin.dart' as local_auth_darwin;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
 import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_macos;
+import 'package:device_info_plus/device_info_plus.dart' as device_info_plus;
 import 'package:file_selector_windows/file_selector_windows.dart' as file_selector_windows;
 import 'package:flutter_local_notifications_windows/flutter_local_notifications_windows.dart' as flutter_local_notifications_windows;
 import 'package:flutter_secure_storage_windows/flutter_secure_storage_windows.dart' as flutter_secure_storage_windows;
@@ -59,6 +63,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`camera_android_camerax` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        flutter_background_service_android.FlutterBackgroundServiceAndroid.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_background_service_android` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }
@@ -137,6 +150,15 @@ class _PluginRegistrant {
       }
 
       try {
+        flutter_background_service_ios.FlutterBackgroundServiceIOS.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_background_service_ios` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
         flutter_local_notifications.IOSFlutterLocalNotificationsPlugin.registerWith();
       } catch (err) {
         print(
@@ -205,6 +227,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`connectivity_plus` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        device_info_plus.DeviceInfoPlusLinuxPlugin.registerWith();
+      } catch (err) {
+        print(
+          '`device_info_plus` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }
@@ -346,6 +377,15 @@ class _PluginRegistrant {
       }
 
     } else if (Platform.isWindows) {
+      try {
+        device_info_plus.DeviceInfoPlusWindowsPlugin.registerWith();
+      } catch (err) {
+        print(
+          '`device_info_plus` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         file_selector_windows.FileSelectorWindows.registerWith();
       } catch (err) {

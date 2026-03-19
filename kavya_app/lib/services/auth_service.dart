@@ -16,17 +16,28 @@ class AuthService {
     // 1. Call API
     final response = await _apiService.login(email, password);
     
-    // 2. Extract user and tokens [cite: 35]
-    final token = response['access_token'];
-    final refreshToken = response['refresh_token'];
-    final user = response['user'];
-    final primaryRole = user['roles'][0]; // Key requirement: roles is an array [cite: 5-6, 35]
+    // 2. Extract user and tokens from nested data structure
+    // API returns: { success: true, data: { access_token, refresh_token, user: {...} } }
+    final data = response['data'] as Map<String, dynamic>? ?? response;
+    final token = data['access_token'] as String?;
+    final refreshToken = data['refresh_token'] as String?;
+    final user = data['user'] as Map<String, dynamic>?;
+    
+    if (token == null || user == null) {
+      throw Exception('Invalid login response');
+    }
+    
+    final roles = user['roles'] as List<dynamic>? ?? [];
+    final primaryRole = roles.isNotEmpty ? roles[0].toString() : 'unknown';
+    final userName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
 
-    // 3. Save to storage [cite: 35]
+    // 3. Save to storage
     await _storage.write(key: 'access_token', value: token);
-    await _storage.write(key: 'refresh_token', value: refreshToken);
+    if (refreshToken != null) {
+      await _storage.write(key: 'refresh_token', value: refreshToken);
+    }
     await _storage.write(key: 'primary_role', value: primaryRole);
-    await _storage.write(key: 'user_name', value: user['name']);
+    await _storage.write(key: 'user_name', value: userName.isNotEmpty ? userName : user['email']?.toString() ?? 'User');
     await _storage.write(key: 'user_id', value: user['id'].toString());
 
     // 4. Navigate based on primary role [cite: 35-40]

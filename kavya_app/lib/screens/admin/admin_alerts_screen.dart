@@ -17,7 +17,7 @@ class AdminAlertsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final alertsAsync = ref.watch(notificationsProvider);
+    final alertsAsync = ref.watch(adminNotificationsProvider);
 
     return Scaffold(
       backgroundColor: _navyBg,
@@ -28,7 +28,7 @@ class AdminAlertsScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         color: _amber,
-        onRefresh: () async => ref.invalidate(notificationsProvider),
+        onRefresh: () async => ref.invalidate(adminNotificationsProvider),
         child: alertsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
           error: (e, _) => Center(
@@ -39,7 +39,7 @@ class AdminAlertsScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Text('Failed to load alerts', style: TextStyle(color: _textPrimary)),
                 const SizedBox(height: 8),
-                ElevatedButton(onPressed: () => ref.invalidate(notificationsProvider), child: const Text('Retry')),
+                ElevatedButton(onPressed: () => ref.invalidate(adminNotificationsProvider), child: const Text('Retry')),
               ],
             ),
           ),

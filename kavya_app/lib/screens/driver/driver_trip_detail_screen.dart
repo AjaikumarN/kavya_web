@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/trip.dart';
 import '../../providers/trip_provider.dart';
 import '../../core/theme/kt_colors.dart';
@@ -165,6 +166,12 @@ class DriverTripDetailScreen extends ConsumerWidget {
               label: 'Update Status',
               icon: Icons.edit,
               onPressed: () => _showStatusDialog(context, ref, trip),
+            ),
+            const SizedBox(height: 12),
+            KtButton(
+              label: 'Complete Delivery (ePOD)',
+              icon: Icons.verified,
+              onPressed: () => context.push('/driver/trip/${trip.id}/epod'),
             ),
             const SizedBox(height: 12),
           ],

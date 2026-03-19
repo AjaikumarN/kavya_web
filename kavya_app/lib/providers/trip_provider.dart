@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/trip.dart';
 import '../services/api_service.dart';
 import 'cache_manager_provider.dart';
-import 'search_provider.dart';
+import 'fleet_dashboard_provider.dart'; // canonical apiServiceProvider
 
 // Paginated trips provider
 final tripsPaginatedProvider = StateNotifierProvider<TripsPaginationNotifier, AsyncValue<PaginatedTrips>>((ref) {

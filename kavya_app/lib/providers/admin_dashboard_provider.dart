@@ -26,7 +26,7 @@ final financeStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((r
   return await api.getFinanceStats();
 });
 
-final notificationsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final adminNotificationsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
   return await api.getNotifications();
 });

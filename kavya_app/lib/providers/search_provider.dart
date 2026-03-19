@@ -4,8 +4,7 @@ import '../models/trip.dart';
 import '../models/expense.dart';
 import '../services/api_service.dart';
 import 'cache_manager_provider.dart';
-
-final apiServiceProvider = StateProvider<ApiService>((ref) => ApiService());
+import 'fleet_dashboard_provider.dart'; // canonical apiServiceProvider
 
 // Debounced trip search provider
 final tripSearchQueryProvider = StateProvider<String>((ref) => '');

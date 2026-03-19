@@ -55,12 +55,13 @@ class _AssociateLRCreateScreenState extends ConsumerState<AssociateLRCreateScree
         "notes": _notes.text,
       };
 
-      // Mocking API call: POST /api/v1/lr
-      await Future.delayed(const Duration(seconds: 2));
-      final lrNumber = "KT-LR-2026-0899"; // Normally returned from API
+      // POST /api/v1/lr
+      final api = ref.read(apiServiceProvider);
+      final response = await api.post('/lr', data: payload);
+      final lrNumber = response['lr_number'] ?? response['data']?['lr_number'] ?? 'LR-CREATED';
       
       if (mounted) {
-        setState(() => _generatedLrNumber = lrNumber); // Switch to success screen
+        setState(() => _generatedLrNumber = lrNumber);
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: KTColors.danger)); //

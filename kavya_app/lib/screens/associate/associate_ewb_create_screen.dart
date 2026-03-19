@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
+import '../../providers/fleet_dashboard_provider.dart';
 
 class AssociateEWBCreateScreen extends ConsumerStatefulWidget {
   final String? lrId; // Query param: ?lr_id= [cite: 94]
@@ -39,14 +40,27 @@ class _AssociateEWBCreateScreenState extends ConsumerState<AssociateEWBCreateScr
     setState(() => _isLoading = true);
 
     try {
-      // API Call: POST /api/v1/eway-bills/generate [cite: 96]
-      // Shows loading indicator (can take 5-10 seconds for GST portal call)
-      await Future.delayed(const Duration(seconds: 4)); 
+      // API Call: POST /api/v1/eway-bills/generate
+      final api = ref.read(apiServiceProvider);
+      final payload = {
+        'lr_id': widget.lrId,
+        'vehicle_number': _vehicleNo.text,
+        'transporter_id': _transporterId.text,
+        'transport_mode': _transportMode,
+        'from_pin': _fromPin.text,
+        'to_pin': _toPin.text,
+        'distance_km': double.tryParse(_distance.text) ?? 0,
+        'doc_type': _docType,
+        'doc_number': _docNo.text,
+        'doc_date': _docDate.toIso8601String(),
+      };
+      final response = await api.post('/eway-bills/generate', data: payload);
+      final data = response['data'] ?? response;
       
       if (mounted) {
         setState(() {
-          _generatedEwbNumber = "123456789012";
-          _ewbValidUntil = "19 Mar 2026, 23:59";
+          _generatedEwbNumber = data['ewb_number']?.toString() ?? data['id']?.toString() ?? 'EWB-CREATED';
+          _ewbValidUntil = data['valid_until'] ?? 'Check portal';
         });
       }
     } catch (e) {

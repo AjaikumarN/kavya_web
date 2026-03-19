@@ -376,4 +376,26 @@ class ApiService {
     });
     return response.data;
   }
+
+  // --- GPS Tracking ---
+
+  Future<void> sendGpsPing({
+    required double latitude,
+    required double longitude,
+    double speed = 0,
+    double heading = 0,
+    int? tripId,
+  }) async {
+    await _dio.post('/tracking/gps/ping', data: {
+      'latitude': latitude,
+      'longitude': longitude,
+      'speed': speed,
+      'heading': heading,
+      if (tripId != null) 'trip_id': tripId,
+    });
+  }
+
+  Future<void> updateTripStatus(int tripId, String status) async {
+    await _dio.patch('/trips/$tripId/status', data: {'status': status});
+  }
 }

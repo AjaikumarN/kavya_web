@@ -3,10 +3,10 @@ import '../models/expense.dart';
 import '../services/api_service.dart';
 import '../services/offline_sync_service.dart';
 import 'cache_manager_provider.dart';
+import 'fleet_dashboard_provider.dart'; // canonical apiServiceProvider
 import 'recent_activity_provider.dart';
 
 final offlineServiceProvider = Provider<OfflineSyncService>((ref) => OfflineSyncService());
-final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
 
 // Paginated expenses provider
 final expensesPaginatedProvider = StateNotifierProvider.family<

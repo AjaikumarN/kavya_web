@@ -37,19 +37,25 @@ class AuthService {
     final router = _ref.read(routerProvider);
     switch (role) {
       case 'driver':
-        router.go('/home/today'); // [cite: 36]
+        router.go('/driver/today');
         break;
       case 'fleet_manager':
-        router.go('/fleet/home'); // [cite: 37]
+        router.go('/fleet/home');
         break;
       case 'accountant':
-        router.go('/accountant/home'); // [cite: 38]
+        router.go('/accountant/home');
         break;
       case 'project_associate':
-        router.go('/associate/home'); // [cite: 39]
+        router.go('/associate/home');
+        break;
+      case 'admin':
+      case 'super_admin':
+        router.go('/admin/home');
+        break;
+      case 'pump_operator':
+        router.go('/pump/home');
         break;
       default:
-        // admin, manager, auditor → web-only screen [cite: 40]
         router.go('/web-only');
     }
   }

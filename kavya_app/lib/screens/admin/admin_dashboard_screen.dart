@@ -23,7 +23,7 @@ class AdminDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashAsync = ref.watch(adminDashboardProvider);
-    final alertsAsync = ref.watch(notificationsProvider);
+    final alertsAsync = ref.watch(adminNotificationsProvider);
     final fleetHealthAsync = ref.watch(fleetMaintenanceProvider);
     final leaderboardAsync = ref.watch(driverLeaderboardProvider);
     final eventsAsync = ref.watch(groupedEventsProvider);
@@ -53,7 +53,7 @@ class AdminDashboardScreen extends ConsumerWidget {
             color: _amber,
             onRefresh: () async {
               ref.invalidate(adminDashboardProvider);
-              ref.invalidate(notificationsProvider);
+              ref.invalidate(adminNotificationsProvider);
               ref.invalidate(fleetMaintenanceProvider);
               ref.invalidate(driverLeaderboardProvider);
               ref.invalidate(groupedEventsProvider);

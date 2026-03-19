@@ -18,14 +18,28 @@ import '../../screens/driver/driver_notifications_screen.dart';
 import '../../screens/driver/driver_add_expense_screen.dart';
 import '../../screens/driver/driver_profile_screen.dart';
 import '../../screens/driver/driver_gps_tracking_screen.dart';
+import '../../screens/driver/driver_epod_screen.dart';
 // Fleet Manager screens
 import '../../screens/fleet/fleet_home_screen.dart';
 import '../../screens/fleet/fleet_vehicles_screen.dart';
 import '../../screens/fleet/fleet_analytics_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
+import '../../screens/accountant/accountant_payments_screen.dart';
 // Project Associate screens
 import '../../screens/associate/associate_home_screen.dart';
+// Admin screens
+import '../../screens/admin/admin_home_screen.dart';
+import '../../screens/admin/admin_dashboard_screen.dart';
+import '../../screens/admin/admin_fleet_screen.dart';
+import '../../screens/admin/admin_team_screen.dart';
+import '../../screens/admin/admin_alerts_screen.dart';
+import '../../screens/admin/admin_finance_screen.dart';
+// Pump Operator screens
+import '../../screens/pump/pump_home_screen.dart';
+import '../../screens/pump/pump_dashboard_screen.dart';
+import '../../screens/pump/pump_fuel_log_screen.dart';
+import '../../screens/pump/pump_dispense_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -51,6 +65,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'fleet_manager': return '/fleet/home';
           case 'accountant': return '/accountant/home';
           case 'project_associate': return '/associate/home';
+          case 'admin':
+          case 'super_admin': return '/admin/home';
+          case 'pump_operator': return '/pump/home';
           default: return '/web-only';
         }
       }
@@ -141,6 +158,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/driver/trip/:id/epod',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) => PageTransitionPreset.modal(
+          context: context,
+          state: state,
+          child: DriverEpodScreen(tripId: int.parse(state.pathParameters['id'] ?? '0')),
+        ),
+      ),
+      GoRoute(
         path: '/driver/tracking/:id',
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
@@ -194,7 +220,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/accountant/invoices', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/accountant/invoice/:id', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/accountant/approvals', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/accountant/payments', builder: (context, state) => const Scaffold()),
+      GoRoute(path: '/accountant/payments', builder: (context, state) => const AccountantPaymentsScreen()),
       GoRoute(path: '/accountant/reports', builder: (context, state) => const Scaffold()),
       
       // --- Associate Routes ---
@@ -205,6 +231,44 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/associate/ewb/create', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/associate/trip/close', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/associate/upload', builder: (context, state) => const Scaffold()),
+
+      // --- Admin Routes --- (Stateful shell with bottom nav)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => AdminHomeScreen(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/admin/home', builder: (context, state) => const AdminDashboardScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/admin/fleet', builder: (context, state) => const AdminFleetScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/admin/team', builder: (context, state) => const AdminTeamScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/admin/finance', builder: (context, state) => const AdminFinanceScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/admin/alerts', builder: (context, state) => const AdminAlertsScreen()),
+          ]),
+        ],
+      ),
+
+      // --- Pump Operator Routes --- (Stateful shell with bottom nav)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => PumpHomeScreen(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/pump/home', builder: (context, state) => const PumpDashboardScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/pump/log', builder: (context, state) => const PumpFuelLogScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/pump/dispense', builder: (context, state) => const PumpDispenseScreen()),
+          ]),
+        ],
+      ),
     ],
   );
 });

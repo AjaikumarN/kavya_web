@@ -202,7 +202,7 @@ async def change_lr_status(db: AsyncSession, lr_id: int, new_status: str, user_i
     if normalized_new_status not in allowed:
         return None, f"Cannot transition from '{current}' to '{normalized_new_status}'. Allowed: {allowed}"
 
-    lr.status = LRStatus(normalized_new_status)
+    lr.status = _coerce_enum(LRStatus, normalized_new_status)
 
     if normalized_new_status == "delivered":
         from datetime import datetime

@@ -122,21 +122,27 @@ async def seed_system_config(db: AsyncSession):
 async def get_config(db: AsyncSession, key: str, default=None):
     """Fetch a config value, parsed to its declared type."""
     from app.models.postgres.intelligence import SystemConfig
-    result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
-    row = result.scalar_one_or_none()
-    if row is None:
+    try:
+        result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
+        row = result.scalar_one_or_none()
+        if row is None:
+            return default
+        return _parse_value(row.value, row.value_type)
+    except Exception:
         return default
-    return _parse_value(row.value, row.value_type)
 
 
 async def get_config_bulk(db: AsyncSession, prefix: str) -> dict:
     """Fetch all config values with a given prefix (e.g., 'driver_score.')."""
     from app.models.postgres.intelligence import SystemConfig
-    result = await db.execute(
-        select(SystemConfig).where(SystemConfig.key.like(f"{prefix}%"))
-    )
-    rows = result.scalars().all()
-    return {row.key: _parse_value(row.value, row.value_type) for row in rows}
+    try:
+        result = await db.execute(
+            select(SystemConfig).where(SystemConfig.key.like(f"{prefix}%"))
+        )
+        rows = result.scalars().all()
+        return {row.key: _parse_value(row.value, row.value_type) for row in rows}
+    except Exception:
+        return {}
 
 
 async def seed_event_priority_config(db: AsyncSession):

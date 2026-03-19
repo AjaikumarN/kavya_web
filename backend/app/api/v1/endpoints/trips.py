@@ -369,8 +369,8 @@ async def add_expense(
     # Biometric threshold enforcement
     from app.services.config_service import get_config_bulk
     cfg = await get_config_bulk(db, "expense.")
-    threshold = cfg.get("expense.biometric_threshold_amount", 500)
-    if data.amount >= threshold and not data.biometric_verified:
+    threshold = cfg.get("expense.biometric_threshold_amount")
+    if threshold is not None and data.amount >= threshold and not data.biometric_verified:
         raise HTTPException(
             status_code=400,
             detail=f"Biometric verification required for expenses ≥ ₹{threshold}",

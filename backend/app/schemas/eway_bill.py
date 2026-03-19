@@ -32,6 +32,7 @@ class EwayItemResponse(BaseModel):
 
 
 class EwayBillCreate(BaseModel):
+    job_id: Optional[int] = None
     lr_id: Optional[int] = None
     trip_id: Optional[int] = None
     supply_type: str = "outward"

@@ -25,6 +25,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   expired:    { label: 'Expired',    color: 'text-orange-700',  bg: 'bg-orange-50 border-orange-300',   icon: <Timer size={14} />       },
 };
 
+const normalizeStatus = (status: unknown): string => String(status || '').toLowerCase();
+
 function InfoRow({ label, value, icon, mono }: { label: string; value: React.ReactNode; icon?: React.ReactNode; mono?: boolean }) {
   return (
     <div className="flex flex-col">
@@ -53,7 +55,8 @@ function EwbLiveCountdown({ validUntil, status }: { validUntil: string | null | 
     return () => clearInterval(t);
   }, []);
 
-  if (!validUntil || !['active', 'in_transit', 'extended'].includes(status)) return null;
+  const statusKey = normalizeStatus(status);
+  if (!validUntil || !['active', 'in_transit', 'extended'].includes(statusKey)) return null;
 
   const end = new Date(validUntil).getTime();
   const diff = end - now;
@@ -138,7 +141,8 @@ export default function EwayBillDetailPage() {
     );
   }
 
-  const statusCfg = STATUS_CONFIG[eway.status] || STATUS_CONFIG.draft;
+  const statusKey = normalizeStatus(eway.status);
+  const statusCfg = STATUS_CONFIG[statusKey] || STATUS_CONFIG.draft;
   const isInterstate = eway.supplier_state_code !== eway.recipient_state_code;
 
   return (
@@ -186,7 +190,7 @@ export default function EwayBillDetailPage() {
 
       <div className="space-y-4">
         {/* Live Validity Countdown */}
-        <EwbLiveCountdown validUntil={eway.valid_until || eway.extended_until} status={eway.status} />
+        <EwbLiveCountdown validUntil={eway.valid_until || eway.extended_until} status={statusKey} />
 
         {/* Reference Details */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
@@ -313,13 +317,13 @@ export default function EwayBillDetailPage() {
               <InfoRow label="Valid From" value={eway.valid_from ? new Date((eway.valid_from) ?? 0).toLocaleString('en-IN') : '—'} />
               <InfoRow label="Valid Until" value={eway.valid_until ? new Date((eway.valid_until) ?? 0).toLocaleString('en-IN') : '—'} />
               <InfoRow label="Generated At" value={eway.generated_at ? new Date((eway.generated_at) ?? 0).toLocaleString('en-IN') : '—'} />
-              {eway.status === 'cancelled' && (
+              {statusKey === 'cancelled' && (
                 <>
                   <InfoRow label="Cancel Reason" value={eway.cancelled_reason} />
                   <InfoRow label="Cancelled At" value={eway.cancelled_at ? new Date((eway.cancelled_at) ?? 0).toLocaleString('en-IN') : '—'} />
                 </>
               )}
-              {eway.status === 'extended' && (
+              {statusKey === 'extended' && (
                 <>
                   <InfoRow label="Extended Reason" value={eway.extension_reason} />
                   <InfoRow label="Extended Until" value={eway.extended_until ? new Date((eway.extended_until) ?? 0).toLocaleString('en-IN') : '—'} />

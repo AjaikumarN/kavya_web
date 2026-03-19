@@ -120,8 +120,11 @@ async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ):
-    token = credentials.credentials
-    payload = decode_token(token)
+    if credentials:
+        token = credentials.credentials
+        payload = decode_token(token)
+    else:
+        payload = None
     if payload:
         jti = payload.get("jti")
         exp = payload.get("exp")

@@ -15,7 +15,8 @@ import { handleApiError } from '../../utils/handleApiError';
 import {
   Plus, ChevronRight, Search, Download,
   Eye, Edit, ChevronLeft, Trash2, XCircle,
-  AlertCircle, ReceiptText, Clock
+  AlertCircle, ReceiptText, Clock, AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -29,8 +30,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   expired:    { label: 'Expired',    color: 'text-orange-700',  bg: 'bg-orange-50',        dot: 'bg-orange-500'  },
 };
 
+const normalizeStatus = (status: unknown): string => String(status || '').toLowerCase();
+
 const StatusBadge = ({ status }: { status: string }) => {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
+  const cfg = STATUS_CONFIG[normalizeStatus(status)] || STATUS_CONFIG.draft;
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-full ${cfg.bg} ${cfg.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -71,6 +74,115 @@ const EwbCountdown = ({ validUntil }: { validUntil: string | null | undefined })
   );
 };
 
+/** Expiry Alert Banner — shows EWBs expiring within 8 hours */
+const ExpiryAlertBanner = () => {
+  const { data: expiring } = useQuery({
+    queryKey: ['ewb-expiring'],
+    queryFn: () => ewayBillService.getExpiring(8),
+    refetchInterval: 5 * 60 * 1000, // refresh every 5 min
+  });
+
+  const bills = safeArray(expiring);
+  if (bills.length === 0) return null;
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-red-800">
+            {bills.length} E-Way Bill{bills.length > 1 ? 's' : ''} expiring within 8 hours!
+          </p>
+          <div className="mt-1 space-y-1">
+            {bills.slice(0, 3).map((bill: any) => (
+              <p key={bill.id} className="text-xs text-red-700">
+                <span className="font-mono font-medium">{bill.eway_bill_number}</span>
+                {' · '}{bill.vehicle_number || 'No vehicle'}
+                {' · '}<EwbCountdown validUntil={bill.valid_until} />
+              </p>
+            ))}
+            {bills.length > 3 && (
+              <p className="text-xs text-red-600">and {bills.length - 3} more...</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Extend EWB Modal */
+const ExtendEWBModal = ({ ewb, onClose }: { ewb: any; onClose: () => void }) => {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    vehicle_number: ewb.vehicle_number || '',
+    additional_distance_km: '',
+    reason: '',
+  });
+
+  const { data: validityData } = useQuery({
+    queryKey: ['ewb-validity-calc', form.additional_distance_km],
+    queryFn: () => {
+      const dist = (ewb.approximate_distance || 0) + Number(form.additional_distance_km || 0);
+      return ewayBillService.calculateValidity(dist);
+    },
+    enabled: true,
+  });
+
+  const extendMutation = useMutation({
+    mutationFn: () => ewayBillService.extend(Number(ewb.id), {
+      reason: form.reason,
+      remaining_distance_km: Number(form.additional_distance_km || 0),
+      ...(form.vehicle_number !== ewb.vehicle_number ? { vehicle_number: form.vehicle_number } : {}),
+    }),
+    onSuccess: () => {
+      toast.success('E-Way Bill extended');
+      qc.invalidateQueries({ queryKey: ['eway-bills'] });
+      qc.invalidateQueries({ queryKey: ['ewb-expiring'] });
+      onClose();
+    },
+    onError: (err: any) => handleApiError(err),
+  });
+
+  return (
+    <Modal isOpen onClose={onClose} title={`Extend EWB: ${ewb.eway_bill_number}`} size="md">
+      <form onSubmit={(e) => { e.preventDefault(); extendMutation.mutate(); }} className="space-y-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-sm text-amber-800">
+            Current validity: <EwbCountdown validUntil={ewb.valid_until} />
+          </p>
+          {validityData && (
+            <p className="text-sm text-amber-700 mt-1">
+              New validity: <strong>{validityData.validity_hours}h</strong> from now (for {validityData.distance_km}km)
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number</label>
+          <input className="input-field" value={form.vehicle_number} onChange={e => setForm(f => ({ ...f, vehicle_number: e.target.value }))} />
+          <p className="text-xs text-gray-400 mt-1">Change if vehicle swapped</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Additional Distance (km)</label>
+          <input type="number" min="0" className="input-field" value={form.additional_distance_km} onChange={e => setForm(f => ({ ...f, additional_distance_km: e.target.value }))} placeholder="0" />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Extension *</label>
+          <textarea required rows={2} className="input-field" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g., Traffic delay, breakdown, etc." />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-3 border-t">
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <SubmitButton isLoading={extendMutation.isPending} label="Extend Validity" />
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
 export default function EwayBillListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -89,6 +201,7 @@ export default function EwayBillListPage() {
     to_state: '',
   });
   const [editForm, setEditForm] = useState({ supplier_name: '', recipient_name: '', vehicle_number: '' });
+  const [extendItem, setExtendItem] = useState<any | null>(null);
 
   const limit = 15;
 
@@ -197,6 +310,9 @@ export default function EwayBillListPage() {
         <span className="text-gray-900 font-semibold">E-Way Bills</span>
       </nav>
 
+      {/* Expiry Alert Banner */}
+      <ExpiryAlertBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
@@ -278,6 +394,7 @@ export default function EwayBillListPage() {
               <tbody className="divide-y divide-gray-100">
                 {items.map((eway: any, index: number) => {
                   const rowKey = `${eway.id ?? 'no-id'}-${eway.eway_bill_number ?? 'no-bill'}-${index}`;
+                  const statusKey = normalizeStatus(eway.status);
                   return (
                     <tr key={rowKey} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/lr/eway-bill/${eway.id}`)}>
                       <td className="px-4 py-3">
@@ -295,7 +412,7 @@ export default function EwayBillListPage() {
                       <td className="px-4 py-3 text-right font-semibold text-gray-900">₹{fmt(eway.total_invoice_value)}</td>
                       <td className="px-4 py-3 text-center font-mono text-xs text-gray-600">{eway.vehicle_number || '—'}</td>
                       <td className="px-4 py-3 text-center">
-                        {['active', 'in_transit', 'extended'].includes(eway.status) ? (
+                        {['active', 'in_transit', 'extended'].includes(statusKey) ? (
                           <EwbCountdown validUntil={eway.valid_until || eway.validity_date} />
                         ) : (
                           <span className="text-xs text-gray-400">{eway.valid_until || eway.validity_date || '—'}</span>
@@ -305,11 +422,14 @@ export default function EwayBillListPage() {
                       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => navigate(`/lr/eway-bill/${eway.id}`)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded-md hover:bg-gray-100" title="View"><Eye size={14} /></button>
-                          {eway.status === 'draft' && (
+                          {statusKey === 'draft' && (
                             <button onClick={() => handleEdit(eway)} className="p-1.5 text-gray-400 hover:text-primary-600 rounded-md hover:bg-gray-100" title="Edit"><Edit size={14} /></button>
                           )}
-                          {eway.status !== 'cancelled' && eway.status !== 'completed' && (
+                          {statusKey !== 'cancelled' && statusKey !== 'completed' && (
                             <button onClick={() => cancelMutation.mutate(Number(eway.id))} className="p-1.5 text-amber-500 hover:text-amber-700 rounded-md hover:bg-amber-50" title="Cancel"><XCircle size={14} /></button>
+                          )}
+                          {['active', 'in_transit'].includes(statusKey) && (
+                            <button onClick={() => setExtendItem(eway)} className="p-1.5 text-blue-500 hover:text-blue-700 rounded-md hover:bg-blue-50" title="Extend"><RefreshCw size={14} /></button>
                           )}
                           <button onClick={() => handleDelete(eway)} className="p-1.5 text-red-500 hover:text-red-700 rounded-md hover:bg-red-50" title="Delete"><Trash2 size={14} /></button>
                         </div>
@@ -439,6 +559,9 @@ export default function EwayBillListPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Extend EWB Modal */}
+      {extendItem && <ExtendEWBModal ewb={extendItem} onClose={() => setExtendItem(null)} />}
     </div>
   );
 }

@@ -59,7 +59,7 @@
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, ForeignKey,
-    DateTime, Text, Numeric, Date, Enum as SQLEnum
+    DateTime, Text, Numeric, Date, Enum as SQLEnum, JSON
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -187,6 +187,18 @@ class EwayBill(Base, TimestampMixin, SoftDeleteMixin):
 
     # Remarks
     remarks = Column(Text, nullable=True)
+
+    # Alert tracking
+    alert_8h_sent = Column(Boolean, default=False)
+    alert_4h_sent = Column(Boolean, default=False)
+    alert_1h_sent = Column(Boolean, default=False)
+
+    # Source (manual or api)
+    source = Column(String(20), default="manual")
+    nic_response = Column(JSON, nullable=True)  # JSON from NIC API
+
+    # Trip reference
+    trip_id = Column(Integer, ForeignKey('trips.id'), nullable=True)
 
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)

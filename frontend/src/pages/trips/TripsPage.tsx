@@ -52,20 +52,8 @@ export default function TripsPage() {
   const { hasPermission } = useAuthStore();
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<Trip | null>(null);
-  const [createForm, setCreateForm] = useState({
-    job_id: '',
-    lr_id: '',
-    vehicle_id: '',
-    driver_id: '',
-    planned_departure: new Date().toISOString().slice(0, 16),
-    planned_arrival: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
-    route_id: '',
-    advance_paid: '',
-    fuel_advance: '',
-  });
   const [editForm, setEditForm] = useState({
     origin: '',
     destination: '',
@@ -73,55 +61,9 @@ export default function TripsPage() {
     total_distance: '',
   });
 
-  const buildTripCreatePayload = () => {
-    const selectedJob = safeArray<any>((jobsData as any)?.items ?? jobsData).find((job: any) => String(job.id) === createForm.job_id);
-    const browserPayload = {
-      job_id: Number(createForm.job_id),
-      lr_id: createForm.lr_id ? Number(createForm.lr_id) : null,
-      vehicle_id: Number(createForm.vehicle_id),
-      driver_id: Number(createForm.driver_id),
-      planned_departure: createForm.planned_departure,
-      planned_arrival: createForm.planned_arrival,
-      route_id: createForm.route_id ? Number(createForm.route_id) : null,
-      advance_paid: Number(createForm.advance_paid) || 0,
-      fuel_advance: Number(createForm.fuel_advance) || 0,
-    };
-
-    const backendPayload = {
-      trip_date: createForm.planned_departure.slice(0, 10),
-      job_id: browserPayload.job_id,
-      vehicle_id: browserPayload.vehicle_id,
-      driver_id: browserPayload.driver_id,
-      origin: selectedJob?.origin || selectedJob?.origin_city || 'Origin',
-      destination: selectedJob?.destination || selectedJob?.destination_city || 'Destination',
-      planned_start: new Date(createForm.planned_departure).toISOString(),
-      planned_end: new Date(createForm.planned_arrival).toISOString(),
-      route_id: browserPayload.route_id ?? undefined,
-      driver_advance: browserPayload.advance_paid,
-      lr_ids: browserPayload.lr_id ? [browserPayload.lr_id] : [],
-      remarks: browserPayload.fuel_advance ? `Fuel advance: ${browserPayload.fuel_advance}` : undefined,
-    } as Partial<Trip>;
-
-    // eslint-disable-next-line no-console
-    console.log('Trip create payload (browser contract):', browserPayload);
-    // eslint-disable-next-line no-console
-    console.log('Trip create payload (backend contract):', backendPayload);
-
-    return backendPayload;
-  };
-
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['trips', filters, statusFilter],
     queryFn: () => tripService.list({ ...filters, status: statusFilter !== 'all' ? statusFilter : undefined }),
-    throwOnError: false,
-  });
-
-  const selectedJobId = createForm.job_id ? Number(createForm.job_id) : null;
-
-  const { data: jobsData } = useQuery({
-    queryKey: ['trips-create-jobs'],
-    queryFn: () => api.get('/jobs', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
-    retry: false,
     throwOnError: false,
   });
 
@@ -135,24 +77,6 @@ export default function TripsPage() {
   const { data: driversData } = useQuery({
     queryKey: ['trips-create-drivers'],
     queryFn: () => api.get('/drivers', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
-    retry: false,
-    throwOnError: false,
-  });
-
-  const { data: routesData } = useQuery({
-    queryKey: ['trips-create-routes'],
-    queryFn: () => api.get('/routes', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
-    retry: false,
-    throwOnError: false,
-  });
-
-  const { data: lrsData } = useQuery({
-    queryKey: ['trips-create-lrs', selectedJobId],
-    queryFn: () => api.get('/lr', {
-      params: { page: 1, limit: 100, job_id: selectedJobId },
-      suppressErrorToast: true,
-    } as any),
-    enabled: Boolean(selectedJobId),
     retry: false,
     throwOnError: false,
   });
@@ -258,29 +182,6 @@ export default function TripsPage() {
       setEditItem(null);
     },
     onError: (error: any) => handleApiError(error, 'Failed to update trip.'),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (payload: Partial<Trip>) => api.post('/trips', payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['trips'] });
-      toast.success('Trip created successfully.');
-      setIsCreateOpen(false);
-      setCreateForm({
-        job_id: '',
-        lr_id: '',
-        vehicle_id: '',
-        driver_id: '',
-        planned_departure: new Date().toISOString().slice(0, 16),
-        planned_arrival: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
-        route_id: '',
-        advance_paid: '',
-        fuel_advance: '',
-      });
-    },
-    onError: (error) => {
-      handleApiError(error, 'Operation failed');
-    },
   });
 
   const updateTripStatus = (id: string, action: string) => {
@@ -480,7 +381,7 @@ export default function TripsPage() {
         onPageChange={(p) => setFilters({ ...filters, page: p })}
         onSort={(key, order) => setFilters({ ...filters, sort_by: key, sort_order: order })}
         onRowClick={(t) => navigate(`/trips/${t.id}`)}
-        onAdd={hasPermission('trips:create') ? () => setIsCreateOpen(true) : undefined}
+        onAdd={hasPermission('trips:create') ? () => navigate('/trips/new') : undefined}
         addLabel="Create Trip"
         onRefresh={() => refetch()}
         onExport={handleExportPdf}
@@ -549,89 +450,6 @@ export default function TripsPage() {
         </form>
       </Modal>
 
-      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create Trip" size="lg">
-        <form className="space-y-4" onSubmit={(e) => {
-          e.preventDefault();
-          const payload = buildTripCreatePayload();
-          createMutation.mutate(payload);
-        }}>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Job</label>
-              <select
-                className="input-field"
-                value={createForm.job_id}
-                onChange={(e) => {
-                  const selectedJob = safeArray<any>((jobsData as any)?.items ?? jobsData).find((job: any) => String(job.id) === e.target.value);
-                  setCreateForm((p) => ({
-                    ...p,
-                    job_id: e.target.value,
-                    lr_id: '',
-                    vehicle_id: selectedJob?.vehicle_id ? String(selectedJob.vehicle_id) : p.vehicle_id,
-                    driver_id: selectedJob?.driver_id ? String(selectedJob.driver_id) : p.driver_id,
-                  }));
-                }}
-                required
-              >
-                <option value="">Select job</option>
-                {safeArray<any>((jobsData as any)?.items ?? jobsData).map((job: any) => (
-                  <option key={job.id} value={job.id}>{job.job_number || `Job #${job.id}`}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">LR</label>
-              <select className="input-field" value={createForm.lr_id} onChange={(e) => setCreateForm((p) => ({ ...p, lr_id: e.target.value }))} disabled={!selectedJobId}>
-                <option value="">Select LR</option>
-                {safeArray<any>((lrsData as any)?.items ?? lrsData).map((lr: any) => (
-                  <option key={lr.id} value={lr.id}>{lr.lr_number || `LR #${lr.id}`}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Vehicle</label>
-              <select className="input-field" value={createForm.vehicle_id} onChange={(e) => setCreateForm((p) => ({ ...p, vehicle_id: e.target.value }))} required>
-                <option value="">Select vehicle</option>
-                {safeArray<any>((vehiclesData as any)?.items ?? vehiclesData).map((v: any) => (
-                  <option key={v.id} value={v.id}>{v.registration_number || `Vehicle #${v.id}`}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Driver</label>
-              <select className="input-field" value={createForm.driver_id} onChange={(e) => setCreateForm((p) => ({ ...p, driver_id: e.target.value }))} required>
-                <option value="">Select driver</option>
-                {safeArray<any>((driversData as any)?.items ?? driversData).map((d: any) => (
-                  <option key={d.id} value={d.id}>{d.full_name || d.first_name || `Driver #${d.id}`}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Planned Departure</label><input type="datetime-local" className="input-field" value={createForm.planned_departure} onChange={(e) => setCreateForm((p) => ({ ...p, planned_departure: e.target.value }))} required /></div>
-            <div><label className="label">Planned Arrival</label><input type="datetime-local" className="input-field" value={createForm.planned_arrival} onChange={(e) => setCreateForm((p) => ({ ...p, planned_arrival: e.target.value }))} required /></div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="label">Route</label>
-              <select className="input-field" value={createForm.route_id} onChange={(e) => setCreateForm((p) => ({ ...p, route_id: e.target.value }))}>
-                <option value="">Select route</option>
-                {safeArray<any>((routesData as any)?.items ?? routesData).map((r: any) => (
-                  <option key={r.id} value={r.id}>{r.route_name || `${r.origin_city || ''} - ${r.destination_city || ''}` || `Route #${r.id}`}</option>
-                ))}
-              </select>
-            </div>
-            <div><label className="label">Advance Paid</label><input type="number" min="0" step="0.01" className="input-field" value={createForm.advance_paid} onChange={(e) => setCreateForm((p) => ({ ...p, advance_paid: e.target.value }))} required /></div>
-            <div><label className="label">Fuel Advance</label><input type="number" min="0" step="0.01" className="input-field" value={createForm.fuel_advance} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_advance: e.target.value }))} required /></div>
-          </div>
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-            <SubmitButton isLoading={createMutation.isPending} label="Create Trip" loadingLabel="Creating..." disabled={!createForm.job_id || !createForm.vehicle_id || !createForm.driver_id} />
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

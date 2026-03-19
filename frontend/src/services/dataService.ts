@@ -334,7 +334,7 @@ export const lrService = {
 // ---- E-way Bills ----
 export const ewayBillService = {
   list: async (params?: FilterParams): Promise<PaginatedResponse<EwayBill>> => {
-    const data = await api.get('/ewb', { params });
+    const data = await api.get('/eway-bills', { params });
     return data;
   },
   get: async (id: number): Promise<EwayBill> => {
@@ -412,6 +412,83 @@ export const ewayBillService = {
   getNextEwayNumber: async (): Promise<{ eway_bill_number: string }> => {
     const data = await api.get('/eway-bills/next-eway-number');
     return data;
+  },
+  // Phase 1 local endpoints
+  getActive: async (): Promise<any> => {
+    const data = await api.get('/eway-bills/active');
+    return unwrap(data);
+  },
+  getExpiring: async (hours: number = 8): Promise<any> => {
+    const data = await api.get('/eway-bills/expiring', { params: { hours } });
+    return unwrap(data);
+  },
+  getTripCompliance: async (tripId: number): Promise<any> => {
+    const data = await api.get(`/eway-bills/trip/${tripId}/compliance`);
+    return unwrap(data);
+  },
+  calculateValidity: async (distanceKm: number, isOdc: boolean = false): Promise<any> => {
+    const data = await api.get('/eway-bills/validity-calculator', { params: { distance_km: distanceKm, is_odc: isOdc } });
+    return unwrap(data);
+  },
+};
+
+// ---- Banking Module ----
+export const bankingService = {
+  // Entries CRUD
+  listEntries: async (params?: FilterParams) => {
+    const data = await api.get('/banking/entries', { params });
+    return data;
+  },
+  getEntry: async (id: number) => {
+    const data = await api.get(`/banking/entries/${id}`);
+    return unwrap(data);
+  },
+  createEntry: async (payload: any) => {
+    const data = await api.post('/banking/entries', payload);
+    return unwrap(data);
+  },
+  updateEntry: async (id: number, payload: any) => {
+    const data = await api.put(`/banking/entries/${id}`, payload);
+    return unwrap(data);
+  },
+  deleteEntry: async (id: number) => {
+    await api.delete(`/banking/entries/${id}`);
+  },
+
+  // Balance
+  getBalance: async () => {
+    const data = await api.get('/banking/balance');
+    return unwrap(data);
+  },
+  getBalanceHistory: async (params?: { account_id?: number; days?: number }) => {
+    const data = await api.get('/banking/balance/history', { params });
+    return unwrap(data);
+  },
+
+  // CSV Reconciliation
+  importCSV: async (accountId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const data = await api.post(`/banking/reconciliation/import?account_id=${accountId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(data);
+  },
+  listCSVTransactions: async (importId: number, params?: FilterParams) => {
+    const data = await api.get('/banking/reconciliation', { params: { import_id: importId, ...params } });
+    return data;
+  },
+  matchCSVTransaction: async (csvTransactionId: number, payload: { invoice_id?: number; entry_id?: number }) => {
+    const data = await api.post('/banking/reconciliation/match', { csv_transaction_id: csvTransactionId, ...payload });
+    return unwrap(data);
+  },
+  getExceptions: async (importId: number) => {
+    const data = await api.get('/banking/reconciliation/exceptions', { params: { import_id: importId } });
+    return unwrap(data);
+  },
+  ignoreCSVTransaction: async (csvTransactionId: number) => {
+    const data = await api.post('/banking/reconciliation/ignore', { csv_transaction_id: csvTransactionId });
+    return unwrap(data);
   },
 };
 

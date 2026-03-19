@@ -40,4 +40,5 @@ async def log_audit(
         db.add(entry)
         await db.flush()
     except Exception as e:
+        await db.rollback()
         logger.error(f"Audit log write failed: {e}")

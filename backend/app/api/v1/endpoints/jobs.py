@@ -206,12 +206,27 @@ async def lookup_clients(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    query = select(Client.id, Client.name, Client.code).where(Client.is_deleted == False)
+    query = select(
+        Client.id, Client.name, Client.code,
+        Client.address_line1, Client.city, Client.state, Client.pincode,
+        Client.gstin, Client.credit_limit, Client.credit_days, Client.outstanding_amount,
+    ).where(Client.is_deleted == False)
     if search:
         query = query.where(Client.name.ilike(f"%{search}%"))
     query = query.order_by(Client.name).limit(50)
     result = await db.execute(query)
-    items = [{"id": r.id, "name": r.name, "code": r.code} for r in result.all()]
+    items = [
+        {
+            "id": r.id, "name": r.name, "code": r.code,
+            "address_line1": r.address_line1 or "",
+            "city": r.city or "", "state": r.state or "", "pincode": r.pincode or "",
+            "gstin": r.gstin or "",
+            "credit_limit": float(r.credit_limit or 0),
+            "credit_days": r.credit_days or 30,
+            "outstanding": float(r.outstanding_amount or 0),
+        }
+        for r in result.all()
+    ]
     return APIResponse(success=True, data=items)
 
 

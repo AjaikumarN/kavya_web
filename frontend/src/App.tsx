@@ -56,6 +56,9 @@ import SettlementsPage from '@/pages/finance/SettlementsPage';
 import FinanceAlertsPage from '@/pages/finance/FinanceAlertsPage';
 import FinanceReportsPage from '@/pages/finance/FinanceReportsPage';
 
+// Banking Module
+import BankingPage from '@/pages/banking/BankingPage';
+
 // Tracking
 import LiveTrackingPage from '@/pages/tracking/LiveTrackingPage';
 import GPSLiveMapPage from '@/pages/tracking/GPSLiveMapPage';
@@ -209,6 +212,9 @@ function App() {
           <Route path="/finance/settlements" element={<SettlementsPage />} />
           <Route path="/finance/alerts" element={<FinanceAlertsPage />} />
           <Route path="/finance/reports" element={<FinanceReportsPage />} />
+
+          {/* Banking Module */}
+          <Route path="/banking" element={<BankingPage />} />
 
           {/* Tracking */}
           <Route path="/tracking" element={<LiveTrackingPage />} />

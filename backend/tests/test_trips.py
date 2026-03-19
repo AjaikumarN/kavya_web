@@ -141,7 +141,36 @@ class TestTripStatus:
     async def test_trip_status_lifecycle(self, client: AsyncClient):
         tid = await self._create_trip(client)
         transitions = ["started", "loading", "in_transit", "unloading", "completed"]
+
+        async def _create_trip_ewb() -> None:
+            trip_resp = await client.get(f"/trips/{tid}")
+            assert trip_resp.status_code == 200, f"Failed trip fetch: {trip_resp.text}"
+            job_id = trip_resp.json()["data"].get("job_id")
+
+            resp = await client.post("/eway-bills", json={
+                "job_id": job_id,
+                "trip_id": tid,
+                "document_number": f"INV-{tid}",
+                "document_date": str(date.today()),
+                "from_gstin": "33ABCDE1234F1Z5",
+                "from_name": "Test Supplier",
+                "from_place": "Chennai",
+                "from_state_code": "33",
+                "from_pincode": "600001",
+                "to_name": "Test Receiver",
+                "to_place": "Tuticorin",
+                "to_state_code": "33",
+                "to_pincode": "628001",
+                "total_value": 10000,
+                "total_invoice_value": 11800,
+                "vehicle_number": "TN01AB1234",
+                "approximate_distance": 300,
+            })
+            assert resp.status_code == 201, f"Failed EWB create: {resp.text}"
+
         for status in transitions:
+            if status == "in_transit":
+                await _create_trip_ewb()
             resp = await client.post(
                 f"/trips/{tid}/status",
                 json={"status": status, "remarks": f"Moving to {status}"},

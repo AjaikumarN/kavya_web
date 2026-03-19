@@ -116,6 +116,15 @@ celery_app.conf.update(
             "task": "app.tasks.intelligence_tasks.send_morning_digest",
             "schedule": crontab(hour=7, minute=0),  # 07:00 IST
         },
+        # ── Banking & EWB Tasks ──
+        "check-ewb-expiry": {
+            "task": "app.tasks.ewb_expiry_tasks.check_ewb_expiry",
+            "schedule": 1800.0,  # every 30 minutes
+        },
+        "daily-balance-snapshot": {
+            "task": "app.tasks.banking_tasks.daily_balance_snapshot",
+            "schedule": crontab(hour=23, minute=59),
+        },
     },
 )
 

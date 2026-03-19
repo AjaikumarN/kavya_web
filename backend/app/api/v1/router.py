@@ -18,6 +18,7 @@ from app.api.v1.endpoints import (
     trips,
     finance,
     finance_automation,
+    banking,
     tracking,
     reports,
     dashboard,
@@ -86,6 +87,9 @@ api_router.include_router(driver_scoring.router, prefix="/driver-scoring", tags=
 # Finance
 api_router.include_router(finance.router, prefix="/finance", tags=["Finance"])
 api_router.include_router(finance_automation.router, prefix="/finance", tags=["Finance Automation"])
+
+# Banking
+api_router.include_router(banking.router, prefix="/banking", tags=["Banking"])
 
 # Tracking & Monitoring
 api_router.include_router(tracking.router, prefix="/tracking", tags=["Tracking"])

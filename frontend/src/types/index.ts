@@ -20,7 +20,7 @@ export type JobType = 'own' | 'market';
 export type LRStatus = 'draft' | 'generated' | 'in_transit' | 'delivered' | 'pod_received' | 'cancelled';
 export type PaymentMode = 'to_pay' | 'paid' | 'to_be_billed' | 'fod';
 
-export type EwayBillStatus = 'draft' | 'active' | 'cancelled' | 'completed' | 'expired' | 'extended';
+export type EwayBillStatus = 'draft' | 'generated' | 'active' | 'in_transit' | 'cancelled' | 'completed' | 'expired' | 'extended';
 export type TransactionType = 'outward' | 'inward';
 export type EwayDocumentType = 'tax_invoice' | 'bill_of_supply' | 'bill_of_entry' | 'delivery_challan' | 'credit_note' | 'others';
 export type TransportMode = 'road' | 'rail' | 'air' | 'ship';
@@ -34,6 +34,86 @@ export type InvoiceType = 'tax_invoice' | 'proforma' | 'credit_note' | 'debit_no
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'reversed';
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'cheque' | 'upi' | 'card' | 'neft' | 'rtgs' | 'adjustment';
 export type LedgerType = 'receivable' | 'payable' | 'income' | 'expense' | 'asset' | 'liability' | 'debit' | 'credit';
+
+// Banking Module Types
+export type BankingEntryType = 'PAYMENT_RECEIVED' | 'PAYMENT_MADE' | 'BANK_TRANSFER' | 'CASH_DEPOSIT' | 'CASH_WITHDRAWAL' | 'JOURNAL_ENTRY';
+export type CSVMatchStatus = 'MATCHED' | 'UNMATCHED' | 'EXCEPTION' | 'IGNORED';
+export type ReconciliationStatus = 'unmatched' | 'matched' | 'exception' | 'manual' | 'ignored';
+
+export interface BankingEntry {
+  id: number;
+  entry_no: string;
+  account_id: number;
+  account_name?: string;
+  entry_date: string;
+  entry_type: BankingEntryType;
+  amount_paise: number;
+  payment_method?: PaymentMethod;
+  reference_no?: string;
+  client_id?: number;
+  client_name?: string;
+  job_id?: number;
+  invoice_id?: number;
+  transfer_to_account_id?: number;
+  description?: string;
+  reconciled: boolean;
+  created_by?: number;
+  created_at: string;
+}
+
+export interface BankBalance {
+  account_id: number;
+  account_name: string;
+  bank_name: string;
+  account_number: string;
+  current_balance: number;
+  opening_balance_paise?: number;
+  alert_threshold_paise?: number;
+}
+
+export interface BankBalanceSummary {
+  accounts: BankBalance[];
+  total_balance_paise: number;
+  total_balance_rupees: number;
+}
+
+export interface CSVImportPreview {
+  import_id: number;
+  filename: string;
+  bank_detected: string;
+  total_rows: number;
+  matched: number;
+  unmatched: number;
+  exceptions: number;
+}
+
+export interface CSVTransaction {
+  id: number;
+  import_id: number;
+  txn_date: string;
+  description: string;
+  reference_no?: string;
+  debit_paise: number;
+  credit_paise: number;
+  balance_paise: number;
+  match_status: CSVMatchStatus;
+  matched_entry_id?: number;
+  matched_invoice_id?: number;
+}
+
+export interface EWBComplianceResult {
+  compliant: boolean;
+  reason?: string;
+  bills: Array<{
+    id: number;
+    ewb_number: string;
+    status: string;
+    valid_until?: string;
+    hours_remaining: number;
+    is_valid: boolean;
+    is_expired: boolean;
+  }>;
+}
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 
@@ -398,20 +478,28 @@ export interface Job {
   job_type: JobType;
   origin: string;
   origin_address?: string;
+  origin_city?: string;
   destination: string;
   destination_address?: string;
+  destination_city?: string;
   route_id?: number;
   cargo_type: string;
   cargo_description?: string;
+  material_type?: string;
   weight_tons?: number;
   volume?: number;
   num_packages?: number;
+  quantity?: number;
+  quantity_unit?: string;
   rate: number;
+  agreed_rate?: number;
+  total_amount?: number;
   estimated_cost?: number;
   budget_amount?: number;
   agreed_amount?: number;
   pickup_date: string;
   delivery_date?: string;
+  expected_delivery_date?: string;
   special_instructions?: string;
   vehicle_id?: number;
   driver_id?: number;

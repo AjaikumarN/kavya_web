@@ -16,6 +16,7 @@ from .finance_automation import (
 )
 from .route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTransaction
 from .eway_bill import EwayBill, EwayItem
+from .banking import BankingEntry, BankCSVImport, BankCSVTransaction, BankingEntryType
 from .document import Document, DocumentVersion
 from .fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
 from .supplier import Supplier, SupplierVehicle
@@ -80,4 +81,8 @@ __all__ = [
     "FASTagTransaction",
     "FinanceAlert",
     "FinanceReportCache",
+    "BankingEntry",
+    "BankCSVImport",
+    "BankCSVTransaction",
+    "BankingEntryType",
 ]

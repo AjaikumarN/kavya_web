@@ -15,6 +15,115 @@ from app.services import eway_bill_api_service
 router = APIRouter()
 
 
+# ── Phase 1 Local Endpoints ─────────────────────────────────────
+
+
+@router.get("/active", response_model=APIResponse)
+async def list_active_eway_bills(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.EWAY_BILL_READ)),
+):
+    """List all active/in-transit E-Way Bills."""
+    bills = await eway_service.list_active_eway_bills(db)
+    items = []
+    for bill in bills:
+        items.append(await eway_service.get_eway_with_details(db, bill))
+    return APIResponse(success=True, data=items)
+
+
+@router.get("/expiring", response_model=APIResponse)
+async def list_expiring_eway_bills(
+    hours: int = Query(8, ge=1, le=48),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.EWAY_BILL_READ)),
+):
+    """List E-Way Bills expiring within given hours."""
+    bills = await eway_service.list_expiring_eway_bills(db, hours)
+    items = []
+    for bill in bills:
+        data = await eway_service.get_eway_with_details(db, bill)
+        from datetime import datetime
+        if bill.valid_until:
+            remaining = (bill.valid_until - datetime.utcnow()).total_seconds() / 3600
+            data["hours_remaining"] = round(remaining, 1)
+        items.append(data)
+    return APIResponse(success=True, data=items)
+
+
+@router.get("/trip/{trip_id}/compliance", response_model=APIResponse)
+async def check_trip_compliance(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.EWAY_BILL_READ)),
+):
+    """Check E-Way Bill compliance for a trip."""
+    result = await eway_service.get_trip_compliance(db, trip_id)
+    return APIResponse(success=True, data=result)
+
+
+@router.get("/validity-calculator", response_model=APIResponse)
+async def calculate_validity(
+    distance_km: int = Query(..., ge=1),
+    is_odc: bool = Query(False),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Calculate EWB validity hours for given distance."""
+    hours = eway_service.calculate_validity_hours(distance_km, is_odc)
+    return APIResponse(success=True, data={"distance_km": distance_km, "validity_hours": hours, "is_odc": is_odc})
+
+
+class LocalCancelRequest(BaseModel):
+    reason: str
+
+
+class LocalExtendRequest(BaseModel):
+    vehicle_number: Optional[str] = None
+    additional_distance_km: int = 0
+    reason: Optional[str] = None
+
+
+@router.post("/{eway_id}/cancel", response_model=APIResponse)
+async def cancel_eway_bill_local(
+    eway_id: int, data: LocalCancelRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.EWAY_BILL_UPDATE)),
+):
+    """Cancel an E-Way Bill locally (Phase 1)."""
+    try:
+        bill = await eway_service.cancel_eway_bill_local(db, eway_id, data.reason, current_user.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not bill:
+        raise HTTPException(status_code=404, detail="E-way bill not found")
+    return APIResponse(success=True, message="E-way bill cancelled")
+
+
+@router.post("/{eway_id}/extend", response_model=APIResponse)
+async def extend_eway_bill_local(
+    eway_id: int, data: LocalExtendRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.EWAY_BILL_UPDATE)),
+):
+    """Extend E-Way Bill validity locally (Phase 1)."""
+    try:
+        bill = await eway_service.extend_eway_bill_local(
+            db, eway_id, data.vehicle_number, data.additional_distance_km, data.reason, current_user.user_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not bill:
+        raise HTTPException(status_code=404, detail="E-way bill not found")
+    return APIResponse(success=True, data={"valid_until": bill.valid_until.isoformat() if bill.valid_until else None}, message="E-way bill extended")
+
+
+# ── Standard CRUD ───────────────────────────────────────────────
+
+
 @router.get("", response_model=APIResponse)
 async def list_eway_bills(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),

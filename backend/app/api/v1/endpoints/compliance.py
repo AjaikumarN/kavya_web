@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.db.postgres.connection import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, TokenData
 from app.services import compliance_alert_service, ais140_service, driver_event_service, audit_note_service
 from app.schemas.geofence import DriverEventCreate, AuditNoteCreate
+from app.middleware.permissions import require_permission, require_any_permission, Permissions
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ async def list_alerts(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     alerts = await compliance_alert_service.list_alerts(
         db, tenant_id=current_user.tenant_id,
@@ -37,7 +38,7 @@ async def list_alerts(
 @router.get("/alerts/summary")
 async def alert_summary(
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     summary = await compliance_alert_service.get_alert_summary(db, tenant_id=current_user.tenant_id)
     return {"success": True, "data": summary}
@@ -47,7 +48,7 @@ async def alert_summary(
 async def resolve_alert(
     alert_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_MANAGE)),
 ):
     alert = await compliance_alert_service.resolve_alert(db, alert_id, current_user.id)
     if not alert:
@@ -61,7 +62,7 @@ async def resolve_alert(
 async def check_ais140(
     vehicle_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     report = await ais140_service.check_vehicle_ais140(db, vehicle_id)
     if not report.get("found"):
@@ -72,7 +73,7 @@ async def check_ais140(
 @router.get("/ais140/report")
 async def ais140_fleet_report(
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     report = await ais140_service.get_fleet_compliance_report(db, tenant_id=current_user.tenant_id)
     return {"success": True, "data": report}
@@ -89,7 +90,7 @@ async def list_driver_events(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     events = await driver_event_service.list_events(
         db, driver_id=driver_id, trip_id=trip_id,
@@ -104,7 +105,7 @@ async def list_driver_events(
 async def driver_event_summary(
     driver_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     summary = await driver_event_service.get_driver_event_summary(db, driver_id)
     return {"success": True, "data": summary}
@@ -114,7 +115,7 @@ async def driver_event_summary(
 async def create_driver_event(
     payload: DriverEventCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_MANAGE)),
 ):
     event = await driver_event_service.create_event(
         db,
@@ -144,7 +145,7 @@ async def list_audit_notes(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_READ)),
 ):
     notes = await audit_note_service.list_notes(
         db, resource_type=resource_type, resource_id=resource_id,
@@ -158,7 +159,7 @@ async def list_audit_notes(
 async def create_audit_note(
     payload: AuditNoteCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_MANAGE)),
 ):
     note = await audit_note_service.create_note(
         db,
@@ -176,7 +177,7 @@ async def create_audit_note(
 async def resolve_audit_note(
     note_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.COMPLIANCE_MANAGE)),
 ):
     note = await audit_note_service.resolve_note(db, note_id, current_user.id)
     if not note:

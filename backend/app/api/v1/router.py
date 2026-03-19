@@ -44,6 +44,8 @@ from app.api.v1.endpoints import (
     supplier_portal,
     branches,
     tpms,
+    intelligence,
+    sync,
 )
 
 api_router = APIRouter()
@@ -133,3 +135,9 @@ api_router.include_router(branches.router, prefix="/branches", tags=["Branches"]
 
 # TPMS + Predictive Maintenance
 api_router.include_router(tpms.router, prefix="/tpms", tags=["TPMS"])
+
+# Intelligence Layer
+api_router.include_router(intelligence.router, prefix="/intelligence", tags=["Intelligence"])
+
+# Offline Sync
+api_router.include_router(sync.router, prefix="/sync", tags=["Sync"])

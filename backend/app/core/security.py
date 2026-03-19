@@ -1,7 +1,8 @@
 # Security Module - JWT Authentication
 # Transport ERP - FastAPI Backend
 
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 
 from fastapi import Depends, HTTPException, status
@@ -85,6 +86,7 @@ def create_access_token(
         "branch_id": branch_id,
         "exp": expire,
         "iat": datetime.utcnow(),
+        "jti": str(uuid.uuid4()),
         "type": "access"
     }
     
@@ -108,6 +110,7 @@ def create_refresh_token(
         "email": email,
         "exp": expire,
         "iat": datetime.utcnow(),
+        "jti": str(uuid.uuid4()),
         "type": "refresh"
     }
     
@@ -190,12 +193,28 @@ async def get_current_user(
             detail="Invalid token type",
         )
     
+    # --- Token blacklist check (Fix 1) ---
+    from app.services.token_blacklist import is_token_blacklisted, get_forced_logout_at
+    jti = payload.get("jti")
+    if jti and is_token_blacklisted(jti):
+        raise credentials_exception
+    
     user_id = payload.get("sub")
     email = payload.get("email")
     roles = payload.get("roles", [])
     permissions = payload.get("permissions", [])
     tenant_id = payload.get("tenant_id")
     branch_id = payload.get("branch_id")
+    
+    # Force-logout check: reject tokens issued before admin forced logout
+    if user_id:
+        forced_at = get_forced_logout_at(int(user_id))
+        if forced_at:
+            iat = payload.get("iat")
+            if iat:
+                token_issued = datetime.fromtimestamp(iat, tz=timezone.utc)
+                if token_issued < forced_at:
+                    raise credentials_exception
     
     if user_id is None or email is None:
         raise credentials_exception

@@ -29,3 +29,10 @@ class TyreEvent(BaseModel):
     event_type: str
     odometer: float
     reason: Optional[str] = None
+
+
+class TyreRetreadRequest(BaseModel):
+    vendor_name: Optional[str] = None
+    cost: float
+    odometer_km: Optional[float] = None
+    notes: Optional[str] = None

@@ -1,5 +1,6 @@
 # LR (Lorry Receipt) Endpoints
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -9,6 +10,7 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.lr import LRCreate, LRUpdate, LRStatusChange
 from app.services import lr_service
+from app.services.lr_pdf_service import build_lr_pdf, generate_and_upload_lr_pdf
 
 router = APIRouter()
 
@@ -97,3 +99,37 @@ async def generate_lr(
         raise HTTPException(status_code=400, detail=error)
     data = await lr_service.get_lr_with_details(db, lr)
     return APIResponse(success=True, data=data, message="LR generated successfully")
+
+
+@router.get("/{lr_id}/pdf", response_model=APIResponse)
+async def get_lr_pdf_url(
+    lr_id: int, db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_READ)),
+):
+    """Generate LR PDF and upload to storage. Returns download URL."""
+    try:
+        result = await generate_and_upload_lr_pdf(db, lr_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return APIResponse(success=True, data=result, message="LR PDF generated")
+
+
+@router.get("/{lr_id}/pdf/download")
+async def download_lr_pdf(
+    lr_id: int, db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_READ)),
+):
+    """Generate and stream LR PDF as a direct download."""
+    try:
+        pdf_bytes = await build_lr_pdf(db, lr_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    lr = await lr_service.get_lr(db, lr_id)
+    filename = f"{lr.lr_number}.pdf" if lr else f"LR-{lr_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

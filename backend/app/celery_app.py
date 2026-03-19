@@ -94,6 +94,28 @@ celery_app.conf.update(
             "task": "app.tasks.finance_tasks.gst_filing_reminder",
             "schedule": crontab(hour=9, minute=0, day_of_month=20),
         },
+        # ── Intelligence Tasks ──
+        "intelligence-daily-job": {
+            "task": "app.tasks.intelligence_tasks.run_daily_intelligence_job",
+            "schedule": crontab(hour=2, minute=0),  # 02:00 IST
+        },
+        "intelligence-eta-corridors": {
+            "task": "app.tasks.intelligence_tasks.recompute_eta_corridors",
+            "schedule": crontab(hour=3, minute=0),  # 03:00 IST
+        },
+        "intelligence-expense-stats": {
+            "task": "app.tasks.intelligence_tasks.recompute_expense_stats",
+            "schedule": crontab(hour=3, minute=30),  # 03:30 IST
+        },
+        # ── Event Priority Pipeline Tasks ──
+        "event-escalation-suppression": {
+            "task": "app.tasks.intelligence_tasks.run_escalation_and_suppression",
+            "schedule": 300.0,  # every 5 minutes
+        },
+        "morning-digest-notifications": {
+            "task": "app.tasks.intelligence_tasks.send_morning_digest",
+            "schedule": crontab(hour=7, minute=0),  # 07:00 IST
+        },
     },
 )
 

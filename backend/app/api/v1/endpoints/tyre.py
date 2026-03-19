@@ -1,16 +1,16 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import TokenData, get_current_user
 from app.db.postgres.connection import get_db
 from app.middleware.permissions import Permissions, require_permission
-from app.models.postgres.vehicle import Vehicle, VehicleTyre
+from app.models.postgres.vehicle import Vehicle, VehicleTyre, TyreLifecycleEvent
 from app.schemas.base import APIResponse, PaginationMeta
-from app.schemas.tyre import TyreCreate, TyreEvent, TyreUpdate
+from app.schemas.tyre import TyreCreate, TyreEvent, TyreUpdate, TyreRetreadRequest
 
 router = APIRouter()
 
@@ -78,6 +78,10 @@ async def list_tyres(
             "km_run": km_run,
             "tread_depth_mm": tread,
             "cost_per_km": float(purchase_cost / max(km_run, 1.0)) if km_run > 0 else 0,
+            "retread_count": tyre.retread_count or 0,
+            "max_retreads": tyre.max_retreads or 2,
+            "retread_eligible": (tyre.retread_count or 0) < (tyre.max_retreads or 2),
+            "total_retread_cost": float(tyre.total_retread_cost or 0),
         })
 
     pages = (total + limit - 1) // limit
@@ -163,7 +167,7 @@ async def log_tyre_event(
     tyre_id: int,
     data: TyreEvent,
     db: AsyncSession = Depends(get_db),
-    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
 ):
     tyre = await db.get(VehicleTyre, tyre_id)
     if not tyre or not tyre.is_active:
@@ -181,5 +185,208 @@ async def log_tyre_event(
     else:
         tyre.condition = "mounted"
 
+    # Record lifecycle event
+    lifecycle = TyreLifecycleEvent(
+        vehicle_tyre_id=tyre_id,
+        event_type=event,
+        odometer_km=data.odometer,
+        notes=data.reason,
+        performed_by=current_user.user_id,
+    )
+    db.add(lifecycle)
     await db.commit()
     return APIResponse(success=True, data={"tyre_id": tyre_id, "event_type": event, "odometer": data.odometer, "reason": data.reason, "logged_at": datetime.utcnow().isoformat()}, message="Tyre event logged")
+
+
+@router.post("/{tyre_id}/retread", response_model=APIResponse)
+async def retread_tyre(
+    tyre_id: int,
+    data: TyreRetreadRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Record a tyre retread. Validates retread eligibility."""
+    tyre = await db.get(VehicleTyre, tyre_id)
+    if not tyre or not tyre.is_active:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+
+    current_retreads = tyre.retread_count or 0
+    max_allowed = tyre.max_retreads or 2
+    if current_retreads >= max_allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tyre has reached maximum retreads ({max_allowed}). Must be scrapped.",
+        )
+
+    tyre.retread_count = current_retreads + 1
+    tyre.last_retread_date = date.today()
+    tyre.total_retread_cost = float(tyre.total_retread_cost or 0) + data.cost
+    tyre.condition = "good"
+    if data.odometer_km:
+        tyre.current_km = data.odometer_km
+
+    # Record lifecycle event
+    lifecycle = TyreLifecycleEvent(
+        vehicle_tyre_id=tyre_id,
+        event_type="RETREAD",
+        odometer_km=data.odometer_km,
+        cost=data.cost,
+        vendor_name=data.vendor_name,
+        notes=data.notes,
+        performed_by=current_user.user_id,
+    )
+    db.add(lifecycle)
+    await db.commit()
+
+    return APIResponse(
+        success=True,
+        data={
+            "tyre_id": tyre_id,
+            "retread_number": tyre.retread_count,
+            "remaining_retreads": max_allowed - tyre.retread_count,
+            "total_retread_cost": float(tyre.total_retread_cost),
+        },
+        message=f"Retread #{tyre.retread_count} recorded",
+    )
+
+
+@router.get("/{tyre_id}/history", response_model=APIResponse)
+async def get_tyre_history(
+    tyre_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get full lifecycle history of a tyre."""
+    tyre = await db.get(VehicleTyre, tyre_id)
+    if not tyre:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+
+    result = await db.execute(
+        select(TyreLifecycleEvent)
+        .where(TyreLifecycleEvent.vehicle_tyre_id == tyre_id)
+        .order_by(TyreLifecycleEvent.created_at.desc())
+    )
+    events = result.scalars().all()
+
+    return APIResponse(
+        success=True,
+        data={
+            "tyre_id": tyre_id,
+            "serial_number": tyre.tyre_number,
+            "brand": tyre.brand,
+            "retread_count": tyre.retread_count or 0,
+            "events": [
+                {
+                    "id": e.id,
+                    "event_type": e.event_type,
+                    "odometer_km": float(e.odometer_km) if e.odometer_km else None,
+                    "cost": float(e.cost) if e.cost else None,
+                    "vendor_name": e.vendor_name,
+                    "notes": e.notes,
+                    "timestamp": e.created_at.isoformat() if e.created_at else None,
+                }
+                for e in events
+            ],
+        },
+    )
+
+
+@router.get("/analytics/cost-per-km", response_model=APIResponse)
+async def tyre_cost_analytics(
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Fleet-wide tyre cost/km analytics: by brand, by vehicle, overall."""
+    result = await db.execute(
+        select(VehicleTyre, Vehicle.registration_number)
+        .join(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
+        .where(VehicleTyre.is_active == True)
+    )
+    tyres = result.all()
+
+    brand_stats: dict = {}
+    vehicle_stats: dict = {}
+    fleet_total_cost = 0.0
+    fleet_total_km = 0.0
+    fleet_total_retread_cost = 0.0
+    retread_eligible_count = 0
+    retread_done_count = 0
+
+    for tyre, reg_no in tyres:
+        purchase_cost = float(tyre.purchase_cost or 0)
+        retread_cost = float(tyre.total_retread_cost or 0)
+        total_cost = purchase_cost + retread_cost
+        km_run = float((tyre.current_km or 0) - (tyre.km_at_fitment or 0))
+        if km_run < 0:
+            km_run = 0
+        cost_per_km = total_cost / max(km_run, 1.0) if km_run > 0 else 0
+
+        fleet_total_cost += total_cost
+        fleet_total_km += km_run
+        fleet_total_retread_cost += retread_cost
+        if (tyre.retread_count or 0) < (tyre.max_retreads or 2):
+            retread_eligible_count += 1
+        if (tyre.retread_count or 0) > 0:
+            retread_done_count += 1
+
+        # By brand
+        brand = tyre.brand or "Unknown"
+        if brand not in brand_stats:
+            brand_stats[brand] = {"count": 0, "total_cost": 0, "total_km": 0, "retread_count": 0}
+        brand_stats[brand]["count"] += 1
+        brand_stats[brand]["total_cost"] += total_cost
+        brand_stats[brand]["total_km"] += km_run
+        brand_stats[brand]["retread_count"] += (tyre.retread_count or 0)
+
+        # By vehicle
+        if reg_no not in vehicle_stats:
+            vehicle_stats[reg_no] = {"count": 0, "total_cost": 0, "total_km": 0}
+        vehicle_stats[reg_no]["count"] += 1
+        vehicle_stats[reg_no]["total_cost"] += total_cost
+        vehicle_stats[reg_no]["total_km"] += km_run
+
+    # Format brand analytics
+    brand_list = []
+    for brand, stats in brand_stats.items():
+        cpk = stats["total_cost"] / max(stats["total_km"], 1.0) if stats["total_km"] > 0 else 0
+        brand_list.append({
+            "brand": brand,
+            "tyre_count": stats["count"],
+            "total_cost": round(stats["total_cost"], 2),
+            "total_km": round(stats["total_km"]),
+            "cost_per_km": round(cpk, 4),
+            "avg_retreads": round(stats["retread_count"] / max(stats["count"], 1), 1),
+        })
+    brand_list.sort(key=lambda x: x["cost_per_km"])
+
+    # Format vehicle analytics
+    vehicle_list = []
+    for reg, stats in vehicle_stats.items():
+        cpk = stats["total_cost"] / max(stats["total_km"], 1.0) if stats["total_km"] > 0 else 0
+        vehicle_list.append({
+            "vehicle": reg,
+            "tyre_count": stats["count"],
+            "total_cost": round(stats["total_cost"], 2),
+            "total_km": round(stats["total_km"]),
+            "cost_per_km": round(cpk, 4),
+        })
+    vehicle_list.sort(key=lambda x: x["cost_per_km"])
+
+    fleet_cpk = fleet_total_cost / max(fleet_total_km, 1.0) if fleet_total_km > 0 else 0
+
+    return APIResponse(
+        success=True,
+        data={
+            "fleet_summary": {
+                "total_tyres": len(tyres),
+                "total_cost": round(fleet_total_cost, 2),
+                "total_retread_cost": round(fleet_total_retread_cost, 2),
+                "total_km": round(fleet_total_km),
+                "cost_per_km": round(fleet_cpk, 4),
+                "retread_eligible": retread_eligible_count,
+                "retreaded_tyres": retread_done_count,
+            },
+            "by_brand": brand_list,
+            "by_vehicle": vehicle_list,
+        },
+    )

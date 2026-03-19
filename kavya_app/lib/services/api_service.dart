@@ -101,19 +101,69 @@ class ApiService {
   }
 
   // --- Dashboards ---
-  Future<Map<String, dynamic>> getDashboardFleet() async { // [cite: 33]
+  Future<Map<String, dynamic>> getDashboardAdmin() async {
+    final response = await _dio.get('/dashboard');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getFleetStats() async {
+    final response = await _dio.get('/dashboard/fleet-stats');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getTripStats() async {
+    final response = await _dio.get('/dashboard/trip-stats');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getFinanceStats() async {
+    final response = await _dio.get('/dashboard/finance-stats');
+    return response.data;
+  }
+
+  Future<List<dynamic>> getNotifications() async {
+    final response = await _dio.get('/dashboard/notifications');
+    return response.data is List ? response.data : [];
+  }
+
+  Future<Map<String, dynamic>> getRevenueTrend({String period = 'monthly'}) async {
+    final response = await _dio.get('/dashboard/charts/revenue-trend', queryParameters: {'period': period});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getDashboardFleet() async {
     final response = await _dio.get('/dashboard/fleet-manager');
     return response.data;
   }
 
-  Future<Map<String, dynamic>> getDashboardAccountant() async { // [cite: 33]
+  Future<Map<String, dynamic>> getDashboardAccountant() async {
     final response = await _dio.get('/dashboard/accountant');
     return response.data;
   }
 
-  Future<Map<String, dynamic>> getDashboardAssociate() async { // [cite: 33]
+  Future<Map<String, dynamic>> getDashboardAssociate() async {
     final response = await _dio.get('/dashboard/associate');
     return response.data;
+  }
+
+  Future<Map<String, dynamic>> getPAKpis() async {
+    final response = await _dio.get('/dashboard/pa/kpis');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getPAActionCenter() async {
+    final response = await _dio.get('/dashboard/pa/action-center');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getPAJobPipeline() async {
+    final response = await _dio.get('/dashboard/pa/job-pipeline');
+    return response.data;
+  }
+
+  Future<List<dynamic>> getPARecentActivity({int limit = 10}) async {
+    final response = await _dio.get('/dashboard/pa/recent-activity', queryParameters: {'limit': limit});
+    return response.data is List ? response.data : [];
   }
 
   // --- Jobs & Documents ---
@@ -225,5 +275,105 @@ class ApiService {
 
   Future<void> closeTrip(String id) async { // [cite: 34]
     await _dio.patch('/trips/$id/status', data: {'status': 'completed'});
+  }
+
+  /// Trigger SOS alert for a trip. Returns response data including emergency contact.
+  Future<Map<String, dynamic>> triggerSOS(int tripId, {double? latitude, double? longitude, String? locationName}) async {
+    final response = await _dio.post('/trips/$tripId/sos', data: {
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (locationName != null) 'location_name': locationName,
+    });
+    return response.data;
+  }
+
+  // --- Intelligence Layer ---
+  Future<Map<String, dynamic>> getDriverScore(int driverId) async {
+    final response = await _dio.get('/intelligence/driver-scores/$driverId');
+    return response.data['data'] ?? response.data;
+  }
+
+  Future<Map<String, dynamic>> getDriverLeaderboard() async {
+    final response = await _dio.get('/intelligence/driver-leaderboard');
+    return response.data['data'] ?? response.data;
+  }
+
+  Future<Map<String, dynamic>> getVehicleRisk(int vehicleId) async {
+    final response = await _dio.get('/intelligence/vehicle-risk/$vehicleId');
+    return response.data['data'] ?? response.data;
+  }
+
+  Future<Map<String, dynamic>> getFleetMaintenanceSummary() async {
+    final response = await _dio.get('/intelligence/fleet-maintenance');
+    return response.data['data'] ?? response.data;
+  }
+
+  Future<List<dynamic>> getTripAlerts(int tripId, {bool unacknowledgedOnly = false}) async {
+    final response = await _dio.get('/intelligence/trip-alerts/$tripId', queryParameters: {
+      'unacknowledged_only': unacknowledgedOnly,
+    });
+    final data = response.data['data'];
+    return data is List ? data : [];
+  }
+
+  Future<List<dynamic>> getDailyInsights({int limit = 7}) async {
+    final response = await _dio.get('/intelligence/insights', queryParameters: {'limit': limit});
+    final data = response.data['data'];
+    return data is List ? data : [];
+  }
+
+  Future<List<dynamic>> getRecentEvents({int limit = 20}) async {
+    final response = await _dio.get('/intelligence/events', queryParameters: {'limit': limit});
+    final data = response.data['data'];
+    return data is List ? data : [];
+  }
+
+  // --- Event Priority & Grouped Events ---
+
+  Future<List<dynamic>> getGroupedEvents({String? priority, int limit = 50}) async {
+    final params = <String, dynamic>{'limit': limit};
+    if (priority != null) params['priority'] = priority;
+    final response = await _dio.get('/intelligence/events/grouped', queryParameters: params);
+    final data = response.data['data'];
+    return data is List ? data : [];
+  }
+
+  Future<List<dynamic>> getEventHistory(String entityId, {bool includeSuppressed = true, int limit = 100}) async {
+    final response = await _dio.get('/intelligence/events/history', queryParameters: {
+      'entity_id': entityId,
+      'include_suppressed': includeSuppressed,
+      'limit': limit,
+    });
+    final data = response.data['data'];
+    return data is List ? data : [];
+  }
+
+  Future<Map<String, dynamic>> acknowledgeEvent(int eventId, {String? note}) async {
+    final params = <String, dynamic>{};
+    if (note != null) params['note'] = note;
+    final response = await _dio.post('/intelligence/events/$eventId/acknowledge', queryParameters: params);
+    return response.data['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  Future<Map<String, dynamic>> acknowledgeEventsBulk(List<int> eventIds, {String? note}) async {
+    final params = <String, dynamic>{'event_ids': eventIds};
+    if (note != null) params['note'] = note;
+    final response = await _dio.post('/intelligence/events/acknowledge-bulk', queryParameters: params);
+    return response.data['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  // --- Offline Batch Sync ---
+
+  /// Sends a batch of queued offline actions to the server.
+  /// Returns a map containing 'accepted' count and list of 'results'.
+  Future<Map<String, dynamic>> syncBatch({
+    required String deviceId,
+    required List<Map<String, dynamic>> actions,
+  }) async {
+    final response = await _dio.post('/sync/batch', data: {
+      'device_id': deviceId,
+      'actions': actions,
+    });
+    return response.data;
   }
 }

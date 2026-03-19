@@ -42,6 +42,26 @@ async def lifespan(app: FastAPI):
         logger.info("MongoDB connected")
     except (Exception, asyncio.TimeoutError) as e:
         logger.warning(f"MongoDB connection failed (app will run without MongoDB): {e}")
+
+    # Register intelligence event consumers
+    try:
+        from app.services.event_consumers import register_all_consumers
+        register_all_consumers()
+        logger.info("Intelligence event consumers registered")
+    except Exception as e:
+        logger.warning(f"Event consumer registration failed: {e}")
+
+    # Seed system config (idempotent)
+    try:
+        from app.db.postgres.connection import AsyncSessionLocal
+        from app.services.config_service import seed_system_config, seed_event_priority_config
+        async with AsyncSessionLocal() as db:
+            await seed_system_config(db)
+            await seed_event_priority_config(db)
+            await db.commit()
+            logger.info("System config + event priority config seeded")
+    except Exception as e:
+        logger.warning(f"System config seeding skipped: {e}")
     
     yield
     

@@ -125,7 +125,7 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
     await fetchExpenses(reset: true);
   }
 
-  Future<void> addExpense(Expense expense) async {
+  Future<void> addExpense(Expense expense, {bool biometricVerified = false}) async {
     try {
       // Optimistic update - add immediately to UI
       final current = state.valueOrNull;
@@ -137,8 +137,9 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
         ));
       }
 
-      // Send to server
-      final response = await _api.post('/expenses/', data: expense.toJson());
+      // Send to server (include biometric flag)
+      final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
+      final response = await _api.post('/expenses/', data: payload);
       final createdExpense = Expense.fromJson(response);
 
       // Update with server response (includes ID)
@@ -246,14 +247,15 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
     await fetchExpenses();
   }
 
-  Future<void> addExpense(Expense expense) async {
+  Future<void> addExpense(Expense expense, {bool biometricVerified = false}) async {
     try {
       // Optimistic update
       final current = state.valueOrNull ?? [];
       state = AsyncValue.data([expense, ...current]);
 
-      // Send to server
-      await _api.post('/expenses/', data: expense.toJson());
+      // Send to server (include biometric flag)
+      final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
+      await _api.post('/expenses/', data: payload);
 
       // Success - refresh to get server ID
       await refresh();

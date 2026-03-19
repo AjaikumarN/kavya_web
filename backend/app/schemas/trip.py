@@ -17,6 +17,7 @@ class TripExpenseCreate(BaseModel):
     receipt_url: Optional[str] = None
     receipt_number: Optional[str] = None
     expense_date: datetime
+    biometric_verified: bool = False
 
 
 class TripExpenseResponse(BaseModel):

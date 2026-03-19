@@ -143,6 +143,29 @@ class Permissions:
     DOCUMENT_DELETE = "document:delete"
     DOCUMENT_APPROVE = "document:approve"
 
+    # Intelligence & Scoring (Section 3 RBAC+ matrix)
+    GPS_DATA_READ = "gps:read"
+    DRIVER_SCORE_READ = "driver_score:read"
+    AUDIT_LOG_READ = "audit:read"
+    AUDIT_LOG_EXPORT = "audit:export"
+    SYSTEM_CONFIG_READ = "config:read"
+    SYSTEM_CONFIG_UPDATE = "config:update"
+    INTELLIGENCE_VIEW = "intelligence:view"
+    EVENT_BUS_READ = "event:read"
+    EVENT_BUS_ACK = "event:acknowledge"
+
+    # GPS / Tracking
+    GPS_PING_CREATE = "gps:ping_create"
+
+    # Compliance
+    COMPLIANCE_READ = "compliance:read"
+    COMPLIANCE_MANAGE = "compliance:manage"
+
+    # SOS
+    SOS_TRIGGER = "sos:trigger"
+
+    # Sync
+    SYNC_CREATE = "sync:create"
 
 # Role-Permission Mapping
 ROLE_PERMISSIONS = {
@@ -196,6 +219,11 @@ ROLE_PERMISSIONS = {
         Permissions.DOCUMENT_UPDATE, Permissions.DOCUMENT_DELETE, Permissions.DOCUMENT_APPROVE,
         # User Management
         Permissions.USER_CREATE, Permissions.USER_READ, Permissions.USER_UPDATE,
+        # Intelligence
+        Permissions.GPS_DATA_READ, Permissions.DRIVER_SCORE_READ,
+        Permissions.INTELLIGENCE_VIEW, Permissions.EVENT_BUS_READ, Permissions.EVENT_BUS_ACK,
+        # Compliance
+        Permissions.COMPLIANCE_READ, Permissions.COMPLIANCE_MANAGE,
     ],
     
     "fleet_manager": [
@@ -227,6 +255,11 @@ ROLE_PERMISSIONS = {
         Permissions.REPORT_VIEW,
         # Documents
         Permissions.DOCUMENT_CREATE, Permissions.DOCUMENT_READ, Permissions.DOCUMENT_UPDATE,
+        # Intelligence
+        Permissions.GPS_DATA_READ, Permissions.DRIVER_SCORE_READ,
+        Permissions.INTELLIGENCE_VIEW, Permissions.EVENT_BUS_READ, Permissions.EVENT_BUS_ACK,
+        # Compliance
+        Permissions.COMPLIANCE_READ, Permissions.COMPLIANCE_MANAGE,
     ],
     
     "accountant": [
@@ -300,6 +333,14 @@ ROLE_PERMISSIONS = {
         Permissions.DOCUMENT_READ,
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
+        # Intelligence (own data only — enforced in endpoints)
+        Permissions.GPS_DATA_READ, Permissions.DRIVER_SCORE_READ,
+        # GPS ping (own trip only — enforced in endpoint)
+        Permissions.GPS_PING_CREATE,
+        # SOS
+        Permissions.SOS_TRIGGER,
+        # Offline sync
+        Permissions.SYNC_CREATE,
     ],
 
     "pump_operator": [

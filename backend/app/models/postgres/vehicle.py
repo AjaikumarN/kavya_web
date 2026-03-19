@@ -118,6 +118,29 @@ class VehicleDocument(Base, TimestampMixin):
     vehicle = relationship("Vehicle", back_populates="documents")
 
 
+class Workshop(Base, TimestampMixin, SoftDeleteMixin):
+    """Workshop/garage for vehicle servicing."""
+    
+    __tablename__ = "workshops"
+    
+    name = Column(String(200), nullable=False)
+    code = Column(String(30), unique=True, nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    pincode = Column(String(10), nullable=True)
+    contact_person = Column(String(200), nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(200), nullable=True)
+    specialization = Column(String(100), nullable=True)  # general, engine, electrical, tyre, body
+    rating = Column(Numeric(2, 1), nullable=True)  # 0.0 - 5.0
+    is_empanelled = Column(Boolean, default=True)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+    
+    # Relationships
+    maintenance_records = relationship("VehicleMaintenance", back_populates="workshop")
+
+
 class VehicleMaintenance(Base, TimestampMixin):
     """Vehicle maintenance records."""
     
@@ -132,7 +155,10 @@ class VehicleMaintenance(Base, TimestampMixin):
     next_service_date = Column(Date, nullable=True)
     next_service_km = Column(Numeric(12, 2), nullable=True)
     vendor_name = Column(String(200), nullable=True)
+    workshop_id = Column(Integer, ForeignKey('workshops.id'), nullable=True)
     invoice_number = Column(String(50), nullable=True)
+    work_order_number = Column(String(50), nullable=True)
+    parts_description = Column(Text, nullable=True)
     parts_cost = Column(Numeric(12, 2), default=0)
     labor_cost = Column(Numeric(12, 2), default=0)
     total_cost = Column(Numeric(12, 2), default=0)
@@ -140,6 +166,7 @@ class VehicleMaintenance(Base, TimestampMixin):
     
     # Relationships
     vehicle = relationship("Vehicle", back_populates="maintenance_records")
+    workshop = relationship("Workshop", back_populates="maintenance_records")
 
 
 class VehicleTyre(Base, TimestampMixin):
@@ -159,6 +186,12 @@ class VehicleTyre(Base, TimestampMixin):
     condition = Column(String(20), default='good')  # new, good, average, worn, replaced
     is_active = Column(Boolean, default=True)
     
+    # Retread tracking
+    retread_count = Column(Integer, default=0)
+    max_retreads = Column(Integer, default=2)  # Max retreads allowed for this tyre
+    last_retread_date = Column(Date, nullable=True)
+    total_retread_cost = Column(Numeric(10, 2), default=0)
+    
     # TPMS sensor fields
     sensor_id = Column(String(50), nullable=True, index=True)  # BLE/GPRS sensor ID
     last_psi = Column(Numeric(5, 1), nullable=True)
@@ -169,6 +202,24 @@ class VehicleTyre(Base, TimestampMixin):
     # Relationships
     vehicle = relationship("Vehicle", back_populates="tyres")
     sensor_readings = relationship("TyreSensorReading", back_populates="tyre", cascade="all, delete-orphan")
+    events = relationship("TyreLifecycleEvent", back_populates="tyre", cascade="all, delete-orphan")
+
+
+class TyreLifecycleEvent(Base, TimestampMixin):
+    """Tyre lifecycle events: retread, rotation, removal, scrap, etc."""
+    
+    __tablename__ = "tyre_lifecycle_events"
+    
+    vehicle_tyre_id = Column(Integer, ForeignKey('vehicle_tyres.id', ondelete='CASCADE'), nullable=False, index=True)
+    event_type = Column(String(30), nullable=False)  # MOUNTED, REMOVED, RETREAD, ROTATED, SCRAPPED, PSI_CHECK, PUNCTURE
+    odometer_km = Column(Numeric(12, 2), nullable=True)
+    cost = Column(Numeric(10, 2), nullable=True)
+    vendor_name = Column(String(200), nullable=True)
+    notes = Column(Text, nullable=True)
+    performed_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    
+    # Relationships
+    tyre = relationship("VehicleTyre", back_populates="events")
 
 
 class TyreSensorReading(Base):

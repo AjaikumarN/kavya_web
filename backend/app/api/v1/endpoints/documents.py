@@ -9,6 +9,7 @@ from app.core.security import TokenData, get_current_user
 from app.schemas.base import APIResponse, PaginationMeta
 from app.models.postgres.document import Document, EntityType, DocumentType
 from app.services import s3_service
+from app.middleware.permissions import require_permission, require_any_permission, Permissions
 
 router = APIRouter()
 
@@ -17,7 +18,8 @@ router = APIRouter()
 async def list_documents(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, entity_type: Optional[str] = None,
-    db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_READ)),
 ):
     query = select(Document).where(Document.is_deleted == False)
     count_query = select(func.count(Document.id)).where(Document.is_deleted == False)
@@ -46,7 +48,7 @@ async def lookup_entities(
     entity_type: str = Query("vehicle"),
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_READ)),
 ):
     """Lookup entities (vehicles, drivers, trips, clients) for document linking."""
     items = []
@@ -82,7 +84,9 @@ async def lookup_entities(
 
 
 @router.get("/lookup/compliance-categories", response_model=APIResponse)
-async def lookup_compliance_categories(current_user: TokenData = Depends(get_current_user)):
+async def lookup_compliance_categories(
+    current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_READ)),
+):
     categories = [
         {"value": "registration", "label": "Vehicle Registration"},
         {"value": "insurance", "label": "Insurance"},
@@ -97,7 +101,11 @@ async def lookup_compliance_categories(current_user: TokenData = Depends(get_cur
 
 
 @router.get("/{doc_id}", response_model=APIResponse)
-async def get_document(doc_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_document(
+    doc_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_READ)),
+):
     result = await db.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
@@ -113,7 +121,7 @@ async def upload_document(
     title: Optional[str] = Form(None),
     document_type: str = Form("other"),
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_CREATE)),
 ):
     """Upload a document file to S3/local storage."""
     from app.utils.generators import generate_number
@@ -148,7 +156,7 @@ async def upload_document(
 async def delete_document(
     doc_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_DELETE)),
 ):
     result = await db.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()

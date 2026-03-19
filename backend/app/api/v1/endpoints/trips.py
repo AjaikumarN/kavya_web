@@ -1,8 +1,9 @@
 # Trip Management Endpoints
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+from pydantic import BaseModel
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
@@ -15,8 +16,20 @@ from app.models.postgres.vehicle import Vehicle
 from app.models.postgres.driver import Driver
 from app.models.postgres.lr import LR
 from app.models.postgres.route import Route
+from app.models.postgres.trip import Trip
 
 router = APIRouter()
+
+
+async def _resolve_driver_id(current_user: TokenData, db: AsyncSession) -> Optional[int]:
+    """Return the driver.id linked to the current user, or None."""
+    result = await db.execute(select(Driver.id).where(Driver.user_id == current_user.user_id))
+    row = result.scalar_one_or_none()
+    return row
+
+
+def _is_role(current_user: TokenData, role: str) -> bool:
+    return any(r.lower() == role for r in (current_user.roles or []))
 
 
 @router.get("", response_model=APIResponse)
@@ -25,9 +38,17 @@ async def list_trips(
     search: Optional[str] = None, status: Optional[str] = None,
     vehicle_id: Optional[int] = None, driver_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-    _perm=Depends(require_permission(Permissions.TRIP_READ)),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
 ):
+    # Role-based data filtering
+    if _is_role(current_user, "driver"):
+        resolved = await _resolve_driver_id(current_user, db)
+        if not resolved:
+            return APIResponse(success=True, data=[], pagination=PaginationMeta(page=page, limit=limit, total=0, pages=0))
+        driver_id = resolved  # Force to own trips only
+    elif _is_role(current_user, "accountant"):
+        status = "completed"  # Accountants only see completed trips
+
     trips, total = await trip_service.list_trips(db, page, limit, search, status, vehicle_id, driver_id)
     pages = (total + limit - 1) // limit
     items = []
@@ -37,10 +58,19 @@ async def list_trips(
 
 
 @router.get("/{trip_id}", response_model=APIResponse)
-async def get_trip(trip_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_trip(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
     trip = await trip_service.get_trip(db, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+    # Drivers can only see their own trips
+    if _is_role(current_user, "driver"):
+        resolved = await _resolve_driver_id(current_user, db)
+        if trip.driver_id != resolved:
+            raise HTTPException(status_code=403, detail="Access denied: not your trip")
     data = await trip_service.get_trip_with_details(db, trip)
     return APIResponse(success=True, data=data)
 
@@ -159,9 +189,165 @@ async def close_trip(
     return APIResponse(success=True, data={"id": trip.id}, message="Trip closed")
 
 
+# --- SOS Emergency ---
+class SOSPayload(BaseModel):
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_name: Optional[str] = None
+
+
+@router.post("/{trip_id}/sos", response_model=APIResponse)
+async def trigger_sos(
+    trip_id: int,
+    payload: SOSPayload = SOSPayload(),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.SOS_TRIGGER)),
+):
+    """SOS panic button — creates P0 event, records driver event, publishes to event bus."""
+    trip = await trip_service.get_trip(db, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    # Drivers can only trigger SOS for their own trip
+    resolved = await _resolve_driver_id(current_user, db)
+    if _is_role(current_user, "driver") and trip.driver_id != resolved:
+        raise HTTPException(status_code=403, detail="Access denied: not your trip")
+
+    driver_id = resolved or trip.driver_id
+
+    # 1. Create DriverEvent record (SOS, severity 5)
+    from app.models.postgres.driver_event import DriverEvent, DriverEventType
+    sos_event = DriverEvent(
+        driver_id=driver_id,
+        trip_id=trip_id,
+        vehicle_id=trip.vehicle_id,
+        event_type=DriverEventType.SOS,
+        severity=5,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        location_name=payload.location_name,
+        details={"triggered_by_user_id": current_user.user_id},
+        tenant_id=getattr(current_user, "tenant_id", None),
+        branch_id=getattr(current_user, "branch_id", None),
+    )
+    db.add(sos_event)
+    await db.flush()
+
+    # 2. Audit log
+    from app.services.audit_logger import log_audit
+    await log_audit(
+        db,
+        actor_id=current_user.user_id,
+        actor_role=(current_user.roles or ["driver"])[0],
+        action="sos_triggered",
+        entity_type="trip",
+        entity_id=str(trip_id),
+        new_state={
+            "driver_id": driver_id,
+            "vehicle_id": trip.vehicle_id,
+            "latitude": payload.latitude,
+            "longitude": payload.longitude,
+            "location_name": payload.location_name,
+        },
+    )
+
+    # 3. Publish SOS event to event bus (P0 priority)
+    from app.services.event_bus import event_bus, EventTypes
+    await event_bus.publish(
+        event_type=EventTypes.SOS_TRIGGERED,
+        entity_type="trip",
+        entity_id=str(trip_id),
+        payload={
+            "trip_id": trip_id,
+            "trip_number": trip.trip_number,
+            "driver_id": driver_id,
+            "driver_name": trip.driver_name,
+            "driver_phone": trip.driver_phone,
+            "vehicle_id": trip.vehicle_id,
+            "vehicle_registration": trip.vehicle_registration,
+            "latitude": payload.latitude,
+            "longitude": payload.longitude,
+            "location_name": payload.location_name,
+        },
+        persist=True,
+        db_session=db,
+    )
+
+    # 4. Fetch emergency contact info for response
+    driver_result = await db.execute(
+        select(
+            Driver.emergency_contact_name,
+            Driver.emergency_contact_phone,
+        ).where(Driver.id == driver_id)
+    )
+    ec = driver_result.one_or_none()
+
+    await db.commit()
+
+    return APIResponse(
+        success=True,
+        data={
+            "event_id": sos_event.id,
+            "trip_id": trip_id,
+            "trip_number": trip.trip_number,
+            "emergency_contact_name": ec.emergency_contact_name if ec else None,
+            "emergency_contact_phone": ec.emergency_contact_phone if ec else None,
+        },
+        message="SOS alert sent. Admin and fleet managers have been notified.",
+    )
+
+
+# --- ePOD PDF ---
+@router.post("/{trip_id}/epod", response_model=APIResponse)
+async def generate_epod_pdf(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Generate and upload ePOD PDF for a trip."""
+    from app.services.epod_pdf_service import generate_and_upload_epod
+    try:
+        result = await generate_and_upload_epod(db, trip_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return APIResponse(success=True, data=result, message="ePOD PDF generated")
+
+
+@router.get("/{trip_id}/epod/download")
+async def download_epod_pdf(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Generate ePOD PDF and return as downloadable file."""
+    from fastapi.responses import Response
+    from app.services.epod_pdf_service import build_epod_pdf
+    try:
+        pdf_bytes = await build_epod_pdf(db, trip_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=epod_trip_{trip_id}.pdf"},
+    )
+
+
 # --- Expenses ---
 @router.get("/{trip_id}/expenses", response_model=APIResponse)
-async def list_expenses(trip_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def list_expenses(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_READ)),
+):
+    # Drivers can only see expenses for their own trips
+    if _is_role(current_user, "driver"):
+        trip = await trip_service.get_trip(db, trip_id)
+        if not trip:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        resolved = await _resolve_driver_id(current_user, db)
+        if trip.driver_id != resolved:
+            raise HTTPException(status_code=403, detail="Access denied: not your trip")
     expenses = await trip_service.list_trip_expenses(db, trip_id)
     items = [{c.key: getattr(e, c.key) for c in e.__table__.columns} for e in expenses]
     return APIResponse(success=True, data=items)
@@ -170,12 +356,25 @@ async def list_expenses(trip_id: int, db: AsyncSession = Depends(get_db), curren
 @router.post("/{trip_id}/expenses", response_model=APIResponse, status_code=201)
 async def add_expense(
     trip_id: int, data: TripExpenseCreate, db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-    _perm=Depends(require_permission(Permissions.EXPENSE_CREATE)),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_CREATE)),
 ):
     trip = await trip_service.get_trip(db, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+    # Drivers can only add expenses to their own trips
+    if _is_role(current_user, "driver"):
+        resolved = await _resolve_driver_id(current_user, db)
+        if trip.driver_id != resolved:
+            raise HTTPException(status_code=403, detail="Access denied: not your trip")
+    # Biometric threshold enforcement
+    from app.services.config_service import get_config_bulk
+    cfg = await get_config_bulk(db, "expense.")
+    threshold = cfg.get("expense.biometric_threshold_amount", 500)
+    if data.amount >= threshold and not data.biometric_verified:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Biometric verification required for expenses ≥ ₹{threshold}",
+        )
     expense = await trip_service.add_trip_expense(db, trip_id, data.model_dump(), current_user.user_id)
     return APIResponse(success=True, data={"id": expense.id}, message="Expense added")
 
@@ -183,8 +382,7 @@ async def add_expense(
 @router.post("/expenses/{expense_id}/verify", response_model=APIResponse)
 async def verify_expense(
     expense_id: int, db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-    _perm=Depends(require_permission(Permissions.EXPENSE_VERIFY)),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_VERIFY)),
 ):
     expense = await trip_service.verify_expense(db, expense_id, current_user.user_id)
     if not expense:
@@ -192,9 +390,35 @@ async def verify_expense(
     return APIResponse(success=True, message="Expense verified")
 
 
+@router.post("/expenses/ocr", response_model=APIResponse)
+async def ocr_receipt(
+    file: UploadFile = File(...),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_CREATE)),
+):
+    """OCR a receipt image — returns extracted amount, date, vendor, category."""
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
+    image_bytes = await file.read()
+    from app.services.ocr_service import extract_receipt_data
+    result = await extract_receipt_data(image_bytes)
+    return APIResponse(success=True, data=result)
+
+
 # --- Fuel ---
 @router.get("/{trip_id}/fuel", response_model=APIResponse)
-async def list_fuel(trip_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def list_fuel(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.FUEL_READ)),
+):
+    # Drivers can only see fuel for their own trips
+    if _is_role(current_user, "driver"):
+        trip = await trip_service.get_trip(db, trip_id)
+        if not trip:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        resolved = await _resolve_driver_id(current_user, db)
+        if trip.driver_id != resolved:
+            raise HTTPException(status_code=403, detail="Access denied: not your trip")
     entries = await trip_service.list_trip_fuel(db, trip_id)
     items = [{c.key: getattr(f, c.key) for c in f.__table__.columns} for f in entries]
     return APIResponse(success=True, data=items)
@@ -203,8 +427,16 @@ async def list_fuel(trip_id: int, db: AsyncSession = Depends(get_db), current_us
 @router.post("/{trip_id}/fuel", response_model=APIResponse, status_code=201)
 async def add_fuel(
     trip_id: int, data: TripFuelCreate, db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_permission(Permissions.FUEL_CREATE)),
 ):
+    # Drivers can only add fuel to their own trips
+    if _is_role(current_user, "driver"):
+        trip = await trip_service.get_trip(db, trip_id)
+        if not trip:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        resolved = await _resolve_driver_id(current_user, db)
+        if trip.driver_id != resolved:
+            raise HTTPException(status_code=403, detail="Access denied: not your trip")
     fuel = await trip_service.add_trip_fuel(db, trip_id, data.model_dump())
     if not fuel:
         raise HTTPException(status_code=404, detail="Trip not found")

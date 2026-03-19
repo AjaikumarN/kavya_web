@@ -1,14 +1,16 @@
 ﻿# Auth Endpoints - Login, Refresh, Profile
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.db.postgres.connection import get_db
-from app.core.security import TokenData, get_current_user, create_tokens
+from app.core.security import TokenData, get_current_user, create_tokens, decode_token, bearer_scheme
 from app.schemas.auth import LoginRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest
 from app.schemas.base import APIResponse
 from app.services.auth_service import authenticate_user, get_user_roles, refresh_access_token, change_password, get_user_by_id
 from app.middleware.permissions import get_user_permissions
+from app.services.token_blacklist import blacklist_token
 
 router = APIRouter()
 
@@ -113,5 +115,24 @@ async def api_change_password(data: ChangePasswordRequest, current_user: TokenDa
 
 
 @router.post("/logout", response_model=APIResponse)
-async def logout(current_user: TokenData = Depends(get_current_user)):
+async def logout(
+    current_user: TokenData = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+):
+    token = credentials.credentials
+    payload = decode_token(token)
+    if payload:
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        if jti and exp:
+            expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+            blacklist_token(jti, expires_at)
+    # Audit log
+    from app.services.audit_logger import log_audit
+    await log_audit(
+        db, actor_id=current_user.user_id, actor_role=",".join(current_user.roles),
+        action="auth.logout", entity_type="user", entity_id=str(current_user.user_id),
+    )
+    await db.commit()
     return APIResponse(success=True, message="Logged out successfully")

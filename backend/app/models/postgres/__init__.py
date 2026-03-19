@@ -4,7 +4,7 @@
 from .base import Base, TimestampMixin, SoftDeleteMixin
 from .user import User, Role, Permission, RolePermission, UserRole, Branch, Tenant, EmployeeAttendance
 from .client import Client, ClientContact
-from .vehicle import Vehicle, VehicleDocument, VehicleMaintenance
+from .vehicle import Vehicle, VehicleDocument, VehicleMaintenance, Workshop
 from .driver import Driver, DriverDocument, DriverLicense, DriverAttendance
 from .job import Job, JobStatus, JobType
 from .lr import LR, LRItem, LRDocument

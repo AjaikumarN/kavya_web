@@ -170,6 +170,9 @@ class TripExpense(Base, TimestampMixin):
     verified_at = Column(DateTime, nullable=True)
     verification_remarks = Column(Text, nullable=True)
     
+    # Biometric verification (required for high-value expenses)
+    biometric_verified = Column(Boolean, default=False)
+    
     # Entry tracking
     entered_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     entry_source = Column(String(20), default='web')  # web, app, import

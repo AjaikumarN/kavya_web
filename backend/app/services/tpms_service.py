@@ -394,3 +394,70 @@ async def get_fleet_maintenance_predictions(db: AsyncSession, tenant_id: int | N
     # Sort by predicted_date
     upcoming.sort(key=lambda x: x.get("predicted_date", "9999-12-31"))
     return upcoming
+
+
+async def predict_tyre_replacement(db: AsyncSession, vehicle_id: int):
+    """Predict tyre replacement dates based on tread wear rate from TPMS readings."""
+    result = await db.execute(
+        select(VehicleTyre)
+        .where(VehicleTyre.vehicle_id == vehicle_id, VehicleTyre.is_active == True)
+    )
+    tyres = result.scalars().all()
+
+    predictions = []
+    for tyre in tyres:
+        # Need at least 2 tread readings to calculate wear rate
+        readings_result = await db.execute(
+            select(TyreSensorReading)
+            .where(
+                TyreSensorReading.vehicle_tyre_id == tyre.id,
+                TyreSensorReading.tread_depth_mm.isnot(None),
+            )
+            .order_by(TyreSensorReading.timestamp.asc())
+        )
+        readings = readings_result.scalars().all()
+
+        current_tread = float(tyre.tread_depth_mm) if tyre.tread_depth_mm else None
+        wear_rate_mm_per_day = None
+        predicted_replacement = None
+        days_remaining = None
+
+        if len(readings) >= 2:
+            first = readings[0]
+            last = readings[-1]
+            first_tread = float(first.tread_depth_mm)
+            last_tread = float(last.tread_depth_mm)
+            days_between = (last.timestamp - first.timestamp).total_seconds() / 86400
+
+            if days_between > 0 and first_tread > last_tread:
+                wear_rate_mm_per_day = (first_tread - last_tread) / days_between
+                tread_remaining = (last_tread - TREAD_CRITICAL_MM)
+                if wear_rate_mm_per_day > 0 and tread_remaining > 0:
+                    days_remaining = int(tread_remaining / wear_rate_mm_per_day)
+                    predicted_replacement = (datetime.utcnow() + timedelta(days=days_remaining)).date()
+
+        urgency = "normal"
+        if days_remaining is not None:
+            if days_remaining <= 14:
+                urgency = "critical"
+            elif days_remaining <= 60:
+                urgency = "soon"
+
+        predictions.append({
+            "tyre_id": tyre.id,
+            "position": tyre.position,
+            "brand": tyre.brand,
+            "current_tread_mm": current_tread,
+            "wear_rate_mm_per_day": round(wear_rate_mm_per_day, 4) if wear_rate_mm_per_day else None,
+            "days_to_replacement": days_remaining,
+            "predicted_replacement_date": predicted_replacement.isoformat() if predicted_replacement else None,
+            "urgency": urgency,
+            "retread_count": tyre.retread_count or 0,
+            "retread_eligible": (tyre.retread_count or 0) < (tyre.max_retreads or 2),
+            "readings_count": len(readings),
+        })
+
+    return {
+        "vehicle_id": vehicle_id,
+        "tyres": predictions,
+    }

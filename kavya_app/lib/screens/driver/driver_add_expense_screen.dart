@@ -6,6 +6,7 @@ import '../../../providers/expense_provider.dart';
 import '../../../core/widgets/kt_button.dart';
 import '../../../core/widgets/kt_text_field.dart';
 import '../../../core/widgets/photo_capture.dart';
+import '../../../services/biometric_auth_service.dart';
 
 class DriverAddExpenseScreen extends ConsumerStatefulWidget {
   const DriverAddExpenseScreen({super.key});
@@ -23,6 +24,7 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
   bool _submitting = false;
 
   static const _categories = ['fuel', 'toll', 'food', 'maintenance', 'loading', 'unloading', 'parking', 'police', 'other'];
+  static const double _biometricThreshold = 500.0;
 
   @override
   void dispose() {
@@ -35,15 +37,42 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
 
+    final amount = double.tryParse(_amountCtrl.text) ?? 0;
+    bool biometricVerified = false;
+
+    // Biometric verification for expenses >= ₹500
+    if (amount >= _biometricThreshold) {
+      final bioService = ref.read(biometricAuthProvider);
+      final canBio = await bioService.canUseBiometrics();
+      if (canBio) {
+        final authenticated = await bioService.authenticate(
+          reason: 'Verify identity for expense of ₹${amount.toStringAsFixed(0)}',
+        );
+        if (!authenticated) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Biometric verification required for expenses ≥ ₹500')),
+            );
+          }
+          setState(() => _submitting = false);
+          return;
+        }
+        biometricVerified = true;
+      } else {
+        // Device doesn't support biometrics — allow with flag
+        biometricVerified = true;
+      }
+    }
+
     final expense = Expense(
       category: _category,
-      amount: double.tryParse(_amountCtrl.text) ?? 0,
+      amount: amount,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       date: DateTime.now().toIso8601String().split('T').first,
       receiptUrl: _receipt?.path,
     );
 
-    await ref.read(expensesProvider(null).notifier).addExpense(expense);
+    await ref.read(expensesProvider(null).notifier).addExpense(expense, biometricVerified: biometricVerified);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense added')));

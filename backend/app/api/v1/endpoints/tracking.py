@@ -11,6 +11,7 @@ from app.schemas.base import APIResponse
 from app.models.postgres.trip import Trip, TripStatusEnum
 from app.models.postgres.vehicle import Vehicle
 from app.services import tracking_service
+from app.middleware.permissions import require_permission, require_any_permission, Permissions
 
 router = APIRouter()
 
@@ -28,7 +29,11 @@ class GPSPingPayload(BaseModel):
 
 
 @router.get("/live", response_model=APIResponse)
-async def get_live_tracking(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_live_tracking(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_any_permission([Permissions.TRACKING_LIVE, Permissions.TRACKING_VIEW])),
+):
     """Get all active tracked trips/vehicles with their GPS coordinates."""
     import math, time as _time
     now_ts = _time.time()
@@ -119,8 +124,27 @@ async def record_gps_ping(
     payload: GPSPingPayload,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.GPS_PING_CREATE)),
 ):
     """Record a GPS ping from a vehicle/driver device. Updates Vehicle table and optionally MongoDB."""
+    # Verify trip ownership for drivers
+    if "driver" in [r.lower() for r in current_user.roles] and payload.trip_id:
+        from app.models.postgres.driver import Driver
+        driver_result = await db.execute(
+            select(Driver).where(Driver.user_id == current_user.user_id)
+        )
+        driver = driver_result.scalar_one_or_none()
+        if driver:
+            trip_check = await db.execute(
+                select(Trip).where(
+                    Trip.id == payload.trip_id,
+                    Trip.driver_id == driver.id,
+                    Trip.status.in_([TripStatusEnum.STARTED, TripStatusEnum.IN_TRANSIT,
+                                     TripStatusEnum.LOADING, TripStatusEnum.UNLOADING]),
+                )
+            )
+            if not trip_check.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Cannot ping for this trip")
     # Find vehicle
     vehicle = None
     if payload.vehicle_id:
@@ -166,7 +190,11 @@ async def record_gps_ping(
 
 
 @router.get("/active-trips", response_model=APIResponse)
-async def get_active_trips(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_active_trips(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_any_permission([Permissions.TRACKING_VIEW, Permissions.TRIP_READ])),
+):
     result = await db.execute(
         select(Trip).where(
             Trip.is_deleted == False,
@@ -186,7 +214,12 @@ async def get_active_trips(db: AsyncSession = Depends(get_db), current_user: Tok
 
 
 @router.get("/trip/{trip_id}", response_model=APIResponse)
-async def get_trip_tracking(trip_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_trip_tracking(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_any_permission([Permissions.TRACKING_VIEW, Permissions.TRIP_READ])),
+):
     result = await db.execute(select(Trip).where(Trip.id == trip_id))
     trip = result.scalar_one_or_none()
     if not trip:
@@ -205,7 +238,12 @@ async def get_trip_tracking(trip_id: int, db: AsyncSession = Depends(get_db), cu
 
 
 @router.get("/vehicle/{vehicle_id}", response_model=APIResponse)
-async def get_vehicle_tracking(vehicle_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_vehicle_tracking(
+    vehicle_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_any_permission([Permissions.TRACKING_VIEW, Permissions.VEHICLE_READ])),
+):
     result = await db.execute(
         select(Trip).where(
             Trip.is_deleted == False,

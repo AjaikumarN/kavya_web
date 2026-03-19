@@ -105,3 +105,14 @@ async def get_fleet_predictions(
     """Fleet-wide predicted upcoming maintenance."""
     data = await tpms_service.get_fleet_maintenance_predictions(db, tenant_id=user.tenant_id)
     return {"success": True, "data": data}
+
+
+@router.get("/tyre-replacement/{vehicle_id}")
+async def predict_tyre_replacement(
+    vehicle_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: TokenData = Depends(get_current_user),
+):
+    """Predict tyre replacement dates based on tread wear rate from TPMS data."""
+    data = await tpms_service.predict_tyre_replacement(db, vehicle_id)
+    return {"success": True, "data": data}

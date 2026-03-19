@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../core/theme/kt_colors.dart';
 import 'api_service.dart';
 
@@ -89,8 +90,6 @@ class OfflineSyncService {
   }
 
   Future<void> _syncPendingQueue() async {
-    // Project Associate offline queue: LR creation, EWB generation stored locally [cite: 106]
-    // -> retry automatically when connection restored [cite: 106]
     if (_offlineQueue.isEmpty) return;
     
     _currentStatus = OfflineSyncStatus(
@@ -102,7 +101,67 @@ class OfflineSyncService {
     
     debugPrint("Syncing ${_offlineQueue.length} pending offline actions...");
     
-    // NEW: Sync Hive queue for failed API requests
+    // Try batch sync first
+    try {
+      final keys = _offlineQueue.keys.toList();
+      final actions = <Map<String, dynamic>>[];
+      for (final key in keys) {
+        final raw = _offlineQueue.get(key);
+        if (raw == null) continue;
+        final entry = jsonDecode(raw) as Map<String, dynamic>;
+        actions.add({
+          'method': entry['method'],
+          'path': entry['path'],
+          'data': entry['data'],
+          'timestamp': entry['timestamp'],
+          'client_action_id': entry['client_action_id'] ?? key.toString(),
+        });
+      }
+      
+      if (actions.isNotEmpty) {
+        final deviceId = await _getDeviceId();
+        final result = await _api.syncBatch(
+          deviceId: deviceId,
+          actions: actions,
+        );
+        
+        // Remove all successfully queued items from local Hive
+        for (final key in keys) {
+          await _offlineQueue.delete(key);
+        }
+        debugPrint("Batch sync completed: ${result['accepted'] ?? 0} accepted");
+      }
+    } catch (e) {
+      debugPrint("Batch sync failed, falling back to individual replay: $e");
+      // Fallback: replay individual requests
+      await _syncIndividual();
+    }
+    
+    _currentStatus = OfflineSyncStatus(
+      queuedCount: _offlineQueue.length,
+      isSyncing: false,
+      lastSyncTime: DateTime.now(),
+    );
+    _emitStatus();
+  }
+
+  Future<String> _getDeviceId() async {
+    final info = DeviceInfoPlugin();
+    try {
+      final androidInfo = await info.androidInfo;
+      return androidInfo.id;
+    } catch (_) {
+      try {
+        final iosInfo = await info.iosInfo;
+        return iosInfo.identifierForVendor ?? 'unknown-ios';
+      } catch (_) {
+        return 'unknown-device';
+      }
+    }
+  }
+
+  /// Fallback: replay queued requests one by one
+  Future<void> _syncIndividual() async {
     final keys = _offlineQueue.keys.toList();
     for (final key in keys) {
       final raw = _offlineQueue.get(key);
@@ -124,7 +183,6 @@ class OfflineSyncService {
         await _offlineQueue.delete(key);
         debugPrint("Synced offline action: ${entry['path']}");
       } catch (e) {
-        // Stop syncing on first failure — retry later
         _currentStatus = OfflineSyncStatus(
           queuedCount: _offlineQueue.length,
           isSyncing: false,
@@ -136,17 +194,9 @@ class OfflineSyncService {
         break;
       }
     }
-    
-    // Mark sync as complete
-    _currentStatus = OfflineSyncStatus(
-      queuedCount: _offlineQueue.length,
-      isSyncing: false,
-      lastSyncTime: DateTime.now(),
-    );
-    _emitStatus();
   }
 
-  // NEW: Enqueue a request for offline retry
+  // Enqueue a request for offline retry
   Future<void> enqueueRequest({
     required String method,
     required String path,
@@ -157,6 +207,7 @@ class OfflineSyncService {
       'path': path,
       'data': data,
       'timestamp': DateTime.now().toIso8601String(),
+      'client_action_id': '${DateTime.now().millisecondsSinceEpoch}_${_offlineQueue.length}',
     });
     await _offlineQueue.add(entry);
     

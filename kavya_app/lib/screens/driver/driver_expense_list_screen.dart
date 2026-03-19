@@ -5,7 +5,6 @@ import '../../models/expense.dart';
 import '../../providers/expense_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
-import '../../core/widgets/kt_button.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
@@ -79,36 +78,26 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
             ),
           ),
 
-          // Filters
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                _filterChip('all', 'All', _filterStatus == 'all', (v) => setState(() => _filterStatus = v)),
-                const SizedBox(width: 8),
-                _filterChip('pending', 'Pending', _filterStatus == 'pending', (v) => setState(() => _filterStatus = v)),
-                const SizedBox(width: 8),
-                _filterChip('submitted', 'Submitted', _filterStatus == 'submitted', (v) => setState(() => _filterStatus = v)),
-                const SizedBox(width: 8),
-                _filterChip('approved', 'Approved', _filterStatus == 'approved', (v) => setState(() => _filterStatus = v)),
-              ],
-            ),
+          // Status Filters
+          _FilterRow(
+            filters: const [
+              ('all', 'All'),
+              ('pending', 'Pending'),
+              ('submitted', 'Submitted'),
+              ('approved', 'Approved'),
+            ],
+            selected: _filterStatus,
+            onSelect: (v) => setState(() => _filterStatus = v),
           ),
-
-          // Category Filter
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _filterChip('all', 'All Cat.', _filterCategory == 'all', (v) => setState(() => _filterCategory = v)),
-                ...categories.map((cat) => Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: _filterChip(cat, cat.replaceAll('_', ' '), _filterCategory == cat, (v) => setState(() => _filterCategory = v)),
-                )),
-              ],
-            ),
+          const SizedBox(height: 4),
+          // Category Filters
+          _FilterRow(
+            filters: [
+              const ('all', 'All Cat.'),
+              ...categories.map((c) => (c, c.replaceAll('_', ' '))),
+            ],
+            selected: _filterCategory,
+            onSelect: (v) => setState(() => _filterCategory = v),
           ),
           const SizedBox(height: 8),
 
@@ -124,12 +113,8 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
                         Icon(Icons.receipt_long_outlined, size: 56, color: Colors.grey.shade400),
                         const SizedBox(height: 16),
                         Text('No expenses found', style: KTTextStyles.h3),
-                        const SizedBox(height: 24),
-                        KtButton(
-                          label: 'Add Expense',
-                          icon: Icons.add,
-                          onPressed: () => context.push('/driver/add-expense'),
-                        ),
+                        const SizedBox(height: 8),
+                        const Text('Tap + to add your first expense', style: TextStyle(color: KTColors.textMuted, fontSize: 13)),
                       ],
                     ),
                   );
@@ -212,20 +197,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
     return result;
   }
 
-  Widget _filterChip(String value, String label, bool selected, Function(String) onSelected) {
-    return GestureDetector(
-      onTap: () => onSelected(value),
-      child: Chip(
-        label: Text(label, style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: selected ? Colors.white : KTColors.textPrimary,
-        )),
-        backgroundColor: selected ? KTColors.primary : KTColors.cardSurface,
-        side: selected ? BorderSide.none : const BorderSide(color: KTColors.textMuted),
-      ),
-    );
-  }
+
 
   Widget _expenseCard(Expense expense) {
     return Card(
@@ -339,5 +311,61 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
       case 'approved': return KTColors.success;
       default: return KTColors.textMuted;
     }
+  }
+}
+
+class _FilterRow extends StatelessWidget {
+  final List<(String, String)> filters;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  const _FilterRow({
+    required this.filters,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: filters.asMap().entries.map((entry) {
+          final (value, label) = entry.value;
+          final isSelected = selected == value;
+          return Padding(
+            padding: EdgeInsets.only(right: entry.key < filters.length - 1 ? 8 : 0),
+            child: GestureDetector(
+              onTap: () => onSelect(value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? KTColors.primary : const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? KTColors.primary : const Color(0xFF334155),
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [BoxShadow(color: KTColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                      : [],
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }

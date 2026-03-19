@@ -87,22 +87,17 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
           ),
 
           // Status Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _filterChip('all', 'All', _filterStatus == 'all', (v) => setState(() => _filterStatus = v)),
-                const SizedBox(width: 8),
-                _filterChip('pending', 'Pending', _filterStatus == 'pending', (v) => setState(() => _filterStatus = v)),
-                const SizedBox(width: 8),
-                _filterChip('in_transit', 'In Transit', _filterStatus == 'in_transit', (v) => setState(() => _filterStatus = v)),
-                const SizedBox(width: 8),
-                _filterChip('completed', 'Completed', _filterStatus == 'completed', (v) => setState(() => _filterStatus = v)),
-              ],
-            ),
+          _TripFilterRow(
+            filters: const [
+              ('all', 'All'),
+              ('pending', 'Pending'),
+              ('in_transit', 'In Transit'),
+              ('completed', 'Completed'),
+            ],
+            selected: _filterStatus,
+            onSelect: (v) => setState(() => _filterStatus = v),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // Trips List with Pull-to-Refresh
           Expanded(
@@ -219,20 +214,6 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
     return result;
   }
 
-  Widget _filterChip(String value, String label, bool selected, Function(String) onSelected) {
-    return GestureDetector(
-      onTap: () => onSelected(value),
-      child: Chip(
-        label: Text(label, style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: selected ? Colors.white : KTColors.textPrimary,
-        )),
-        backgroundColor: selected ? KTColors.primary : KTColors.cardSurface,
-        side: selected ? BorderSide.none : const BorderSide(color: KTColors.textMuted),
-      ),
-    );
-  }
 
   Widget _tripCard(BuildContext context, Trip trip) {
     return Card(
@@ -328,5 +309,61 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
       case 'completed': return KTColors.success;
       default: return KTColors.textMuted;
     }
+  }
+}
+
+class _TripFilterRow extends StatelessWidget {
+  final List<(String, String)> filters;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  const _TripFilterRow({
+    required this.filters,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: filters.asMap().entries.map((entry) {
+          final (value, label) = entry.value;
+          final isSelected = selected == value;
+          return Padding(
+            padding: EdgeInsets.only(right: entry.key < filters.length - 1 ? 8 : 0),
+            child: GestureDetector(
+              onTap: () => onSelect(value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? KTColors.primary : const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? KTColors.primary : const Color(0xFF334155),
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [BoxShadow(color: KTColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                      : [],
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }

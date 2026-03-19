@@ -84,9 +84,11 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
         '/expenses?page=$_currentPage&page_size=$_pageSize$tripFilter',
       );
       // API response: {success, data: {items: [...], total: ...}}
-      final innerData = (response['data'] is Map ? response['data'] as Map<String, dynamic> : {}) ;
+      final innerData = response['data'] is Map
+          ? Map<String, dynamic>.from(response['data'] as Map)
+          : <String, dynamic>{};
       final items = (innerData['items'] as List<dynamic>?)
-          ?.map((e) => Expense.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => Expense.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList() ?? [];
 
       final total = innerData['total'] as int? ?? 0;

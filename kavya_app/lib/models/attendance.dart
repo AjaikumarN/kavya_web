@@ -1,42 +1,38 @@
 class Attendance {
   final int? id;
-  final int driverId;
+  final int userId;
   final String date;
-  final String? checkIn;
-  final String? checkOut;
-  final String status; // present, absent, on_trip, leave
-  final double? checkInLat;
-  final double? checkInLng;
+  final String? checkInTime;
+  final String status; // present, late, absent
+  final String? checkInPhotoUrl;
+  final String? remarks;
 
   const Attendance({
     this.id,
-    required this.driverId,
+    required this.userId,
     required this.date,
-    this.checkIn,
-    this.checkOut,
+    this.checkInTime,
     this.status = 'present',
-    this.checkInLat,
-    this.checkInLng,
+    this.checkInPhotoUrl,
+    this.remarks,
   });
 
   factory Attendance.fromJson(Map<String, dynamic> json) => Attendance(
         id: json['id'] as int?,
-        driverId: json['driver_id'] as int? ?? 0,
+        userId: json['user_id'] as int? ?? 0,
         date: json['date'] as String? ?? '',
-        checkIn: json['check_in'] as String?,
-        checkOut: json['check_out'] as String?,
+        checkInTime: json['check_in_time'] as String?,
         status: json['status'] as String? ?? 'present',
-        checkInLat: (json['check_in_lat'] as num?)?.toDouble(),
-        checkInLng: (json['check_in_lng'] as num?)?.toDouble(),
+        checkInPhotoUrl: json['check_in_photo_url'] as String?,
+        remarks: json['remarks'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
-        'driver_id': driverId,
+        'user_id': userId,
         'date': date,
-        if (checkIn != null) 'check_in': checkIn,
-        if (checkOut != null) 'check_out': checkOut,
+        if (checkInTime != null) 'check_in_time': checkInTime,
         'status': status,
-        if (checkInLat != null) 'check_in_lat': checkInLat,
-        if (checkInLng != null) 'check_in_lng': checkInLng,
+        if (checkInPhotoUrl != null) 'check_in_photo_url': checkInPhotoUrl,
+        if (remarks != null) 'remarks': remarks,
       };
 }

@@ -1,6 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/router/app_router.dart';
+import '../models/user.dart';
+import '../providers/auth_provider.dart';
 import 'api_service.dart';
 
 final authServiceProvider = Provider((ref) => AuthService(ref));
@@ -30,17 +32,31 @@ class AuthService {
     final roles = user['roles'] as List<dynamic>? ?? [];
     final primaryRole = roles.isNotEmpty ? roles[0].toString() : 'unknown';
     final userName = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+    final resolvedName = userName.isNotEmpty ? userName : user['email']?.toString() ?? 'User';
 
-    // 3. Save to storage
+    // 3. Save full user profile to storage (persists across app restarts)
     await _storage.write(key: 'access_token', value: token);
     if (refreshToken != null) {
       await _storage.write(key: 'refresh_token', value: refreshToken);
     }
     await _storage.write(key: 'primary_role', value: primaryRole);
-    await _storage.write(key: 'user_name', value: userName.isNotEmpty ? userName : user['email']?.toString() ?? 'User');
+    await _storage.write(key: 'user_name', value: resolvedName);
     await _storage.write(key: 'user_id', value: user['id'].toString());
+    await _storage.write(key: 'user_email', value: user['email']?.toString() ?? '');
+    await _storage.write(key: 'user_phone', value: user['phone']?.toString() ?? '');
+    await _storage.write(key: 'user_is_active', value: (user['is_active'] as bool? ?? true).toString());
 
-    // 4. Navigate based on primary role [cite: 35-40]
+    // 4. Set user in auth state immediately so profile screen displays correctly
+    _ref.read(authProvider.notifier).setUser(User(
+      id: user['id'].toString(),
+      name: resolvedName,
+      email: user['email']?.toString() ?? '',
+      roles: roles.map((r) => r.toString()).toList(),
+      phone: user['phone']?.toString(),
+      isActive: user['is_active'] as bool? ?? true,
+    ));
+
+    // 5. Navigate based on primary role
     _navigateForRole(primaryRole);
   }
 

@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/trip.dart';
 import '../../models/attendance.dart';
 import '../../providers/trip_provider.dart';
@@ -36,7 +39,7 @@ class DriverTodayScreen extends ConsumerWidget {
         children: [
           // Attendance Status Card
           attendanceAsync.when(
-            data: (attendance) => _attendanceCard(context, attendance),
+            data: (attendance) => _attendanceCard(context, ref, attendance),
             loading: () => Container(
               height: 120,
               decoration: BoxDecoration(
@@ -258,64 +261,282 @@ class DriverTodayScreen extends ConsumerWidget {
     );
   }
 
-  Widget _attendanceCard(BuildContext context, Attendance? attendance) {
-    final today = attendance;
-    final isCheckedIn = today?.checkIn != null;
-    final isCheckedOut = today?.checkOut != null;
+  Widget _attendanceCard(BuildContext context, WidgetRef ref, Attendance? attendance) {
+    final isCheckedIn = attendance?.checkInTime != null;
+    final now = DateTime.now();
+    final dateLabel =
+        '${now.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.month - 1]} ${now.year}';
 
-    return Card(
-      color: isCheckedIn ? KTColors.success.withValues(alpha: 0.1) : Colors.white,
+    // Format check-in time for display
+    String checkInDisplay = '--:--';
+    if (attendance?.checkInTime != null) {
+      try {
+        final dt = DateTime.parse(attendance!.checkInTime!);
+        final hh = dt.hour.toString().padLeft(2, '0');
+        final mm = dt.minute.toString().padLeft(2, '0');
+        checkInDisplay = '$hh:$mm';
+      } catch (_) {
+        checkInDisplay = attendance!.checkInTime!;
+      }
+    }
+
+    final statusColor = isCheckedIn
+        ? (attendance!.status == 'late' ? KTColors.warning : KTColors.success)
+        : const Color(0xFF64748B);
+    final statusLabel = isCheckedIn
+        ? (attendance!.status == 'late' ? 'Late' : 'Present')
+        : 'Not Checked In';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isCheckedIn
+              ? [const Color(0xFF0F2A1E), const Color(0xFF1A3A2A)]
+              : [const Color(0xFF0F172A), const Color(0xFF1E293B)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isCheckedIn
+              ? KTColors.success.withValues(alpha: 0.4)
+              : const Color(0xFF334155),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Attendance', style: TextStyle(fontSize: 12, color: KTColors.textSecondary)),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: isCheckedIn ? KTColors.success : KTColors.warning,
-                    borderRadius: BorderRadius.circular(4),
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
                   ),
-                  child: Text(
-                    isCheckedIn ? (isCheckedOut ? 'Checked Out' : 'Checked In') : 'Not Started',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  child: Icon(
+                    isCheckedIn ? Icons.how_to_reg_rounded : Icons.fingerprint_rounded,
+                    color: statusColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Attendance',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        dateLabel,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFF334155), height: 1),
+            const SizedBox(height: 16),
+
+            if (isCheckedIn) ...
+              [
+                // Check-in details row
+                Row(
                   children: [
-                    Text('Check In', style: KTTextStyles.label),
-                    Text(today?.checkIn ?? '--:--', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    _attendanceInfoTile(
+                      icon: Icons.login_rounded,
+                      label: 'Check-in Time',
+                      value: checkInDisplay,
+                      color: KTColors.success,
+                    ),
+                    const SizedBox(width: 12),
+                    _attendanceInfoTile(
+                      icon: Icons.verified_user_outlined,
+                      label: 'Status',
+                      value: attendance!.status.toUpperCase(),
+                      color: statusColor,
+                    ),
+                    if (attendance.checkInPhotoUrl != null) ...
+                      [
+                        const SizedBox(width: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            base64Decode(
+                              attendance.checkInPhotoUrl!.contains(',') ? attendance.checkInPhotoUrl!.split(',')[1] : attendance.checkInPhotoUrl!,
+                            ),
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.photo, color: Color(0xFF64748B), size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ]
+            else ...
+              [
+                // Not checked in — show CTA
+                Row(
                   children: [
-                    Text('Check Out', style: KTTextStyles.label),
-                    Text(today?.checkOut ?? '--:--', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.info_outline, color: Color(0xFF64748B), size: 16),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Take a selfie to mark your attendance for today.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      ),
+                    ),
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Status', style: KTTextStyles.label),
-                    Text(today?.status ?? 'pending', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  ],
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _startCheckInFlow(context, ref),
+                    icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                    label: const Text('Mark Attendance'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KTColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ],
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _attendanceInfoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+            const SizedBox(height: 2),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startCheckInFlow(BuildContext context, WidgetRef ref) async {
+    final picker = ImagePicker();
+    // Open camera for selfie
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 60,
+      maxWidth: 800,
+    );
+    if (photo == null) return;
+    if (!context.mounted) return;
+
+    // Show confirmation bottom sheet
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AttendanceConfirmSheet(
+        photoFile: File(photo.path),
+        notifier: ref.read(attendanceProvider.notifier),
+        onSuccess: () {
+          ref.invalidate(attendanceProvider);
+        },
       ),
     );
   }
@@ -708,6 +929,224 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
           ),
         );
       },
+    );
+  }
+}
+
+/// Bottom sheet shown after the driver takes a selfie.
+/// Captures location, shows preview, and submits attendance.
+class _AttendanceConfirmSheet extends StatefulWidget {
+  final File photoFile;
+  final AttendanceNotifier notifier;
+  final VoidCallback onSuccess;
+
+  const _AttendanceConfirmSheet({
+    required this.photoFile,
+    required this.notifier,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_AttendanceConfirmSheet> createState() => _AttendanceConfirmSheetState();
+}
+
+class _AttendanceConfirmSheetState extends State<_AttendanceConfirmSheet> {
+  bool _loading = false;
+  Position? _position;
+  String? _errorMsg;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocation();
+  }
+
+  Future<void> _fetchLocation() async {
+    final pos = await widget.notifier.getLocation();
+    if (mounted) setState(() => _position = pos);
+  }
+
+  Future<void> _submit() async {
+    setState(() { _loading = true; _errorMsg = null; });
+
+    // Convert photo to base64 data URL
+    final bytes = await widget.photoFile.readAsBytes();
+    final b64 = base64Encode(bytes);
+    final photoDataUrl = 'data:image/jpeg;base64,$b64';
+
+    final message = await widget.notifier.checkIn(
+      photoDataUrl: photoDataUrl,
+      lat: _position?.latitude,
+      lng: _position?.longitude,
+    );
+
+    if (!mounted) return;
+    if (message != null) {
+      widget.onSuccess();
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: KTColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      setState(() {
+        _loading = false;
+        _errorMsg = 'Failed to mark attendance. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locationText = _position != null
+        ? '${_position!.latitude.toStringAsFixed(5)}, ${_position!.longitude.toStringAsFixed(5)}'
+        : 'Fetching location...';
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFF334155),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Confirm Attendance',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Review your selfie and location before submitting.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                ),
+                const SizedBox(height: 16),
+
+                // Photo preview
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.file(
+                    widget.photoFile,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Location info
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF334155)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _position != null ? Icons.location_on : Icons.location_searching,
+                        color: _position != null ? KTColors.primary : const Color(0xFF64748B),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Location',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                            Text(
+                              locationText,
+                              style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (_errorMsg != null) ...[
+                  const SizedBox(height: 10),
+                  Text(_errorMsg!, style: const TextStyle(color: KTColors.danger, fontSize: 13)),
+                ],
+
+                const SizedBox(height: 16),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Color(0xFF475569)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('Retake'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: _loading ? null : _submit,
+                        icon: _loading
+                            ? const SizedBox(
+                                width: 16, height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.check_rounded, size: 18),
+                        label: Text(_loading ? 'Submitting...' : 'Submit Attendance'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KTColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

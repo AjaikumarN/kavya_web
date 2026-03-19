@@ -199,6 +199,8 @@ async def attendance_check_in(
 
     photo_data_url = payload.get('photo_data_url')
     remarks = payload.get('remarks')
+    lat = payload.get('lat')
+    lng = payload.get('lng')
 
     if not photo_data_url or not isinstance(photo_data_url, str):
         raise HTTPException(status_code=400, detail='Photo is required for attendance check-in')
@@ -218,12 +220,16 @@ async def attendance_check_in(
     cutoff = time_cls(8, 30)
     status_value = 'late' if now.time() > cutoff else 'present'
 
+    # Append location to remarks if provided
+    location_note = f'Location: {lat:.6f}, {lng:.6f}' if (lat is not None and lng is not None) else None
+    final_remarks = ', '.join(filter(None, [remarks, location_note])) or None
+
     entry = EmployeeAttendance(
         user_id=current_user.user_id,
         date=today,
         status=status_value,
         check_in_time=now,
-        remarks=remarks,
+        remarks=final_remarks,
         check_in_photo_url=photo_data_url,
     )
     db.add(entry)

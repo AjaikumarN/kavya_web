@@ -16,7 +16,7 @@ export default function PumpReportsPage() {
 
   const { data: issuesData } = useQuery({
     queryKey: ['fuel-issues-report', range],
-    queryFn: () => fuelPumpService.getIssues({ page: 1, limit: 1000 }),
+    queryFn: () => fuelPumpService.getIssues({ page: 1, limit: 500 }),
   });
 
   const { data: tanksData } = useQuery({
@@ -115,10 +115,10 @@ export default function PumpReportsPage() {
       {dashboard && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Stock (L)', value: Number(dashboard.total_stock).toLocaleString('en-IN') },
-            { label: 'Month Issued (L)', value: Number(dashboard.month_litres).toLocaleString('en-IN') },
-            { label: 'Month Amount', value: `₹${Number(dashboard.month_amount).toLocaleString('en-IN')}` },
-            { label: 'Open Alerts', value: dashboard.open_alerts },
+            { label: 'Total Stock (L)', value: (+(dashboard?.total_stock_litres ?? 0)).toLocaleString('en-IN') },
+            { label: 'Month Issued (L)', value: (+(dashboard?.month_issued_litres ?? 0)).toLocaleString('en-IN') },
+            { label: 'Month Amount', value: `₹${(+(dashboard?.month_cost ?? 0)).toLocaleString('en-IN')}` },
+            { label: 'Open Alerts', value: dashboard?.open_alerts ?? 0 },
           ].map((c) => (
             <div key={c.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <p className="text-xs text-gray-500">{c.label}</p>

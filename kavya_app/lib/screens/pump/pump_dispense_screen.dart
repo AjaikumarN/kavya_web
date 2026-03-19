@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/pump_dashboard_provider.dart';
 import '../../utils/indian_format.dart';
 
@@ -20,17 +23,33 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
 
   final _formKey = GlobalKey<FormState>();
   int? _selectedTankId;
+  String? _selectedTankName;
   int? _selectedVehicleId;
+  String? _selectedVehicleReg;
   final _litresCtrl = TextEditingController();
   final _rateCtrl = TextEditingController(text: '93.21');
   final _odometerCtrl = TextEditingController();
+  final _driverCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+
+  // Auto-generated receipt number shown read-only
+  late final String _receiptNumber;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final seq = now.millisecondsSinceEpoch % 10000;
+    _receiptNumber =
+        'FP-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${seq.toString().padLeft(4, '0')}';
+  }
 
   @override
   void dispose() {
     _litresCtrl.dispose();
     _rateCtrl.dispose();
     _odometerCtrl.dispose();
+    _driverCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -62,7 +81,36 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
               'Record a fuel dispensing entry',
               style: TextStyle(fontSize: 13, color: _textSecondary),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // Receipt number (read-only)
+            _label('Receipt Number'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: _cardColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _amber.withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.receipt_long, color: _amber, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    _receiptNumber,
+                    style: const TextStyle(
+                      color: _amber,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'JetBrains Mono',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Tank Selector
             _label('Select Tank'),
@@ -79,7 +127,13 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
                           child: Text('${t.name} (${t.currentStockLitres.toStringAsFixed(0)} L remain)'),
                         ))
                     .toList(),
-                onChanged: (v) => setState(() => _selectedTankId = v),
+                onChanged: (v) {
+                  final tank = tanks.firstWhere((t) => t.id == v);
+                  setState(() {
+                    _selectedTankId = v;
+                    _selectedTankName = tank.name;
+                  });
+                },
                 validator: (v) => v == null ? 'Select a tank' : null,
               ),
             ),
@@ -100,9 +154,25 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
                           child: Text(v['registration_number']?.toString() ?? 'Vehicle #${v['id']}'),
                         ))
                     .toList(),
-                onChanged: (v) => setState(() => _selectedVehicleId = v),
+                onChanged: (v) {
+                  final vehicle = vehicles.firstWhere((veh) => veh['id'] == v);
+                  setState(() {
+                    _selectedVehicleId = v;
+                    _selectedVehicleReg = vehicle['registration_number']?.toString() ?? 'Vehicle #$v';
+                  });
+                },
                 validator: (v) => v == null ? 'Select a vehicle' : null,
               ),
+            ),
+            const SizedBox(height: 20),
+
+            // Driver name (optional free text)
+            _label('Driver Name (optional)'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _driverCtrl,
+              style: const TextStyle(color: _textPrimary),
+              decoration: _inputDecoration('e.g. Raman Kumar'),
             ),
             const SizedBox(height: 20),
 
@@ -229,34 +299,103 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final ok = await ref.read(fuelIssueNotifierProvider.notifier).issueFuel(
-          tankId: _selectedTankId!,
-          vehicleId: _selectedVehicleId!,
-          quantityLitres: double.parse(_litresCtrl.text),
-          ratePerLitre: double.parse(_rateCtrl.text),
-          odometerReading: _odometerCtrl.text.isNotEmpty
-              ? double.parse(_odometerCtrl.text)
-              : null,
-          remarks: _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null,
-        );
-    if (ok && mounted) {
+    final litres = double.parse(_litresCtrl.text);
+    final rate = double.parse(_rateCtrl.text);
+    final odometer = _odometerCtrl.text.isNotEmpty ? double.parse(_odometerCtrl.text) : null;
+    final notes = _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null;
+    final driver = _driverCtrl.text.isNotEmpty ? _driverCtrl.text : null;
+
+    bool ok = false;
+    bool savedOffline = false;
+
+    try {
+      ok = await ref.read(fuelIssueNotifierProvider.notifier).issueFuel(
+            tankId: _selectedTankId!,
+            vehicleId: _selectedVehicleId!,
+            quantityLitres: litres,
+            ratePerLitre: rate,
+            odometerReading: odometer,
+            remarks: notes,
+            receiptNumber: _receiptNumber,
+          );
+    } catch (_) {
+      // Network failure — queue offline
+      try {
+        final box = await Hive.openBox<String>('offline_queue');
+        final payload = jsonEncode({
+          'method': 'POST',
+          'path': '/fuel-pump/issues',
+          'data': {
+            'tank_id': _selectedTankId,
+            'vehicle_id': _selectedVehicleId,
+            'quantity_litres': litres,
+            'rate_per_litre': rate,
+            if (odometer != null) 'odometer_reading': odometer,
+            if (notes != null) 'remarks': notes,
+            if (driver != null) 'driver_name': driver,
+            'receipt_number': _receiptNumber,
+          },
+          'timestamp': DateTime.now().toIso8601String(),
+          'client_action_id': _receiptNumber,
+        });
+        await box.put('pump_${DateTime.now().millisecondsSinceEpoch}', payload);
+        savedOffline = true;
+        ok = true; // treat as success for receipt display
+      } catch (_) {
+        // Hive also failed — show error
+      }
+    }
+
+    if (!mounted) return;
+
+    if (ok) {
       // Refresh dashboard data
       ref.invalidate(pumpDashboardProvider);
       ref.invalidate(todayFuelIssuesProvider);
-      // Reset form
-      _litresCtrl.clear();
-      _odometerCtrl.clear();
-      _notesCtrl.clear();
-      setState(() {
-        _selectedVehicleId = null;
-      });
+
+      // Show receipt bottom sheet
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _FuelReceiptSheet(
+          receiptNumber: _receiptNumber,
+          vehicleReg: _selectedVehicleReg ?? 'Vehicle #$_selectedVehicleId',
+          tankName: _selectedTankName ?? 'Tank #$_selectedTankId',
+          litres: litres,
+          rate: rate,
+          driver: driver,
+          isOffline: savedOffline,
+          onNewEntry: _resetForm,
+        ),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Fuel dispensed successfully'),
-          backgroundColor: Color(0xFF10B981),
+          content: Text('Failed to record fuel issue. Please try again.'),
+          backgroundColor: Color(0xFFEF4444),
         ),
       );
     }
+  }
+
+  void _resetForm() {
+    _litresCtrl.clear();
+    _odometerCtrl.clear();
+    _driverCtrl.clear();
+    _notesCtrl.clear();
+    setState(() {
+      _selectedVehicleId = null;
+      _selectedVehicleReg = null;
+    });
+    // receipt number is final per entry, so we just navigate focus back to form
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Ready for next entry'),
+        backgroundColor: Color(0xFF10B981),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 
   Widget _label(String text) {
@@ -297,7 +436,7 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      value: initialValue,
+      initialValue: initialValue,
       hint: Text(hint, style: const TextStyle(color: _textSecondary)),
       items: items,
       onChanged: onChanged,
@@ -326,6 +465,250 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Color(0xFFEF4444)),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fuel Receipt Bottom Sheet
+// ---------------------------------------------------------------------------
+
+class _FuelReceiptSheet extends StatelessWidget {
+  const _FuelReceiptSheet({
+    required this.receiptNumber,
+    required this.vehicleReg,
+    required this.tankName,
+    required this.litres,
+    required this.rate,
+    this.driver,
+    required this.isOffline,
+    required this.onNewEntry,
+  });
+
+  final String receiptNumber;
+  final String vehicleReg;
+  final String tankName;
+  final double litres;
+  final double rate;
+  final String? driver;
+  final bool isOffline;
+  final VoidCallback onNewEntry;
+
+  static const _bg = Color(0xFF1E293B);
+  static const _card = Color(0xFF334155);
+  static const _amber = Color(0xFFFBBF24);
+  static const _textPrimary = Color(0xFFF8FAFC);
+  static const _textSecondary = Color(0xFF94A3B8);
+
+  double get _total => litres * rate;
+
+  String get _shareText {
+    final now = DateTime.now();
+    return '''
+Kavya Transport — Fuel Receipt
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Receipt No : $receiptNumber
+Date/Time  : ${now.day}/${now.month}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}
+Vehicle    : $vehicleReg
+Tank       : $tankName${driver != null ? '\nDriver     : $driver' : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Quantity   : ${litres.toStringAsFixed(2)} L
+Rate       : ₹${rate.toStringAsFixed(2)}/L
+Total      : ${IndianFormat.currency(_total)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${isOffline ? '⚠ Saved offline — will sync when online' : '✓ Recorded Successfully'}
+''';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return Container(
+      decoration: const BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Offline badge
+          if (isOffline)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.wifi_off, size: 14, color: Color(0xFFF59E0B)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Saved offline — will sync when back online',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+
+          // Receipt header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.receipt_long, color: _amber, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Fuel Receipt',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _textPrimary)),
+                    Text(
+                      '${now.day}/${now.month}/${now.year}  ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 12, color: _textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isOffline
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                      : const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isOffline ? 'QUEUED' : 'RECORDED',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isOffline ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Receipt body
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _receiptRow('Receipt #', receiptNumber, mono: true),
+                _receiptRow('Vehicle', vehicleReg),
+                _receiptRow('Tank', tankName),
+                if (driver != null) _receiptRow('Driver', driver!),
+                const Divider(color: Colors.white12, height: 20),
+                _receiptRow('Quantity', '${litres.toStringAsFixed(2)} L'),
+                _receiptRow('Rate', '₹${rate.toStringAsFixed(2)}/L'),
+                const Divider(color: Colors.white12, height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Amount',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _textPrimary)),
+                    Text(
+                      IndianFormat.currency(_total),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: _amber,
+                        fontFamily: 'JetBrains Mono',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => SharePlus.instance.share(ShareParams(text: _shareText, subject: 'Fuel Receipt $receiptNumber')),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _amber,
+                    side: const BorderSide(color: _amber),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('Share Receipt'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onNewEntry();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _amber,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('New Entry', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _receiptRow(String label, String value, {bool mono = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13, color: _textSecondary)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: _textPrimary,
+              fontFamily: mono ? 'JetBrains Mono' : null,
+            ),
+          ),
+        ],
       ),
     );
   }

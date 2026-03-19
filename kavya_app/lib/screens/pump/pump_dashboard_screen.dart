@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/fuel.dart';
 import '../../providers/pump_dashboard_provider.dart';
 import '../../providers/intelligence_provider.dart';
@@ -33,6 +35,35 @@ class PumpDashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // ─── Quick Actions ───
+            Row(
+              children: [
+                Expanded(
+                  child: _actionButton(
+                    context: context,
+                    icon: Icons.price_change_outlined,
+                    label: 'Update Rate',
+                    onTap: () => showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (_) => const _UpdateRateSheet(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _actionButton(
+                    context: context,
+                    icon: Icons.local_shipping_outlined,
+                    label: 'Refill Tank',
+                    onTap: () => context.push('/pump/refill'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
             // ─── KPI Row ───
             _sectionTitle('Today\'s Fuel Summary'),
             const SizedBox(height: 12),
@@ -102,6 +133,35 @@ class PumpDashboardScreen extends ConsumerWidget {
         fontWeight: FontWeight.w700,
         color: _textPrimary,
         letterSpacing: 0.3,
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _amber.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: _amber, size: 26),
+            const SizedBox(height: 6),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
+          ],
+        ),
       ),
     );
   }
@@ -515,6 +575,127 @@ class PumpDashboardScreen extends ConsumerWidget {
             child: const Text('Retry', style: TextStyle(color: Colors.black)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Update Rate Bottom Sheet
+// ---------------------------------------------------------------------------
+
+class _UpdateRateSheet extends StatefulWidget {
+  const _UpdateRateSheet();
+
+  @override
+  State<_UpdateRateSheet> createState() => _UpdateRateSheetState();
+}
+
+class _UpdateRateSheetState extends State<_UpdateRateSheet> {
+  static const _bg = Color(0xFF1E293B);
+  static const _card = Color(0xFF334155);
+  static const _amber = Color(0xFFFBBF24);
+  static const _textPrimary = Color(0xFFF8FAFC);
+  static const _textSecondary = Color(0xFF94A3B8);
+
+  final _rateCtrl = TextEditingController(text: '93.21');
+
+  @override
+  void dispose() {
+    _rateCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: _bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Update Fuel Rate',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _textPrimary)),
+            const SizedBox(height: 4),
+            const Text('Set the current rate per litre for new dispensing entries',
+                style: TextStyle(fontSize: 13, color: _textSecondary)),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _rateCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              autofocus: true,
+              style: const TextStyle(color: _textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
+              decoration: InputDecoration(
+                hintText: 'e.g. 97.50',
+                hintStyle: const TextStyle(color: _textSecondary),
+                prefixText: '₹ ',
+                prefixStyle: const TextStyle(
+                    color: _amber, fontWeight: FontWeight.w700, fontSize: 22),
+                suffixText: '/L',
+                suffixStyle: const TextStyle(color: _textSecondary, fontSize: 16),
+                filled: true,
+                fillColor: _card,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _amber, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  final rate = double.tryParse(_rateCtrl.text);
+                  if (rate == null || rate <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Enter a valid rate'), backgroundColor: Color(0xFFEF4444)),
+                    );
+                    return;
+                  }
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Rate updated to ₹${rate.toStringAsFixed(2)}/L'),
+                      backgroundColor: const Color(0xFF10B981),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _amber,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                child: const Text('Save Rate'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

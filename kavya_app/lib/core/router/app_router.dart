@@ -40,6 +40,8 @@ import '../../screens/pump/pump_home_screen.dart';
 import '../../screens/pump/pump_dashboard_screen.dart';
 import '../../screens/pump/pump_fuel_log_screen.dart';
 import '../../screens/pump/pump_dispense_screen.dart';
+import '../../screens/pump/pump_reports_screen.dart';
+import '../../screens/pump/pump_tank_refill_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -258,16 +260,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => PumpHomeScreen(navigationShell: navigationShell),
         branches: [
+          // index 0 → Dashboard
           StatefulShellBranch(routes: [
             GoRoute(path: '/pump/home', builder: (context, state) => const PumpDashboardScreen()),
           ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/pump/log', builder: (context, state) => const PumpFuelLogScreen()),
-          ]),
+          // index 1 → Dispense (was wrongly index 2)
           StatefulShellBranch(routes: [
             GoRoute(path: '/pump/dispense', builder: (context, state) => const PumpDispenseScreen()),
           ]),
+          // index 2 → Log (was wrongly index 1)
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/pump/log', builder: (context, state) => const PumpFuelLogScreen()),
+          ]),
+          // index 3 → Reports (new)
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/pump/reports', builder: (context, state) => const PumpReportsScreen()),
+          ]),
         ],
+      ),
+      // Standalone refill screen (no bottom nav)
+      GoRoute(
+        path: '/pump/refill',
+        builder: (context, state) => const PumpTankRefillScreen(),
       ),
     ],
   );

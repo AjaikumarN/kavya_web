@@ -284,6 +284,9 @@ function App() {
           <Route path="/pump/alerts" element={<PumpAlertsPage />} />
           <Route path="/pump/reports" element={<PumpReportsPage />} />
 
+          {/* Generic profile redirect — roles each have their own profile section */}
+          <Route path="/profile" element={<Navigate to={getRoleHomePage(user?.roles?.[0])} replace />} />
+
           {/* Admin */}
           <Route
             path="/admin/connectivity"

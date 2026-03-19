@@ -69,6 +69,11 @@ class PumpHomeScreen extends ConsumerWidget {
             selectedIcon: Icon(Icons.list_alt, color: Color(0xFFFBBF24)),
             label: 'Log',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined, color: Colors.white70),
+            selectedIcon: Icon(Icons.bar_chart, color: Color(0xFFFBBF24)),
+            label: 'Reports',
+          ),
         ],
       ),
     );

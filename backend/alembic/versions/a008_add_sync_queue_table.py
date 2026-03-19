@@ -14,6 +14,7 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("DO $$ BEGIN CREATE TYPE syncactionstatus AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CONFLICT'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
     op.create_table(
         "sync_queue",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -26,7 +27,7 @@ def upgrade():
         sa.Column("client_action_id", sa.String(100), nullable=True, index=True),
         sa.Column(
             "status",
-            sa.Enum("PENDING", "PROCESSING", "COMPLETED", "FAILED", "CONFLICT", name="syncactionstatus"),
+            sa.Enum("PENDING", "PROCESSING", "COMPLETED", "FAILED", "CONFLICT", name="syncactionstatus", create_type=False),
             nullable=False,
             server_default="PENDING",
         ),

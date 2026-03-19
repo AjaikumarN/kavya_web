@@ -35,17 +35,6 @@ const normalizeTripStatus = (status?: string) => {
   return 'SCHEDULED';
 };
 
-const formatTripStartDate = (value: any) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-
-  // Backend placeholder values can resolve to unix epoch in UI.
-  if (date.getFullYear() <= 1971) return '—';
-
-  return date.toLocaleDateString('en-IN');
-};
-
 export default function TripsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -91,82 +80,7 @@ export default function TripsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, action, currentStatus }: { id: string; action: string; currentStatus?: string }) => {
-      const normalizedCurrent = String(currentStatus || '').trim().toLowerCase();
-
-      if (action === 'start') {
-        if (normalizedCurrent === 'vehicle_assigned') {
-          await api.post(`/trips/${id}/status`, {
-            status: 'driver_assigned',
-            remarks: 'Auto-progressed to driver_assigned before start',
-          });
-          await api.post(`/trips/${id}/status`, {
-            status: 'ready',
-            remarks: 'Auto-progressed to ready before start',
-          });
-          return await api.put(`/trips/${id}/start`);
-        }
-
-        if (normalizedCurrent === 'driver_assigned') {
-          await api.post(`/trips/${id}/status`, {
-            status: 'ready',
-            remarks: 'Auto-progressed to ready before start',
-          });
-          return await api.put(`/trips/${id}/start`);
-        }
-      }
-
-      try {
-        return await api.put(`/trips/${id}/${action}`);
-      } catch (error: any) {
-        const detail = String(error?.response?.data?.detail || '');
-        const lowerDetail = detail.toLowerCase();
-
-        if (action === 'start' && lowerDetail.includes('cannot transition from')) {
-          const tryPrepareReady = async () => {
-            try {
-              await api.post(`/trips/${id}/status`, {
-                status: 'ready',
-                remarks: 'Auto-progressed to ready before start',
-              });
-              return;
-            } catch {
-              // Try other backend variants below.
-            }
-
-            try {
-              await api.put(`/trips/${id}`, { status: 'ready' });
-              return;
-            } catch {
-              // Try enum-style status as final fallback.
-            }
-
-            try {
-              await api.put(`/trips/${id}`, { status: 'READY' });
-            } catch {
-              // Ignore and still attempt direct start/status.
-            }
-          };
-
-          await tryPrepareReady();
-
-          try {
-            return await api.put(`/trips/${id}/start`);
-          } catch (retryError: any) {
-            const retryDetail = String(retryError?.response?.data?.detail || '').toLowerCase();
-            if (retryDetail.includes('cannot transition from')) {
-              return await api.post(`/trips/${id}/status`, {
-                status: 'started',
-                remarks: 'Started via generic status endpoint fallback',
-              });
-            }
-            throw retryError;
-          }
-        }
-
-        throw error;
-      }
-    },
+    mutationFn: ({ id, action }: { id: string; action: string }) => api.put(`/trips/${id}/${action}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trips'] });
       toast.success('Trip status updated');
@@ -185,8 +99,7 @@ export default function TripsPage() {
   });
 
   const updateTripStatus = (id: string, action: string) => {
-    const trip = rows.find((r) => String(r.id) === id);
-    statusMutation.mutate({ id, action, currentStatus: String(trip?.status || '') });
+    statusMutation.mutate({ id, action });
   };
 
   const vehicleRows = safeArray<any>((vehiclesData as any)?.items ?? vehiclesData);
@@ -257,7 +170,7 @@ export default function TripsPage() {
       key: 'planned_start',
       header: 'Start Date',
       sortable: true,
-      render: (t) => formatTripStartDate(t.planned_start),
+      render: (t) => new Date(t.planned_start).toLocaleDateString('en-IN'),
     },
     {
       key: 'total_distance',
@@ -348,7 +261,7 @@ export default function TripsPage() {
         { header: 'Driver', accessor: (t: any) => getDriverLabel(t) },
         { header: 'Origin', accessor: (t: any) => t.origin },
         { header: 'Destination', accessor: (t: any) => t.destination },
-        { header: 'Start Date', accessor: (t: any) => formatTripStartDate(t.planned_start) },
+        { header: 'Start Date', accessor: (t: any) => (t.planned_start ? new Date(t.planned_start).toLocaleDateString('en-IN') : '-') },
         { header: 'Distance', accessor: (t: any) => (t.total_distance ? `${t.total_distance} km` : '-') },
         { header: 'Expenses', accessor: (t: any) => (t.total_expenses ? `INR ${Number(t.total_expenses).toLocaleString('en-IN')}` : '-') },
         { header: 'Status', accessor: (t: any) => normalizeTripStatus(t.status).replace('_', ' ') },

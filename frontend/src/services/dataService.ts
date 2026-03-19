@@ -282,8 +282,8 @@ export const lrService = {
     return data;
   },
   print: async (id: number) => {
-    const data = await api.get(`/lr/${id}`);
-    return unwrap(data);
+    const data = await api.get(`/lr/${id}/print`);
+    return data;
   },
   getStatusHistory: async (id: number) => {
     const data = await api.get(`/lr/${id}/status-history`);

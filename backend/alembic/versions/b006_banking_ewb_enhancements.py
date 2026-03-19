@@ -1,15 +1,15 @@
 """banking entries table + ewb alert columns
 
-Revision ID: a006
-Revises: a005
+Revision ID: b006
+Revises: a011
 Create Date: 2026-03-19 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "a006"
-down_revision = "a005"
+revision = "b006"
+down_revision = "a011"
 branch_labels = None
 depends_on = None
 

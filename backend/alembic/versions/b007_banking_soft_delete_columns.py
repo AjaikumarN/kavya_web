@@ -1,7 +1,7 @@
 """add missing soft-delete columns to banking_entries
 
-Revision ID: a007
-Revises: a006
+Revision ID: b007
+Revises: b006
 Create Date: 2026-03-19 00:30:00.000000
 """
 
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "a007"
-down_revision = "a006"
+revision = "b007"
+down_revision = "b006"
 branch_labels = None
 depends_on = None
 

@@ -1,0 +1,521 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/fuel.dart';
+import '../../providers/pump_dashboard_provider.dart';
+import '../../providers/intelligence_provider.dart';
+import '../../utils/indian_format.dart';
+
+/// Pump Operator dashboard — Today's summary, tank gauge, mismatch alerts.
+/// UI: Dark slate, bold amber numbers, industrial high-contrast.
+class PumpDashboardScreen extends ConsumerWidget {
+  const PumpDashboardScreen({super.key});
+
+  static const _cardColor = Color(0xFF334155);
+  static const _amber = Color(0xFFFBBF24);
+  static const _red = Color(0xFFEF4444);
+  static const _green = Color(0xFF10B981);
+  static const _textPrimary = Color(0xFFF8FAFC);
+  static const _textSecondary = Color(0xFF94A3B8);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dashAsync = ref.watch(pumpDashboardProvider);
+
+    return dashAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
+      error: (e, _) => _errorState(ref, e.toString()),
+      data: (stats) => RefreshIndicator(
+        color: _amber,
+        onRefresh: () async {
+          ref.invalidate(pumpDashboardProvider);
+          ref.invalidate(recentEventsProvider);
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // ─── KPI Row ───
+            _sectionTitle('Today\'s Fuel Summary'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _kpiCard(
+                  icon: Icons.local_gas_station,
+                  label: 'Litres Dispensed',
+                  value: IndianFormat.litres(stats.todayIssuedLitres),
+                  color: _amber,
+                ),
+                const SizedBox(width: 12),
+                _kpiCard(
+                  icon: Icons.directions_car,
+                  label: 'Vehicles Fuelled',
+                  value: '${stats.todayIssuedCount}',
+                  color: _green,
+                ),
+                const SizedBox(width: 12),
+                _kpiCard(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Mismatch Alerts',
+                  value: '${stats.openAlerts}',
+                  color: stats.openAlerts > 0 ? _red : _green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+
+            // ─── Tank Level Gauges ───
+            _sectionTitle('Tank Levels'),
+            const SizedBox(height: 12),
+            if (stats.tanks.isEmpty)
+              _emptyCard('No fuel tanks configured')
+            else
+              ...stats.tanks.map(_tankGauge),
+
+            const SizedBox(height: 28),
+
+            // ─── Alerts ───
+            _sectionTitle('Mismatch Alerts'),
+            const SizedBox(height: 12),
+            _alertsList(ref),
+
+            const SizedBox(height: 28),
+
+            // ─── Today's Log ───
+            _sectionTitle('Today\'s Fuel Log'),
+            const SizedBox(height: 12),
+            _todayLog(ref),
+
+            const SizedBox(height: 28),
+
+            // ─── Fuel Intelligence ───
+            _fuelIntelligenceSection(ref),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: _textPrimary,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+
+  Widget _kpiCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: color,
+                fontFamily: 'JetBrains Mono',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: _textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tankGauge(FuelTank tank) {
+    final pct = tank.stockPercent;
+    final isLow = pct < 20;
+    final barColor = isLow ? _red : (pct < 50 ? _amber : _green);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                tank.name,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: _textPrimary,
+                ),
+              ),
+              if (isLow)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _red.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning, color: _red, size: 14),
+                      SizedBox(width: 4),
+                      Text('LOW FUEL', style: TextStyle(color: _red, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Tank fill bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: pct / 100,
+              minHeight: 24,
+              backgroundColor: const Color(0xFF475569),
+              color: barColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${tank.currentStockLitres.toStringAsFixed(0)} L',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: barColor,
+                  fontFamily: 'JetBrains Mono',
+                ),
+              ),
+              Text(
+                '${pct.toStringAsFixed(1)}% of ${tank.capacityLitres.toStringAsFixed(0)} L',
+                style: const TextStyle(fontSize: 13, color: _textSecondary),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertsList(WidgetRef ref) {
+    final alertsAsync = ref.watch(fuelAlertsProvider);
+    return alertsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
+      error: (e, _) => _emptyCard('Failed to load alerts'),
+      data: (alerts) {
+        if (alerts.isEmpty) {
+          return _emptyCard('No mismatch alerts — all clear');
+        }
+        return Column(
+          children: alerts.map((a) => _alertCard(a)).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _alertCard(FuelTheftAlert alert) {
+    final isCritical = alert.severity == 'critical';
+    final color = isCritical ? _red : _amber;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${alert.vehicleRegistration ?? 'Vehicle #${alert.vehicleId}'} · ${alert.alertType.replaceAll('_', ' ').toUpperCase()}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  alert.description,
+                  style: const TextStyle(fontSize: 12, color: _textSecondary),
+                ),
+                if (alert.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      IndianFormat.relativeTime(alert.createdAt!),
+                      style: const TextStyle(fontSize: 11, color: _textSecondary),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _todayLog(WidgetRef ref) {
+    final logAsync = ref.watch(todayFuelIssuesProvider);
+    return logAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
+      error: (e, _) => _emptyCard('Failed to load today\'s log'),
+      data: (issues) {
+        if (issues.isEmpty) {
+          return _emptyCard('No fuel dispensed today');
+        }
+        return Column(
+          children: issues.map((i) => _logEntry(i)).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _logEntry(FuelIssue issue) {
+    final matchColor = issue.isFlagged ? _red : _green;
+    final matchLabel = issue.isFlagged ? 'MISMATCH' : 'Matched';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          // Vehicle & Driver
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  issue.vehicleRegistration ?? 'Vehicle #${issue.vehicleId}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
+                ),
+                if (issue.driverName != null)
+                  Text(
+                    issue.driverName!,
+                    style: const TextStyle(fontSize: 12, color: _textSecondary),
+                  ),
+              ],
+            ),
+          ),
+          // Litres
+          Expanded(
+            flex: 2,
+            child: Text(
+              '${issue.quantityLitres.toStringAsFixed(1)} L',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: _amber,
+                fontFamily: 'JetBrains Mono',
+              ),
+            ),
+          ),
+          // Time
+          Expanded(
+            flex: 2,
+            child: Text(
+              IndianFormat.time(issue.issuedAt),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: _textSecondary),
+            ),
+          ),
+          // Match status
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: matchColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              matchLabel,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: matchColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fuelIntelligenceSection(WidgetRef ref) {
+    final eventsAsync = ref.watch(recentEventsProvider);
+    return eventsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (events) {
+        final fuelEvents = events
+            .where((e) =>
+                (e['event_type'] ?? '').toString().toLowerCase().contains('fuel') ||
+                (e['event_type'] ?? '').toString().toLowerCase().contains('mismatch'))
+            .toList();
+        if (fuelEvents.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle('Fuel Intelligence'),
+            const SizedBox(height: 12),
+            ...fuelEvents.take(5).map((e) => _fuelIntelCard(e as Map<String, dynamic>)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _fuelIntelCard(Map<String, dynamic> event) {
+    final payload = event['payload'] as Map<String, dynamic>? ?? {};
+    final severity = payload['severity']?.toString() ?? '';
+    final isCritical = severity == 'critical';
+    final color = isCritical ? _red : _amber;
+    final description = payload['description'] ??
+        payload['reason'] ??
+        (event['event_type'] ?? '').toString().replaceAll('_', ' ');
+    final entityId = event['entity_id']?.toString() ?? '';
+    final time = event['triggered_at'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isCritical ? Icons.local_fire_department : Icons.analytics,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description.toString(),
+                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                if (entityId.isNotEmpty)
+                  Text(
+                    'Fuel Issue #$entityId',
+                    style: const TextStyle(color: _textSecondary, fontSize: 11),
+                  ),
+                if (time != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      IndianFormat.relativeTime(DateTime.tryParse(time) ?? DateTime.now()),
+                      style: const TextStyle(color: _textSecondary, fontSize: 10),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              isCritical ? 'CRITICAL' : 'ALERT',
+              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyCard(String message) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(fontSize: 13, color: _textSecondary),
+        ),
+      ),
+    );
+  }
+
+  Widget _errorState(WidgetRef ref, String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: _red, size: 48),
+          const SizedBox(height: 16),
+          const Text(
+            'Failed to load dashboard',
+            style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(error, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _amber),
+            onPressed: () => ref.invalidate(pumpDashboardProvider),
+            child: const Text('Retry', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+}

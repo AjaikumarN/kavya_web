@@ -1,0 +1,338 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/theme/kt_colors.dart';
+import '../../core/theme/kt_text_styles.dart';
+import '../../providers/fleet_dashboard_provider.dart';
+
+class FleetCreateTripScreen extends ConsumerStatefulWidget {
+  const FleetCreateTripScreen({super.key});
+
+  @override
+  ConsumerState<FleetCreateTripScreen> createState() =>
+      _FleetCreateTripScreenState();
+}
+
+class _FleetCreateTripScreenState
+    extends ConsumerState<FleetCreateTripScreen> {
+  final _formKey = GlobalKey<FormState>();
+  bool _saving = false;
+
+  final _originCtrl = TextEditingController();
+  final _destinationCtrl = TextEditingController();
+  final _distanceCtrl = TextEditingController();
+  final _driverPayCtrl = TextEditingController();
+
+  DateTime _tripDate = DateTime.now();
+
+  // Vehicle & driver selections
+  List<Map<String, dynamic>> _vehicles = [];
+  List<Map<String, dynamic>> _drivers = [];
+  int? _selectedVehicleId;
+  int? _selectedDriverId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    try {
+      final api = ref.read(apiServiceProvider);
+      final vRes = await api.get('/vehicles/', queryParameters: {'status': 'available'});
+      final dRes = await api.get('/drivers/', queryParameters: {'status': 'available'});
+      final vPayload = vRes['data'] ?? vRes;
+      final dPayload = dRes['data'] ?? dRes;
+      if (mounted) {
+        setState(() {
+          _vehicles = (vPayload is List)
+              ? vPayload.cast<Map<String, dynamic>>()
+              : [];
+          _drivers = (dPayload is List)
+              ? dPayload.cast<Map<String, dynamic>>()
+              : [];
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _originCtrl.dispose();
+    _destinationCtrl.dispose();
+    _distanceCtrl.dispose();
+    _driverPayCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _tripDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 7)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+    );
+    if (picked != null) setState(() => _tripDate = picked);
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedVehicleId == null || _selectedDriverId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a vehicle and driver')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.post('/trips/', data: {
+        'vehicle_id': _selectedVehicleId,
+        'driver_id': _selectedDriverId,
+        'origin': _originCtrl.text.trim(),
+        'destination': _destinationCtrl.text.trim(),
+        'trip_date': _tripDate.toIso8601String().split('T').first,
+        'planned_distance_km': double.tryParse(_distanceCtrl.text.trim()),
+        'driver_pay': double.tryParse(_driverPayCtrl.text.trim()) ?? 0,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Trip created successfully')),
+        );
+        context.pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: KTColors.navy950,
+      appBar: AppBar(
+        backgroundColor: KTColors.navy900,
+        foregroundColor: KTColors.darkTextPrimary,
+        elevation: 0,
+        title: Text('Create Trip',
+            style: KTTextStyles.h2.copyWith(
+                color: KTColors.darkTextPrimary,
+                decoration: TextDecoration.none)),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _sectionLabel('Route'),
+            const SizedBox(height: 10),
+            _field('Origin *', _originCtrl,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null),
+            _field('Destination *', _destinationCtrl,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null),
+            _field('Planned Distance (km)', _distanceCtrl,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            _sectionLabel('Payment'),
+            const SizedBox(height: 10),
+            _field('Driver Payment (₹)', _driverPayCtrl,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            _sectionLabel('Schedule'),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: _pickDate,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: KTColors.navy800,
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: KTColors.navy700),
+                ),
+                child: Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${_tripDate.year}-${_tripDate.month.toString().padLeft(2, '0')}-${_tripDate.day.toString().padLeft(2, '0')}',
+                      style: KTTextStyles.body.copyWith(
+                          color: KTColors.darkTextPrimary),
+                    ),
+                    const Icon(Icons.calendar_today,
+                        size: 18,
+                        color: KTColors.amber500),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _sectionLabel('Assignment'),
+            const SizedBox(height: 10),
+            // Vehicle picker
+            DropdownButtonFormField<int>(
+              initialValue: _selectedVehicleId,
+              dropdownColor: KTColors.navy800,
+              style: KTTextStyles.body
+                  .copyWith(color: KTColors.darkTextPrimary),
+              hint: Text('Select Vehicle',
+                  style: KTTextStyles.body.copyWith(
+                      color: KTColors.darkTextSecondary)),
+              decoration: _dropDecor('Vehicle *'),
+              items: _vehicles.map((v) {
+                final reg = v['registration_number'] ??
+                    v['reg_number'] ??
+                    '#${v['id']}';
+                final make = v['make'] ?? '';
+                return DropdownMenuItem<int>(
+                  value: v['id'] as int?,
+                  child: Text('$reg${make.isNotEmpty ? ' ($make)' : ''}'),
+                );
+              }).toList(),
+              onChanged: (v) =>
+                  setState(() => _selectedVehicleId = v),
+              validator: (v) =>
+                  v == null ? 'Select a vehicle' : null,
+            ),
+            const SizedBox(height: 12),
+            // Driver picker
+            DropdownButtonFormField<int>(
+              initialValue: _selectedDriverId,
+              dropdownColor: KTColors.navy800,
+              style: KTTextStyles.body
+                  .copyWith(color: KTColors.darkTextPrimary),
+              hint: Text('Select Driver',
+                  style: KTTextStyles.body.copyWith(
+                      color: KTColors.darkTextSecondary)),
+              decoration: _dropDecor('Driver *'),
+              items: _drivers.map((d) {
+                final name =
+                    '${d['first_name'] ?? ''} ${d['last_name'] ?? ''}'
+                        .trim();
+                return DropdownMenuItem<int>(
+                  value: d['id'] as int?,
+                  child: Text(
+                      name.isNotEmpty ? name : 'Driver #${d['id']}'),
+                );
+              }).toList(),
+              onChanged: (v) =>
+                  setState(() => _selectedDriverId = v),
+              validator: (v) =>
+                  v == null ? 'Select a driver' : null,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KTColors.amber500,
+                  foregroundColor: KTColors.navy900,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: KTColors.navy900))
+                    : Text('Create Trip',
+                        style: KTTextStyles.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: KTColors.navy900)),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Text(text,
+        style: KTTextStyles.h3.copyWith(
+            color: KTColors.amber500,
+            decoration: TextDecoration.none));
+  }
+
+  InputDecoration _dropDecor(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: KTTextStyles.label
+          .copyWith(color: KTColors.darkTextSecondary),
+      filled: true,
+      fillColor: KTColors.navy800,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: KTColors.navy700),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: KTColors.navy700),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: KTColors.amber500),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: KTColors.danger),
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController ctrl,
+      {TextInputType keyboardType = TextInputType.text,
+      String? Function(String?)? validator}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: ctrl,
+        keyboardType: keyboardType,
+        validator: validator,
+        style: KTTextStyles.body
+            .copyWith(color: KTColors.darkTextPrimary),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: KTTextStyles.label
+              .copyWith(color: KTColors.darkTextSecondary),
+          filled: true,
+          fillColor: KTColors.navy800,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.navy700),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.navy700),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.amber500),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.danger),
+          ),
+        ),
+      ),
+    );
+  }
+}

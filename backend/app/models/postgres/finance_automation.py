@@ -193,6 +193,9 @@ class DriverSettlement(Base, TimestampMixin, SoftDeleteMixin):
     # Driver
     driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=False)
 
+    # Linked trip (per-trip settlement)
+    trip_id = Column(Integer, ForeignKey("trips.id"), nullable=True)
+
     # Period
     period_from = Column(Date, nullable=False)
     period_to = Column(Date, nullable=False)
@@ -224,6 +227,8 @@ class DriverSettlement(Base, TimestampMixin, SoftDeleteMixin):
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     paid_at = Column(DateTime, nullable=True)
+    paid_date = Column(Date, nullable=True)
+    payment_method_str = Column(String(50), nullable=True)
     payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True)
 
     # Remarks

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/connectivity_provider.dart';
+import '../../../providers/notifications_provider.dart';
 import '../../../core/widgets/offline_banner.dart';
 
 class DriverHomeScreen extends ConsumerWidget {
@@ -21,9 +21,22 @@ class DriverHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Hi, ${user?.fullName ?? 'Driver'}'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => context.push('/driver/notifications'),
+          Consumer(
+            builder: (ctx, ref, _) {
+              final unread = ref.watch(unreadCountProvider);
+              return Badge(
+                isLabelVisible: unread > 0,
+                label: Text(
+                  '$unread',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                ),
+                backgroundColor: KTColors.danger,
+                child: IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  onPressed: () => ctx.push('/driver/notifications'),
+                ),
+              );
+            },
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),

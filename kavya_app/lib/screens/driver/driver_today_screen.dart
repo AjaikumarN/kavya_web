@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,21 +17,105 @@ import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
 import '../../services/api_service.dart';
+import '../../services/notification_service.dart';
 
 import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 
-class DriverTodayScreen extends ConsumerWidget {
+class DriverTodayScreen extends ConsumerStatefulWidget {
   const DriverTodayScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tripsAsync = ref.watch(tripsProvider);
+  ConsumerState<DriverTodayScreen> createState() => _DriverTodayScreenState();
+}
+
+class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
+  final Set<int> _loadingTripIds = {};
+
+  Future<void> _acceptTrip(Trip trip) async {
+    setState(() => _loadingTripIds.add(trip.id));
+    try {
+      await ref.read(tripsPaginatedProvider.notifier).updateTripStatus(trip.id, 'ready');
+      ref.invalidate(tripsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Trip ${trip.tripNumber} accepted!'),
+            backgroundColor: KTColors.success,
+          ),
+        );
+      }
+      // Notify driver about the accepted trip
+      NotificationService().showTripEvent(
+        title: 'Congratulations! 🎉',
+        body: "You're on a trip from ${trip.origin} → ${trip.destination}",
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: KTColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingTripIds.remove(trip.id));
+    }
+  }
+
+  Future<void> _declineTrip(Trip trip) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Decline Trip?'),
+        content: Text('Are you sure you want to decline trip ${trip.tripNumber}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: KTColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Decline'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _loadingTripIds.add(trip.id));
+    try {
+      await ref.read(tripsPaginatedProvider.notifier).updateTripStatus(trip.id, 'vehicle_assigned');
+      ref.invalidate(tripsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Trip ${trip.tripNumber} declined'),
+            backgroundColor: KTColors.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: KTColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingTripIds.remove(trip.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final paginatedAsync = ref.watch(tripsPaginatedProvider);
     final attendanceAsync = ref.watch(attendanceProvider);
-    final activeTrip = ref.watch(activeTripProvider);
     final recentExpense = ref.watch(recentExpenseProvider);
     final user = ref.watch(authProvider).user;
     final driverId = int.tryParse(user?.id ?? '') ?? 0;
+
+    // Derive active trip, pending trips, and other trips from ONE source
+    final allTrips = paginatedAsync.maybeWhen(
+      data: (pd) => pd.items,
+      orElse: () => <Trip>[],
+    );
+    final activeTrip = allTrips.where((t) => t.isActive).firstOrNull;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -147,13 +232,19 @@ class DriverTodayScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 20),
 
-          // Today's Trips Summary
-          const SectionHeader(title: 'Today\'s Trips'),
+          // Available Trips
+          const SectionHeader(title: 'Available Trips'),
           const SizedBox(height: 12),
-          tripsAsync.when(
-            data: (trips) {
-              final todayTrips = trips;
-              if (todayTrips.isEmpty) {
+          paginatedAsync.when(
+            data: (paginatedData) {
+              // Only show pending-acceptance and non-active/non-terminal trips
+              final pendingTrips = paginatedData.items.where((t) => t.isPendingAcceptance).toList();
+              final otherTrips = paginatedData.items.where((t) =>
+                  !t.isPendingAcceptance &&
+                  !t.isActive &&
+                  t.status != 'completed' &&
+                  t.status != 'cancelled').toList();
+              if (pendingTrips.isEmpty && otherTrips.isEmpty) {
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -162,19 +253,24 @@ class DriverTodayScreen extends ConsumerWidget {
                         children: [
                           Icon(Icons.assignment, color: Colors.grey.shade400, size: 48),
                           const SizedBox(height: 12),
-                          const Text('No trips today', style: TextStyle(color: KTColors.textSecondary)),
+                          const Text('No trips available', style: TextStyle(color: KTColors.textSecondary)),
                         ],
                       ),
                     ),
                   ),
                 );
               }
-              return ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: todayTrips.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, index) => _tripCard(context, todayTrips[index]),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pending acceptance trips with Accept/Decline
+                  ...pendingTrips.map((trip) => _pendingTripCard(context, trip)),
+                  // Already accepted / other trips
+                  ...otherTrips.map((trip) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _tripCard(context, trip),
+                  )),
+                ],
               );
             },
             loading: () => Column(
@@ -248,6 +344,28 @@ class DriverTodayScreen extends ConsumerWidget {
                   Icons.notifications_active,
                   'Notifications',
                   () => context.push('/driver/notifications'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _quickActionButton(
+                  context,
+                  Icons.account_balance_wallet,
+                  'My Earnings',
+                  () => context.push('/driver/settlement'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _quickActionButton(
+                  context,
+                  Icons.local_shipping,
+                  'Vehicle',
+                  () => context.push('/driver/vehicle'),
                 ),
               ),
             ],
@@ -604,6 +722,189 @@ class DriverTodayScreen extends ConsumerWidget {
     );
   }
 
+  Widget _pendingTripCard(BuildContext context, Trip trip) {
+    final isLoading = _loadingTripIds.contains(trip.id);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            KTColors.primary.withValues(alpha: 0.12),
+            KTColors.primary.withValues(alpha: 0.04),
+          ],
+        ),
+        border: Border.all(color: KTColors.primary.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Row
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: KTColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.local_shipping, color: KTColors.primary, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'New Trip Assigned',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: KTColors.primary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        trip.tripNumber,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: KTColors.warning.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: KTColors.warning.withValues(alpha: 0.4)),
+                  ),
+                  child: const Text(
+                    'PENDING',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: KTColors.warning,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // Route Info
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: KTColors.cardSurfaceDark,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 10, height: 10,
+                        decoration: BoxDecoration(
+                          color: KTColors.success,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                      Container(
+                        width: 2, height: 28,
+                        color: KTColors.textMuted.withValues(alpha: 0.3),
+                      ),
+                      Container(
+                        width: 10, height: 10,
+                        decoration: BoxDecoration(
+                          color: KTColors.danger,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          trip.origin ?? 'Origin',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: KTColors.textPrimary),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          trip.destination ?? 'Destination',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: KTColors.textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trip.startDate != null) ...[              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 13, color: KTColors.textMuted),
+                  const SizedBox(width: 6),
+                  Text(_formatTripDate(trip.startDate!), style: const TextStyle(fontSize: 12, color: KTColors.textMuted)),
+                ],
+              ),
+            ],
+            const SizedBox(height: 18),
+
+            // Accept / Decline Buttons
+            if (isLoading)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(12),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ))
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: KTColors.danger,
+                        side: const BorderSide(color: KTColors.danger, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => _declineTrip(trip),
+                      label: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KTColors.success,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.check, size: 18),
+                      onPressed: () => _acceptTrip(trip),
+                      label: const Text('Accept Trip', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _tripCard(BuildContext context, Trip trip) {
     return Card(
       child: ListTile(
@@ -614,6 +915,9 @@ class DriverTodayScreen extends ConsumerWidget {
           children: [
             const SizedBox(height: 4),
             Text('${trip.origin} → ${trip.destination}', style: const TextStyle(fontSize: 12)),
+            if (trip.startDate != null) ...[              const SizedBox(height: 4),
+              Text(_formatTripDate(trip.startDate!), style: const TextStyle(fontSize: 11, color: KTColors.textMuted)),
+            ],
           ],
         ),
         trailing: Container(
@@ -652,9 +956,21 @@ class DriverTodayScreen extends ConsumerWidget {
     );
   }
 
+  String _formatTripDate(String raw) {
+    try {
+      final dt = DateTime.parse(raw);
+      final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]} ${dt.year}';
+    } catch (_) {
+      return raw.split('T').first;
+    }
+  }
+
   double _getProgressPercentage(String status) {
     switch (status) {
       case 'pending': return 0.0;
+      case 'driver_assigned': return 0.05;
+      case 'ready': return 0.15;
       case 'started': return 0.25;
       case 'in_transit': return 0.5;
       case 'loading': return 0.75;
@@ -666,6 +982,8 @@ class DriverTodayScreen extends ConsumerWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending': return KTColors.warning;
+      case 'driver_assigned': return KTColors.warning;
+      case 'ready': return KTColors.info;
       case 'started': return KTColors.info;
       case 'in_transit': return KTColors.primary;
       case 'completed': return KTColors.success;
@@ -766,7 +1084,6 @@ class _SOSButton extends StatefulWidget {
 class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _triggered = false;
-  bool _sending = false;
 
   @override
   void initState() {
@@ -803,7 +1120,6 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
       return;
     }
 
-    setState(() => _sending = true);
     try {
       final apiService = ApiService();
       // Attempt to get current location
@@ -817,37 +1133,182 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
         // Location unavailable — send SOS anyway
       }
 
-      await apiService.triggerSOS(widget.tripId!, latitude: lat, longitude: lng);
+      // Reverse-geocode the coordinates into a human-readable address
+      String? locationName;
+      if (lat != null && lng != null) {
+        locationName = await _reverseGeocode(lat, lng);
+      }
+
+      final response = await apiService.triggerSOS(
+        widget.tripId!,
+        latitude: lat,
+        longitude: lng,
+        locationName: locationName,
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🚨 SOS Alert Sent! Admin has been notified.'),
-            backgroundColor: Color(0xFFEF4444),
-            duration: Duration(seconds: 4),
+        // Extract details from response
+        final data = (response['data'] is Map)
+            ? response['data'] as Map
+            : <String, dynamic>{};
+        final tripNumber = data['trip_number'] ?? '';
+        final driverName = data['driver_name'] ?? '';
+        final vehicleReg = data['vehicle_registration'] ?? '';
+        final origin = data['origin'] ?? '';
+        final destination = data['destination'] ?? '';
+        final ecName = data['emergency_contact_name'];
+        final ecPhone = data['emergency_contact_phone'];
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1B2E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: const [
+                Icon(Icons.emergency, color: Color(0xFFEF4444), size: 28),
+                SizedBox(width: 10),
+                Text('🆘 SOS Alert Sent!',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Admin & Fleet Managers have been notified immediately.',
+                    style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
+                const SizedBox(height: 16),
+                _sosInfoRow(Icons.local_shipping, 'Trip', tripNumber),
+                _sosInfoRow(Icons.person, 'Driver', driverName),
+                _sosInfoRow(Icons.directions_car, 'Vehicle', vehicleReg),
+                _sosInfoRow(Icons.route, 'Route', '$origin → $destination'),
+                if (ecName != null && ecName.toString().isNotEmpty)
+                  _sosInfoRow(Icons.phone_in_talk, 'Emergency Contact', '$ecName: $ecPhone'),
+                if (locationName != null)
+                  _sosInfoRow(Icons.location_on, 'Location', locationName)
+                else if (lat != null)
+                  _sosInfoRow(Icons.location_on, 'Location', '${lat.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    'Stay calm. Help is on the way. Use your emergency contacts if needed.',
+                    style: TextStyle(color: Color(0xFFEF4444), fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK, I understand'),
+              ),
+            ],
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('SOS failed to send. Please call emergency contacts directly. ($e)'),
-            backgroundColor: Color(0xFFEF4444),
-            duration: const Duration(seconds: 6),
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1B2E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('SOS Failed', style: TextStyle(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 48),
+                const SizedBox(height: 12),
+                const Text(
+                  'Could not send SOS alert automatically.\nPlease call emergency contacts directly.',
+                  style: TextStyle(color: Color(0xFF9CA3AF)),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK', style: TextStyle(color: Color(0xFFEF4444))),
+              ),
+            ],
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _sending = false;
-        });
-      }
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) setState(() => _triggered = false);
       });
     }
+  }
+
+  Widget _sosInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF6B7280)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(text: '$label: ', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                  TextSpan(text: value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Calls OpenStreetMap Nominatim to convert GPS coordinates into a
+  /// human-readable address string sent to Admin/Fleet Manager with the SOS.
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    try {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 6),
+        headers: {'User-Agent': 'KavyaTransportERP/1.0 (emergency_sos)'},
+      ));
+      final response = await dio.get<Map<String, dynamic>>(
+        'https://nominatim.openstreetmap.org/reverse',
+        queryParameters: {'lat': lat, 'lon': lng, 'format': 'json'},
+      );
+      final data = response.data;
+      if (data != null) {
+        final addr = data['address'] as Map?;
+        if (addr != null) {
+          final parts = <String>[];
+          final road = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
+          if (road != null) parts.add(road.toString());
+          final city = addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['county'];
+          if (city != null) parts.add(city.toString());
+          final state = addr['state'];
+          if (state != null) parts.add(state.toString());
+          if (parts.isNotEmpty) return parts.join(', ');
+        }
+        return data['display_name']?.toString();
+      }
+    } catch (e) {
+      debugPrint('[SOS] Reverse geocode failed: $e');
+    }
+    return null;
   }
 
   Future<(double, double)?> _getCurrentPosition() async {

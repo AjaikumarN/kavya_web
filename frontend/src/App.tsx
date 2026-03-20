@@ -79,6 +79,7 @@ import DocumentUploadPage from '@/pages/documents/DocumentUploadPage';
 
 // Settings
 import SettingsPage from '@/pages/settings/SettingsPage';
+import ProfilePage from '@/pages/settings/ProfilePage';
 
 // Fleet Manager
 import FleetDashboardPage from '@/pages/fleet/FleetDashboardPage';
@@ -286,8 +287,8 @@ function App() {
           <Route path="/pump/reports" element={<PumpReportsPage />} />
           <Route path="/pump/fuel-verification" element={<FuelVerificationPage />} />
 
-          {/* Generic profile redirect — roles each have their own profile section */}
-          <Route path="/profile" element={<Navigate to={getRoleHomePage(user?.roles?.[0])} replace />} />
+          {/* Profile page */}
+          <Route path="/profile" element={<ProfilePage />} />
 
           {/* Admin */}
           <Route

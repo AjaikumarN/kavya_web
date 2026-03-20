@@ -57,7 +57,7 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedMode,
+                initialValue: selectedMode,
                 decoration: const InputDecoration(labelText: "Payment Mode"), // [cite: 77]
                 items: ['NEFT', 'RTGS', 'Cheque', 'Cash', 'UPI'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                 onChanged: (val) => setModalState(() => selectedMode = val!),

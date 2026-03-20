@@ -9,11 +9,13 @@ from app.core.security import TokenData, get_current_user
 from app.db.mongodb.connection import MongoDB
 from app.db.postgres.connection import get_db
 from app.middleware.permissions import Permissions, require_permission
-from app.models.postgres.trip import TripExpense, TripFuelEntry
+from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatusEnum
 from app.models.postgres.user import EmployeeAttendance, User, Role, user_roles
+from app.models.postgres.driver import Driver
 from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
 from app.schemas.base import APIResponse
-from app.services import dashboard_service, driver_service, eway_service, finance_service
+from app.schemas.trip import TripExpenseCreate
+from app.services import dashboard_service, driver_service, eway_service, finance_service, trip_service
 
 router = APIRouter()
 
@@ -81,8 +83,106 @@ async def alias_expenses(
         'description': e.description,
         'expense_date': e.expense_date.isoformat() if e.expense_date else None,
         'is_verified': bool(e.is_verified),
+        'status': (e.expense_status.value.lower() if hasattr(e.expense_status, 'value') else str(e.expense_status or 'pending').lower()),
     } for e in rows]
     return APIResponse(success=True, data={'items': items, 'total': total, 'page': page, 'limit': limit}, message='ok')
+
+
+@router.post('/expenses', response_model=APIResponse, status_code=201)
+async def alias_add_expense(
+    data: TripExpenseCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_CREATE)),
+):
+    """Add expense. Auto-resolves the driver's active trip."""
+    # Resolve driver_id from current user
+    result = await db.execute(select(Driver.id).where(Driver.user_id == current_user.user_id))
+    driver_id = result.scalar_one_or_none()
+
+    # Find an active trip for this driver
+    active_statuses = [
+        TripStatusEnum.STARTED,
+        TripStatusEnum.LOADING,
+        TripStatusEnum.IN_TRANSIT,
+        TripStatusEnum.UNLOADING,
+    ]
+    trip_query = select(Trip.id).where(Trip.status.in_(active_statuses))
+    if driver_id:
+        trip_query = trip_query.where(Trip.driver_id == driver_id)
+    trip_query = trip_query.order_by(Trip.updated_at.desc()).limit(1)
+    trip_row = (await db.execute(trip_query)).scalar_one_or_none()
+
+    if not trip_row:
+        # Fallback: most recent non-cancelled trip for this driver
+        fallback_query = (
+            select(Trip.id)
+            .where(Trip.status != TripStatusEnum.CANCELLED)
+        )
+        if driver_id:
+            fallback_query = fallback_query.where(Trip.driver_id == driver_id)
+        fallback_query = fallback_query.order_by(Trip.updated_at.desc()).limit(1)
+        trip_row = (await db.execute(fallback_query)).scalar_one_or_none()
+
+    if not trip_row:
+        raise HTTPException(status_code=400, detail="No active trip found for this driver")
+
+    # Biometric threshold enforcement (hardcoded ₹500 – system_config table may not exist)
+    threshold = 500.0
+    if data.amount >= threshold and not data.biometric_verified:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Biometric verification required for expenses >= ₹{threshold}",
+        )
+
+    expense_data = data.model_dump()
+    expense = await trip_service.add_trip_expense(db, trip_row, expense_data, current_user.user_id)
+    return APIResponse(success=True, data={"id": expense.id}, message="Expense added")
+
+
+@router.patch('/expenses/{expense_id}/status', response_model=APIResponse)
+async def alias_update_expense_status(
+    expense_id: int,
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_APPROVE)),
+):
+    """Update expense status: approved / rejected / paid. Used by admin + accountant Flutter screens."""
+    from app.models.postgres.trip import ExpenseStatusEnum
+
+    expense = await db.get(TripExpense, expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    new_status = (payload.get('status') or '').strip().lower()
+    valid = {'approved', 'rejected', 'paid'}
+    if new_status not in valid:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid)}")
+
+    roles = {str(r).lower() for r in (current_user.roles or [])}
+    is_admin_or_accountant = 'admin' in roles or 'accountant' in roles
+    if not is_admin_or_accountant:
+        raise HTTPException(status_code=403, detail="Only admin/accountant can change expense status")
+
+    if new_status == 'approved':
+        expense.is_verified = True
+        expense.verified_by = current_user.user_id
+        expense.verified_at = datetime.utcnow()
+        expense.expense_status = ExpenseStatusEnum.APPROVED
+    elif new_status == 'rejected':
+        expense.is_verified = False
+        expense.verified_by = current_user.user_id
+        expense.verified_at = datetime.utcnow()
+        expense.verification_remarks = payload.get('reason', 'Rejected')
+        expense.expense_status = ExpenseStatusEnum.REJECTED
+    elif new_status == 'paid':
+        if expense.expense_status != ExpenseStatusEnum.APPROVED:
+            raise HTTPException(status_code=400, detail="Only approved expenses can be marked as paid")
+        expense.paid_by = current_user.user_id
+        expense.paid_at = datetime.utcnow()
+        expense.expense_status = ExpenseStatusEnum.PAID
+
+    await db.commit()
+    return APIResponse(success=True, message=f"Expense {new_status}")
 
 
 @router.get('/fuel', response_model=APIResponse)

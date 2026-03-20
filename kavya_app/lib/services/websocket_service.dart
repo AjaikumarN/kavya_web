@@ -57,8 +57,6 @@ class WebSocketService {
   String? _wsUrl;
   WebSocketChannel? _channel;
   
-  WebSocketStream<Trip>? _tripUpdatesStream;
-
   Stream<Trip> get tripUpdates => _tripUpdatesController.stream;
   Stream<bool> get connectionStatus => _connectionController.stream;
   Stream<WebSocketMessage> get messages => _messageController.stream;

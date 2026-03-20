@@ -34,12 +34,12 @@ class Trip {
   factory Trip.fromJson(Map<String, dynamic> json) => Trip(
         id: json['id'] as int,
         tripNumber: json['trip_number'] as String? ?? '',
-        status: json['status'] as String? ?? 'pending',
+        status: (json['status'] as String? ?? 'pending').toLowerCase(),
         origin: json['origin'] as String?,
         destination: json['destination'] as String?,
         vehicleNumber: json['vehicle_number'] as String?,
         driverId: json['driver_id'] as int?,
-        startDate: json['start_date'] as String?,
+        startDate: (json['trip_date'] ?? json['start_date'] ?? json['planned_start']) as String?,
         endDate: json['end_date'] as String?,
         distanceKm: (json['distance_km'] as num?)?.toDouble(),
         freightAmount: (json['freight_amount'] as num?)?.toDouble(),
@@ -66,5 +66,7 @@ class Trip {
       };
 
   bool get isActive =>
-      status == 'in_transit' || status == 'started' || status == 'loading';
+      status == 'in_transit' || status == 'started' || status == 'loading' || status == 'ready';
+
+  bool get isPendingAcceptance => status == 'driver_assigned';
 }

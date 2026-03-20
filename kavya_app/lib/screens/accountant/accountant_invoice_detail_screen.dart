@@ -65,7 +65,7 @@ class AccountantInvoiceDetailScreen extends ConsumerWidget {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
-                    headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                    headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
                     columns: const [
                       DataColumn(label: Text("Description")),
                       DataColumn(label: Text("Qty")),

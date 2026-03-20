@@ -1,221 +1,224 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/notification_provider.dart';
+import 'package:go_router/go_router.dart';
+import '../../models/notification.dart';
+import '../../providers/notifications_provider.dart';
 import '../../core/theme/kt_colors.dart';
-import '../../core/theme/kt_text_styles.dart';
-import '../../core/widgets/kt_loading_shimmer.dart';
-import 'package:shimmer/shimmer.dart';
 
 class DriverNotificationsScreen extends ConsumerWidget {
   const DriverNotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notificationsAsync = ref.watch(notificationsProvider);
+    final notifications = ref.watch(notificationsProvider);
 
     return Scaffold(
+      backgroundColor: KTColors.darkBg,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        backgroundColor: KTColors.darkSurface,
+        title: const Text('Notifications',
+            style: TextStyle(color: KTColors.textPrimary)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textPrimary),
+          onPressed: () => context.pop(),
+        ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Center(
-              child: TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.done_all, color: Colors.white, size: 18),
-                label: const Text('Mark All Read', style: TextStyle(color: Colors.white, fontSize: 12)),
+          if (notifications.any((n) => !n.read))
+            TextButton.icon(
+              onPressed: () =>
+                  ref.read(notificationsProvider.notifier).markAllAsRead(),
+              icon: const Icon(Icons.done_all_rounded,
+                  color: KTColors.primary, size: 18),
+              label: const Text('Mark all read',
+                  style: TextStyle(color: KTColors.primary, fontSize: 12)),
+            ),
+        ],
+        elevation: 0,
+      ),
+      body: notifications.isEmpty
+          ? _buildEmpty()
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: notifications.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => _NotifCard(
+                notif: notifications[i],
+                onTap: () => ref
+                    .read(notificationsProvider.notifier)
+                    .markAsRead(notifications[i].id),
               ),
             ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: const BoxDecoration(
+              color: KTColors.darkElevated,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.notifications_off_outlined,
+                size: 40, color: KTColors.textMuted),
           ),
+          const SizedBox(height: 20),
+          const Text('All caught up!',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: KTColors.textPrimary)),
+          const SizedBox(height: 8),
+          const Text('Trip updates will appear here.',
+              style: TextStyle(fontSize: 14, color: KTColors.textSecondary)),
         ],
       ),
-      body: notificationsAsync.when(
-        data: (notifications) {
-          if (notifications.isEmpty) {
-            return Center(
+    );
+  }
+}
+
+class _NotifCard extends StatelessWidget {
+  final NotificationModel notif;
+  final VoidCallback onTap;
+
+  const _NotifCard({required this.notif, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color(notif.type);
+    final icon = _icon(notif.type);
+    final timeStr = _formatTime(notif.createdAt);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: notif.read
+              ? KTColors.darkElevated
+              : color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: notif.read
+                ? KTColors.darkBorder
+                : color.withValues(alpha: 0.35),
+          ),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.notifications_off_outlined, size: 56, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text('No notifications', style: KTTextStyles.h3),
-                  const SizedBox(height: 8),
-                  const Text('You\'re all caught up!', style: TextStyle(color: KTColors.textSecondary)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notif.title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: notif.read
+                                ? FontWeight.w500
+                                : FontWeight.w700,
+                            color: KTColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (!notif.read)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(left: 6),
+                          decoration: BoxDecoration(
+                              color: color, shape: BoxShape.circle),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    notif.body,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        color: KTColors.textSecondary,
+                        height: 1.4),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(timeStr,
+                      style: const TextStyle(
+                          fontSize: 11, color: KTColors.textMuted)),
                 ],
               ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: notifications.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, index) {
-              final notif = notifications[index];
-              return _notificationCard(notif);
-            },
-          );
-        },
-        loading: () => Column(
-          children: List.generate(
-            5,
-            (index) => Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: index == 4 ? 0 : 8,
-                top: index == 0 ? 16 : 0,
-              ),
-              child: Container(
-                height: 90,
-                decoration: BoxDecoration(
-                  color: KTColors.cardSurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Shimmer.fromColors(
-                  baseColor: Colors.grey,
-                  highlightColor: Colors.white,
-                  child: SizedBox.expand(),
-                ),
-              ),
             ),
-          ),
-        ),
-        error: (e, st) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 56, color: KTColors.danger),
-              const SizedBox(height: 16),
-              Text('Error loading notifications', style: KTTextStyles.h3),
-              const SizedBox(height: 8),
-              Text(e.toString(), style: const TextStyle(color: KTColors.textSecondary, fontSize: 12)),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _notificationCard(Map<String, dynamic> notif) {
-    final type = notif['type'] ?? 'default';
-    final title = notif['title'] ?? 'Notification';
-    final message = notif['message'] ?? '';
-    final createdAt = notif['created_at'] ?? 'Just now';
-    final isRead = notif['read'] ?? false;
-
-    return Card(
-      color: isRead ? Colors.white : KTColors.primary.withValues(alpha: 0.05),
-      child: InkWell(
-        onTap: () => _showNotificationDetail(title, message),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _getTypeColor(type).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(_getTypeIcon(type), color: _getTypeColor(type)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (!isRead)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: KTColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      message,
-                      style: const TextStyle(fontSize: 12, color: KTColors.textSecondary, height: 1.4),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(createdAt, style: const TextStyle(fontSize: 10, color: KTColors.textMuted)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, size: 20, color: KTColors.textMuted),
-            ],
-          ),
-        ),
-      ),
-    );
+  Color _color(String? type) {
+    switch (type) {
+      case 'trip_event':
+        return KTColors.primary;
+      case 'expense_approved':
+        return KTColors.success;
+      case 'expense_rejected':
+        return KTColors.danger;
+      case 'salary_update':
+        return KTColors.info;
+      case 'trip_assigned':
+        return const Color(0xFF60A5FA);
+      default:
+        return KTColors.primary;
+    }
   }
 
-  void _showNotificationDetail(String title, String message) {
-    final context = _getContextFromWidget();
-    if (context == null) return;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+  IconData _icon(String? type) {
+    switch (type) {
+      case 'trip_event':
+        return Icons.local_shipping_rounded;
+      case 'expense_approved':
+        return Icons.check_circle_rounded;
+      case 'expense_rejected':
+        return Icons.cancel_rounded;
+      case 'salary_update':
+        return Icons.account_balance_wallet_rounded;
+      case 'trip_assigned':
+        return Icons.assignment_rounded;
+      default:
+        return Icons.notifications_rounded;
+    }
   }
 
-  BuildContext? _getContextFromWidget() {
-    // This is a workaround - in a real app, you'd pass context properly
-    return null;
-  }
-
-  IconData _getTypeIcon(String type) {
-    const icons = {
-      'expense_submitted': Icons.receipt_long,
-      'ewb_expiring': Icons.warning,
-      'trip_completed': Icons.check_circle,
-      'trip_assigned': Icons.assignment,
-      'message': Icons.mail,
-      'alert': Icons.notifications,
-    };
-    return icons[type] ?? Icons.notifications;
-  }
-
-  Color _getTypeColor(String type) {
-    const colors = {
-      'expense_submitted': KTColors.success,
-      'ewb_expiring': KTColors.warning,
-      'trip_completed': KTColors.info,
-      'trip_assigned': KTColors.primary,
-      'message': KTColors.primary,
-      'alert': KTColors.danger,
-    };
-    return colors[type] ?? KTColors.primary;
+  String _formatTime(String? iso) {
+    if (iso == null) return 'Just now';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 1) return 'Just now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (_) {
+      return 'Just now';
+    }
   }
 }

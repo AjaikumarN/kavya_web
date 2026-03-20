@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show LicenseRegistry, LicenseEntryWithLineBreaks;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/kt_colors.dart';
@@ -436,33 +437,7 @@ class _AboutSheet extends StatelessWidget {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => Theme(
-                              data: ThemeData.dark().copyWith(
-                                colorScheme: const ColorScheme.dark(
-                                  primary: Color(0xFFFF8C00),
-                                  surface: Color(0xFF111827),
-                                ),
-                                scaffoldBackgroundColor: const Color(0xFF0A0F1E),
-                                cardColor: const Color(0xFF111827),
-                                appBarTheme: const AppBarTheme(
-                                  backgroundColor: Color(0xFF0D1424),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  titleTextStyle: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              child: const LicensePage(
-                                applicationName: 'KT Driver App',
-                                applicationVersion: '1.0.0',
-                                applicationLegalese: '© 2025 Kavya Transports',
-                              ),
-                            ),
-                          ),
+                          MaterialPageRoute(builder: (_) => const _CustomLicensesScreen()),
                         );
                       },
                       icon: const Icon(Icons.article_outlined, size: 16),
@@ -528,5 +503,338 @@ class _AboutInfoRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Custom Licenses Screen ────────────────────────────────────────────────────
+
+/// Packages/patterns that are internal, low-level C/C++ native, or build-tool
+/// artifacts that are not relevant to end users.
+const _kHiddenPackages = {
+  // Dart/Flutter internal build tools
+  '_fe_analyzer_shared',
+  '_flutterfire_internals',
+  'analyzer',
+  'analyzer_plugin',
+  'csslib',
+  'source_span',
+  'source_map_stack_trace',
+  'stack_trace',
+  'watcher',
+  'args',
+  'glob',
+  // C/C++ native graphics & crypto libs
+  'abseil-cpp',
+  'angle',
+  'boringssl',
+  'harfbuzz',
+  'icu',
+  'libjpeg',
+  'libpng',
+  'libwebp',
+  'libgifcodec',
+  'skia',
+  'vulkan-deps',
+  'spirv-cross',
+  'dawn',
+  'tonic',
+  'zlib',
+  'brotli',
+  'crc32c',
+  'expat',
+  // Android system packages
+  'aFileChooser',
+  'accessibility',
+  'archive',
+};
+
+bool _isVisible(String packageName) {
+  if (packageName.startsWith('_')) return false;
+  if (_kHiddenPackages.contains(packageName)) return false;
+  return true;
+}
+
+class _PackageLicense {
+  final String name;
+  final List<String> paragraphs;
+  const _PackageLicense({required this.name, required this.paragraphs});
+}
+
+class _CustomLicensesScreen extends StatefulWidget {
+  const _CustomLicensesScreen();
+
+  @override
+  State<_CustomLicensesScreen> createState() => _CustomLicensesScreenState();
+}
+
+class _CustomLicensesScreenState extends State<_CustomLicensesScreen> {
+  List<_PackageLicense>? _licenses;
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLicenses();
+  }
+
+  Future<void> _loadLicenses() async {
+    final Map<String, List<String>> byPackage = {};
+
+    await for (final entry in LicenseRegistry.licenses) {
+      for (final pkg in entry.packages) {
+        if (!_isVisible(pkg)) continue;
+        final paragraphs = entry.paragraphs
+            .map((p) => p.text.trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
+        byPackage.putIfAbsent(pkg, () => []).addAll(paragraphs);
+      }
+    }
+
+    final sorted = byPackage.entries
+        .map((e) => _PackageLicense(name: e.key, paragraphs: e.value))
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    if (mounted) setState(() => _licenses = sorted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _licenses == null
+        ? null
+        : _search.isEmpty
+            ? _licenses!
+            : _licenses!
+                .where((l) => l.name.toLowerCase().contains(_search.toLowerCase()))
+                .toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0F1E),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D1424),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Open Source Licenses',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0.2),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: TextField(
+              onChanged: (v) => setState(() => _search = v),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Search packages…',
+                hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 18),
+                filled: true,
+                fillColor: const Color(0xFF111827),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF1E2D45)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF1E2D45)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFFF8C00)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: filtered == null
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFFFF8C00)),
+                  SizedBox(height: 16),
+                  Text('Loading licenses…', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14)),
+                ],
+              ),
+            )
+          : filtered.isEmpty
+              ? Center(
+                  child: Text(
+                    'No packages match "$_search"',
+                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                  ),
+                )
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${filtered.length} package${filtered.length == 1 ? '' : 's'}',
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Text(
+                            'Tap a package to view its license',
+                            style: TextStyle(color: Color(0xFF475569), fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (ctx, i) {
+                          final pkg = filtered[i];
+                          return _LicenseCard(pkg: pkg);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+    );
+  }
+}
+
+class _LicenseCard extends StatefulWidget {
+  final _PackageLicense pkg;
+  const _LicenseCard({required this.pkg});
+
+  @override
+  State<_LicenseCard> createState() => _LicenseCardState();
+}
+
+class _LicenseCardState extends State<_LicenseCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final paragraphs = widget.pkg.paragraphs;
+    final preview = paragraphs.isNotEmpty ? paragraphs.first : '';
+    final licenseType = _detectLicenseType(preview);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _expanded ? const Color(0xFFFF8C00).withValues(alpha: 0.3) : const Color(0xFF1E2D45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF8C00).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.code_rounded, size: 16, color: Color(0xFFFF8C00)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.pkg.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                        if (licenseType != null) ...[  
+                          const SizedBox(height: 3),
+                          Text(
+                            licenseType,
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    color: const Color(0xFF64748B),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded license text
+          if (_expanded) ...[  
+            const Divider(height: 1, color: Color(0xFF1E2D45)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: paragraphs
+                    .map((p) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Text(
+                            p,
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 12,
+                              height: 1.7,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String? _detectLicenseType(String text) {
+    final t = text.toLowerCase();
+    if (t.contains('mit license') || t.contains('permission is hereby granted')) return 'MIT License';
+    if (t.contains('apache license') || t.contains('apache-2')) return 'Apache 2.0 License';
+    if (t.contains('bsd 3-clause') || t.contains('redistribution and use in source and binary')) {
+      return t.contains('3-clause') || t.contains('neither the name') ? 'BSD 3-Clause License' : 'BSD 2-Clause License';
+    }
+    if (t.contains('mozilla public license') || t.contains('mpl')) return 'Mozilla Public License';
+    if (t.contains('gnu general public') || t.contains('gpl')) return 'GPL License';
+    if (t.contains('lgpl') || t.contains('lesser general public')) return 'LGPL License';
+    if (t.contains('isc license') || t.contains('permission to use, copy, modify')) return 'ISC License';
+    if (t.contains('public domain') || t.contains('unlicense')) return 'Public Domain';
+    if (t.contains('zlib') || t.contains('zlib/libpng')) return 'zlib License';
+    if (t.contains('boost software license')) return 'Boost License';
+    return null;
   }
 }

@@ -5,12 +5,13 @@ import '../../models/expense.dart';
 import '../../providers/expense_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
-import '../../core/widgets/kt_loading_shimmer.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../core/widgets/section_header.dart';
 
 class DriverExpenseListScreen extends ConsumerStatefulWidget {
-  const DriverExpenseListScreen({super.key});
+  final int? tripId;
+  final String? tripNumber;
+
+  const DriverExpenseListScreen({super.key, this.tripId, this.tripNumber});
 
   @override
   ConsumerState<DriverExpenseListScreen> createState() => _DriverExpenseListScreenState();
@@ -37,14 +38,15 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
 
   @override
   Widget build(BuildContext context) {
-    final expensesAsync = ref.watch(expensesProvider(null));
+    final expensesAsync = ref.watch(expensesProvider(widget.tripId));
     final expenses = expensesAsync.valueOrNull ?? [];
     
     final filtered = _filterExpenses(expenses);
+    final title = widget.tripNumber != null ? 'Expenses — ${widget.tripNumber}' : 'Expenses';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expenses'),
+        title: Text(title),
         actions: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -79,22 +81,23 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
           ),
 
           // Status Filters
-          _FilterRow(
+          _SegmentedFilter(
             filters: const [
               ('all', 'All'),
               ('pending', 'Pending'),
-              ('submitted', 'Submitted'),
               ('approved', 'Approved'),
+              ('paid', 'Paid'),
+              ('rejected', 'Rejected'),
             ],
             selected: _filterStatus,
             onSelect: (v) => setState(() => _filterStatus = v),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           // Category Filters
-          _FilterRow(
+          _ChipFilter(
             filters: [
-              const ('all', 'All Cat.'),
-              ...categories.map((c) => (c, c.replaceAll('_', ' '))),
+              const ('all', 'All'),
+              ...categories.map((c) => (c, c[0].toUpperCase() + c.substring(1))),
             ],
             selected: _filterCategory,
             onSelect: (v) => setState(() => _filterCategory = v),
@@ -166,7 +169,12 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/driver/add-expense'),
+        onPressed: () async {
+          final result = await context.push('/driver/add-expense');
+          if (result == true && mounted) {
+            ref.read(expensesProvider(widget.tripId).notifier).refresh();
+          }
+        },
         child: const Icon(Icons.add),
       ),
     );
@@ -177,12 +185,12 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
 
     // Filter by status
     if (_filterStatus != 'all') {
-      result = result.where((e) => e.status == _filterStatus).toList();
+      result = result.where((e) => (e.status ?? 'pending').toLowerCase() == _filterStatus).toList();
     }
 
     // Filter by category
     if (_filterCategory != 'all') {
-      result = result.where((e) => e.category == _filterCategory).toList();
+      result = result.where((e) => e.category.toLowerCase() == _filterCategory).toList();
     }
 
     // Filter by search
@@ -236,7 +244,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      expense.date ?? 'N/A',
+                      _formatDate(expense.date),
                       style: const TextStyle(fontSize: 10, color: KTColors.textMuted),
                     ),
                   ),
@@ -287,7 +295,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
       'parking': KTColors.warning,
       'police': KTColors.danger,
     };
-    return colors[category] ?? KTColors.textMuted;
+    return colors[category.toLowerCase()] ?? KTColors.textMuted;
   }
 
   IconData _getCategoryIcon(String category) {
@@ -301,7 +309,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
       'parking': Icons.local_parking,
       'police': Icons.security,
     };
-    return icons[category] ?? Icons.receipt_long;
+    return icons[category.toLowerCase()] ?? Icons.receipt_long;
   }
 
   Color _getStatusColor(String status) {
@@ -309,17 +317,94 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
       case 'pending': return KTColors.warning;
       case 'submitted': return KTColors.info;
       case 'approved': return KTColors.success;
+      case 'paid': return KTColors.primary;
+      case 'rejected': return KTColors.danger;
       default: return KTColors.textMuted;
+    }
+  }
+
+  String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return 'N/A';
+    try {
+      final dt = DateTime.parse(raw);
+      final day = dt.day.toString().padLeft(2, '0');
+      final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      final mon = months[dt.month - 1];
+      final year = dt.year;
+      // Only show time if it's not midnight (i.e. the expense has a real timestamp)
+      if (dt.hour == 0 && dt.minute == 0 && dt.second == 0) {
+        return '$day $mon $year';
+      }
+      final hh = dt.hour.toString().padLeft(2, '0');
+      final mm = dt.minute.toString().padLeft(2, '0');
+      return '$day $mon $year, $hh:$mm';
+    } catch (_) {
+      return raw.split('T').first;
     }
   }
 }
 
-class _FilterRow extends StatelessWidget {
+/// Tab-style status filter with underline indicator
+class _SegmentedFilter extends StatelessWidget {
   final List<(String, String)> filters;
   final String selected;
   final ValueChanged<String> onSelect;
 
-  const _FilterRow({
+  const _SegmentedFilter({
+    required this.filters,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131D2F),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        children: filters.map((entry) {
+          final (value, label) = entry;
+          final isSelected = selected == value;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onSelect(value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: isSelected ? KTColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? Colors.white : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+/// Minimal text-chip category filter
+class _ChipFilter extends StatelessWidget {
+  final List<(String, String)> filters;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  const _ChipFilter({
     required this.filters,
     required this.selected,
     required this.onSelect,
@@ -335,30 +420,30 @@ class _FilterRow extends StatelessWidget {
           final (value, label) = entry.value;
           final isSelected = selected == value;
           return Padding(
-            padding: EdgeInsets.only(right: entry.key < filters.length - 1 ? 8 : 0),
+            padding: EdgeInsets.only(right: entry.key < filters.length - 1 ? 6 : 0),
             child: GestureDetector(
               onTap: () => onSelect(value),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
-                  color: isSelected ? KTColors.primary : const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(20),
+                  color: isSelected
+                      ? KTColors.primary.withValues(alpha: 0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isSelected ? KTColors.primary : const Color(0xFF334155),
-                    width: 1.5,
+                    color: isSelected
+                        ? KTColors.primary.withValues(alpha: 0.5)
+                        : const Color(0xFF1E293B),
+                    width: 1,
                   ),
-                  boxShadow: isSelected
-                      ? [BoxShadow(color: KTColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
-                      : [],
                 ),
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : const Color(0xFF94A3B8),
-                    letterSpacing: 0.2,
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? KTColors.primary : const Color(0xFF64748B),
                   ),
                 ),
               ),

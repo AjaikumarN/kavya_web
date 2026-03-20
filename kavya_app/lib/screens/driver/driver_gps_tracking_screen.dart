@@ -43,9 +43,6 @@ class DriverGpsTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScreen> {
-  late GoogleMapController _mapController;
-  double _distanceTraveled = 0;
-  double _currentSpeed = 0;
 
   @override
   void initState() {
@@ -138,7 +135,6 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
               zoom: 15,
             ),
             onMapCreated: (controller) {
-              _mapController = controller;
               _fitBounds(controller, [originLocation, currentLocation, destLocation]);
             },
             myLocationEnabled: true,

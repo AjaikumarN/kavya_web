@@ -3,232 +3,330 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
-import '../../core/widgets/kt_button.dart';
-import '../../core/widgets/kt_loading_shimmer.dart';
-import '../../core/widgets/section_header.dart';
+import '../../providers/fleet_dashboard_provider.dart';
 
-// TODO: Create actual vehicle provider
-class Vehicle {
-  final int id;
-  final String registrationNumber;
-  final String model;
-  final String status; // 'active', 'maintenance', 'inactive'
-  final String? assignedDriver;
-  final DateTime lastServiceDate;
-  final int currentMileage;
-  final String fuelType;
+// ─── Provider ───────────────────────────────────────────────────────────────
 
-  Vehicle({
-    required this.id,
-    required this.registrationNumber,
-    required this.model,
-    required this.status,
-    this.assignedDriver,
-    required this.lastServiceDate,
-    required this.currentMileage,
-    required this.fuelType,
-  });
-}
+final fleetVehiclesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.get('/fleet/vehicles');
+  final payload = res['data'] ?? res;
+  if (payload is List) return payload.cast<Map<String, dynamic>>();
+  return [];
+});
 
-class FleetVehiclesScreen extends ConsumerWidget {
+class FleetVehiclesScreen extends ConsumerStatefulWidget {
   const FleetVehiclesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Mock data - TODO: Replace with actual provider
-    final vehicles = [
-      Vehicle(
-        id: 1,
-        registrationNumber: 'MH-01-AB-1234',
-        model: 'TATA 407 (2020)',
-        status: 'active',
-        assignedDriver: 'Rajesh Kumar',
-        lastServiceDate: DateTime(2025, 2, 15),
-        currentMileage: 125420,
-        fuelType: 'Diesel',
-      ),
-      Vehicle(
-        id: 2,
-        registrationNumber: 'MH-01-AB-5678',
-        model: 'TATA ACE (2021)',
-        status: 'active',
-        assignedDriver: 'Amit Patel',
-        lastServiceDate: DateTime(2025, 2, 20),
-        currentMileage: 98760,
-        fuelType: 'Diesel',
-      ),
-      Vehicle(
-        id: 3,
-        registrationNumber: 'MH-01-AB-9012',
-        model: 'Mahindra Supro (2019)',
-        status: 'maintenance',
-        assignedDriver: null,
-        lastServiceDate: DateTime(2024, 12, 10),
-        currentMileage: 167890,
-        fuelType: 'Diesel',
-      ),
-      Vehicle(
-        id: 4,
-        registrationNumber: 'MH-01-AB-3456',
-        model: 'Force Traveller (2022)',
-        status: 'active',
-        assignedDriver: 'Vikram Singh',
-        lastServiceDate: DateTime(2025, 1, 28),
-        currentMileage: 76543,
-        fuelType: 'Diesel',
-      ),
-    ];
+  ConsumerState<FleetVehiclesScreen> createState() => _FleetVehiclesScreenState();
+}
+
+class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  String _statusFilter = 'All';
+  static const _filters = ['All', 'Available', 'On Trip', 'Maintenance', 'Inactive'];
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vehiclesAsync = ref.watch(fleetVehiclesProvider);
 
     return Scaffold(
+      backgroundColor: KTColors.navy950,
       appBar: AppBar(
-        title: const Text('Fleet Vehicles'),
+        backgroundColor: KTColors.navy900,
+        foregroundColor: KTColors.darkTextPrimary,
+        title: Text('Fleet Vehicles', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              // TODO: Handle add vehicle
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Add vehicle - Coming soon')),
-              );
+            icon: const Icon(Icons.add, color: KTColors.amber500),
+            onPressed: () async {
+              final result = await context.push('/fleet/vehicle/add');
+              if (result == true) ref.invalidate(fleetVehiclesProvider);
             },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
+        children: [
+          // ─── Search ────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: TextField(
+              controller: _searchCtrl,
+              style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+              onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Search by reg. no., driver, or model…',
+                hintStyle: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+                prefixIcon: const Icon(Icons.search, color: KTColors.amber500),
+                filled: true,
+                fillColor: KTColors.navy800,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: KTColors.navy700),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: KTColors.navy700),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: KTColors.amber500),
+                ),
+              ),
+            ),
+          ),
+
+          // ─── Status Filter Chips ───────────────────────────────
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: _filters.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final f = _filters[i];
+                final selected = _statusFilter == f;
+                return FilterChip(
+                  label: Text(f),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _statusFilter = f),
+                  labelStyle: KTTextStyles.label.copyWith(
+                    color: selected ? KTColors.navy900 : KTColors.darkTextSecondary,
+                  ),
+                  selectedColor: KTColors.amber500,
+                  backgroundColor: KTColors.navy800,
+                  side: BorderSide(color: selected ? KTColors.amber500 : KTColors.navy700),
+                  showCheckmark: false,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // ─── Vehicle List ─────────────────────────────────────
+          Expanded(
+            child: vehiclesAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: KTColors.amber500),
+              ),
+              error: (e, _) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
+                    const SizedBox(height: 12),
+                    Text('Failed to load vehicles',
+                        style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => ref.invalidate(fleetVehiclesProvider),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KTColors.amber500,
+                        foregroundColor: KTColors.navy900,
+                      ),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (allVehicles) {
+                final vehicles = _applyFilters(allVehicles);
+                if (vehicles.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.directions_car_outlined,
+                            size: 56, color: KTColors.darkTextSecondary),
+                        const SizedBox(height: 12),
+                        Text('No vehicles found',
+                            style: KTTextStyles.h3.copyWith(color: KTColors.darkTextSecondary)),
+                        const SizedBox(height: 4),
+                        Text('Try adjusting the search or filter',
+                            style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
+                      ],
+                    ),
+                  );
+                }
+                return RefreshIndicator(
+                  color: KTColors.amber500,
+                  onRefresh: () async => ref.invalidate(fleetVehiclesProvider),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    itemCount: vehicles.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) => _vehicleCard(context, vehicles[i]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> vehicles) {
+    var list = vehicles;
+    if (_searchQuery.isNotEmpty) {
+      list = list.where((v) {
+        final reg = (v['registration_number'] ?? v['reg_number'] ?? '').toString().toLowerCase();
+        final make = (v['make'] ?? '').toString().toLowerCase();
+        final model = (v['model'] ?? '').toString().toLowerCase();
+        return reg.contains(_searchQuery) || make.contains(_searchQuery) || model.contains(_searchQuery);
+      }).toList();
+    }
+    if (_statusFilter != 'All') {
+      final target = _statusFilter.toLowerCase().replaceAll(' ', '_');
+      list = list.where((v) => (v['status'] ?? '').toString().toLowerCase() == target).toList();
+    }
+    return list;
+  }
+
+  Widget _vehicleCard(BuildContext context, Map<String, dynamic> vehicle) {
+    final id = vehicle['id'];
+    final regNumber = (vehicle['registration_number'] ?? vehicle['reg_number'] ?? '—').toString();
+    final make = (vehicle['make'] ?? '').toString();
+    final model = (vehicle['model'] ?? '').toString();
+    final year = vehicle['year_of_manufacture']?.toString() ?? '';
+    final modelStr = [make, model, if (year.isNotEmpty) '($year)'].where((s) => s.isNotEmpty).join(' ');
+    final status = (vehicle['status'] ?? 'available').toString().toLowerCase();
+    final fuelType = (vehicle['fuel_type'] ?? '—').toString();
+    final odometer = (vehicle['odometer_reading'] as num?)?.toInt() ?? 0;
+    final statusColor = _getStatusColor(status);
+
+    return GestureDetector(
+      onTap: () async {
+        final result = await context.push('/fleet/vehicle/$id/edit');
+        if (result == true) ref.invalidate(fleetVehiclesProvider);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: KTColors.navy800,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KTColors.navy700),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Filter/Search
-            SearchBar(
-              hintText: 'Search by registration or driver...',
-              leading: const Icon(Icons.search),
-              onChanged: (value) {
-                // TODO: Implement search
-              },
+            // Header row: reg number + status badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        regNumber,
+                        style: KTTextStyles.h3.copyWith(
+                          color: KTColors.amber500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        modelStr.isNotEmpty ? modelStr : '—',
+                        style: KTTextStyles.bodySmall.copyWith(
+                          color: KTColors.darkTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    status.replaceAll('_', ' ').toUpperCase(),
+                    style: KTTextStyles.label.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-
-            // Vehicle List
-            const SectionHeader(title: 'All Vehicles'),
             const SizedBox(height: 12),
-            ...vehicles.map((vehicle) => _vehicleCard(context, vehicle)).toList(),
-            const SizedBox(height: 16),
+            // Info row
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: KTColors.navy900,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _infoColumn('Fuel', fuelType),
+                  _infoColumn('Odometer', '${(odometer / 1000).toStringAsFixed(1)}k km'),
+                  _infoColumn('Type', (vehicle['vehicle_type'] ?? '—').toString()),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Footer: actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _actionBtn(context, Icons.edit_outlined, 'Edit', KTColors.amber500, () async {
+                  final result = await context.push('/fleet/vehicle/$id/edit');
+                  if (result == true) ref.invalidate(fleetVehiclesProvider);
+                }),
+                const SizedBox(width: 8),
+                _actionBtn(context, Icons.my_location, 'Track', KTColors.info, () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('GPS tracking coming soon')),
+                  );
+                }),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _vehicleCard(BuildContext context, Vehicle vehicle) {
+  Widget _actionBtn(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
-      onTap: () {
-        // TODO: Navigate to vehicle detail
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('View ${vehicle.registrationNumber}')),
-        );
-      },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          vehicle.registrationNumber,
-                          style: KTTextStyles.h3,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          vehicle.model,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: KTColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(vehicle.status).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: _getStatusColor(vehicle.status).withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      vehicle.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _getStatusColor(vehicle.status),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _infoColumn('Driver', vehicle.assignedDriver ?? 'Unassigned'),
-                  _infoColumn('Fuel Type', vehicle.fuelType),
-                  _infoColumn('Mileage', '${vehicle.currentMileage} km'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Last Service: ${vehicle.lastServiceDate.year}-${vehicle.lastServiceDate.month.toString().padLeft(2, '0')}-${vehicle.lastServiceDate.day.toString().padLeft(2, '0')}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: KTColors.textSecondary,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      SizedBox(
-                        height: 28,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.edit, size: 14),
-                          label: const Text('Edit'),
-                          onPressed: () {
-                            // TODO: Edit vehicle
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 28,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.location_on, size: 14),
-                          label: const Text('Track'),
-                          onPressed: () {
-                            // TODO: View vehicle location on map
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: KTTextStyles.label.copyWith(color: color)),
+          ],
         ),
       ),
     );
@@ -240,18 +338,17 @@ class FleetVehiclesScreen extends ConsumerWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: KTColors.textSecondary,
+          style: KTTextStyles.bodySmall.copyWith(
+            color: KTColors.textMuted,
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 12,
+          style: KTTextStyles.bodySmall.copyWith(
             fontWeight: FontWeight.w600,
+            color: KTColors.darkTextPrimary,
           ),
         ),
       ],
@@ -260,10 +357,14 @@ class FleetVehiclesScreen extends ConsumerWidget {
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'active':
+      case 'available':
         return KTColors.success;
+      case 'on_trip':
+        return KTColors.info;
       case 'maintenance':
         return KTColors.warning;
+      case 'breakdown':
+        return KTColors.danger;
       case 'inactive':
         return KTColors.danger;
       default:

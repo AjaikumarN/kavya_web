@@ -90,7 +90,7 @@ class LoginStateNotifier extends StateNotifier<LoginState> {
 }
 
 class LoginScreen extends ConsumerWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -356,7 +356,6 @@ class LoginBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Diagonal hatching pattern
     const spacing = 40.0;
-    const angle = -0.2; // Diagonal angle
 
     for (double i = -size.height; i < size.width + size.height; i += spacing) {
       canvas.drawLine(

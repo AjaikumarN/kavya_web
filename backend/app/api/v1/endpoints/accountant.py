@@ -134,11 +134,12 @@ async def accountant_receivables(
 async def accountant_expenses(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     verified: Optional[bool] = None,
+    status: Optional[str] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.EXPENSE_READ)),
 ):
     from sqlalchemy import select, func
-    from app.models.postgres.trip import TripExpense
+    from app.models.postgres.trip import TripExpense, ExpenseStatusEnum
 
     query = select(TripExpense)
     count_query = select(func.count(TripExpense.id))
@@ -147,12 +148,23 @@ async def accountant_expenses(
         query = query.where(TripExpense.is_verified == verified)
         count_query = count_query.where(TripExpense.is_verified == verified)
 
+    if status:
+        try:
+            status_enum = ExpenseStatusEnum(status.upper())
+            query = query.where(TripExpense.expense_status == status_enum)
+            count_query = count_query.where(TripExpense.expense_status == status_enum)
+        except (ValueError, KeyError):
+            pass
+
     total = (await db.execute(count_query)).scalar() or 0
     pages = (total + limit - 1) // limit
     offset = (page - 1) * limit
     result = await db.execute(query.offset(offset).limit(limit).order_by(TripExpense.expense_date.desc()))
     expenses = result.scalars().all()
-    items = [{c.key: getattr(e, c.key) for c in e.__table__.columns} for e in expenses]
+    items = [{
+        **{c.key: getattr(e, c.key) for c in e.__table__.columns},
+        'status': (e.expense_status.value.lower() if hasattr(e.expense_status, 'value') else str(e.expense_status or 'pending').lower()),
+    } for e in expenses]
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
@@ -233,9 +245,11 @@ async def accountant_approve_expense(
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
+    from app.models.postgres.trip import ExpenseStatusEnum
     expense.is_verified = True
     expense.verified_by = current_user.user_id
     expense.verified_at = datetime.utcnow()
+    expense.expense_status = ExpenseStatusEnum.APPROVED
     await finance_service.post_expense_approval_entries(db, expense, current_user.user_id)
     await db.commit()
     return APIResponse(success=True, message="Expense approved")
@@ -255,12 +269,39 @@ async def accountant_reject_expense(
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
+    from app.models.postgres.trip import ExpenseStatusEnum
     expense.is_verified = False
     expense.verified_by = current_user.user_id
     expense.verified_at = datetime.utcnow()
     expense.verification_remarks = "Rejected"
+    expense.expense_status = ExpenseStatusEnum.REJECTED
     await db.commit()
     return APIResponse(success=True, message="Expense rejected")
+
+
+@router.put("/expenses/{expense_id}/mark-paid", response_model=APIResponse)
+async def accountant_mark_expense_paid(
+    expense_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.EXPENSE_APPROVE)),
+):
+    if not _is_admin_or_accountant(current_user):
+        raise HTTPException(status_code=403, detail="Only accountant/admin can mark expenses as paid")
+
+    expense = await db.get(TripExpense, expense_id)
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    from app.models.postgres.trip import ExpenseStatusEnum
+    if expense.expense_status != ExpenseStatusEnum.APPROVED:
+        raise HTTPException(status_code=400, detail="Only approved expenses can be marked as paid")
+
+    expense.paid_by = current_user.user_id
+    expense.paid_at = datetime.utcnow()
+    expense.expense_status = ExpenseStatusEnum.PAID
+    await db.commit()
+    return APIResponse(success=True, message="Expense marked as paid")
 
 
 @router.get("/banking", response_model=APIResponse)

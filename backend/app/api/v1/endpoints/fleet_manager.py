@@ -2,6 +2,9 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
+from decimal import Decimal
+from datetime import date, datetime
+import enum
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
@@ -9,6 +12,21 @@ from app.schemas.base import APIResponse, PaginationMeta
 from app.services import dashboard_service, vehicle_service, trip_service
 
 router = APIRouter()
+
+
+def _serialize_row(obj) -> dict:
+    """Convert a SQLAlchemy model row to a JSON-safe dict."""
+    d = {}
+    for c in obj.__table__.columns:
+        val = getattr(obj, c.key)
+        if isinstance(val, Decimal):
+            val = float(val)
+        elif isinstance(val, enum.Enum):
+            val = val.value
+        elif isinstance(val, (date, datetime)):
+            val = val.isoformat()
+        d[c.key] = val
+    return d
 
 
 @router.get("/dashboard", response_model=APIResponse)
@@ -27,7 +45,7 @@ async def fleet_vehicles(
     pages = (total + limit - 1) // limit
     items = []
     for v in vehicles:
-        d = {c.key: getattr(v, c.key) for c in v.__table__.columns}
+        d = _serialize_row(v)
         d["expiry_alerts"] = vehicle_service.get_expiry_alerts(v)
         items.append(d)
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
@@ -43,7 +61,12 @@ async def fleet_trips(
     pages = (total + limit - 1) // limit
     items = []
     for trip in trips:
-        items.append(await trip_service.get_trip_with_details(db, trip))
+        detail = await trip_service.get_trip_with_details(db, trip)
+        # Ensure Decimal values are JSON-safe
+        for k, v in detail.items():
+            if isinstance(v, Decimal):
+                detail[k] = float(v)
+        items.append(detail)
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 

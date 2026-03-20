@@ -90,17 +90,6 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
 
   Future<void> updateTripStatus(int tripId, String status) async {
     try {
-      // VALIDATION: Block trip start if pre-trip checklist is incomplete
-      if (status == 'in_transit') {
-        final checklistStatus = await _checkPreTripChecklistCompletion(tripId);
-        if (!checklistStatus['complete']) {
-          throw Exception(
-            'Cannot start trip: Pre-trip checklist not completed. '
-            '${checklistStatus['remaining']} items remaining.'
-          );
-        }
-      }
-
       await _api.patch('/trips/$tripId/status', data: {'status': status});
       
       // Update local state optimistically
@@ -140,34 +129,6 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
     }
   }
 
-  /// Check if pre-trip checklist for this trip is complete
-  Future<Map<String, dynamic>> _checkPreTripChecklistCompletion(int tripId) async {
-    try {
-      final data = await _api.get(
-        '/trips/$tripId/checklist?type=pre_trip',
-      );
-      
-      if (data == null) {
-        return {'complete': false, 'remaining': '∞'}; // No checklist exists
-      }
-
-      // Check if checklist items exist and all are completed
-      final items = data['items'] as List? ?? [];
-      final completed = items.whereType<Map>().where((item) => item['checked'] == true).length;
-      final total = items.length;
-      final remaining = total - completed;
-
-      return {
-        'complete': remaining == 0 && total > 0,
-        'remaining': '$remaining',
-        'total': total,
-        'completed': completed,
-      };
-    } catch (e) {
-      // If we can't fetch checklist, assume it's not complete (safe default)
-      return {'complete': false, 'remaining': '?'};
-    }
-  }
 }
 
 extension on PaginatedTrips {
@@ -243,17 +204,6 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
 
   Future<void> updateTripStatus(int tripId, String status) async {
     try {
-      // VALIDATION: Block trip start if pre-trip checklist is incomplete
-      if (status == 'in_transit') {
-        final checklistStatus = await _checkPreTripChecklistCompletion(tripId);
-        if (!checklistStatus['complete']) {
-          throw Exception(
-            'Cannot start trip: Pre-trip checklist not completed. '
-            '${checklistStatus['remaining']} items remaining.'
-          );
-        }
-      }
-
       await _api.patch('/trips/$tripId/status', data: {'status': status});
       await refresh();
     } catch (e, st) {
@@ -262,34 +212,6 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
     }
   }
 
-  /// Check if pre-trip checklist for this trip is complete
-  Future<Map<String, dynamic>> _checkPreTripChecklistCompletion(int tripId) async {
-    try {
-      final data = await _api.get(
-        '/trips/$tripId/checklist?type=pre_trip',
-      );
-      
-      if (data == null) {
-        return {'complete': false, 'remaining': '∞'}; // No checklist exists
-      }
-
-      // Check if checklist items exist and all are completed
-      final items = data['items'] as List? ?? [];
-      final completed = items.whereType<Map>().where((item) => item['checked'] == true).length;
-      final total = items.length;
-      final remaining = total - completed;
-
-      return {
-        'complete': remaining == 0 && total > 0,
-        'remaining': '$remaining',
-        'total': total,
-        'completed': completed,
-      };
-    } catch (e) {
-      // If we can't fetch checklist, assume it's not complete (safe default)
-      return {'complete': false, 'remaining': '?'};
-    }
-  }
 }
 
 final tripDetailProvider =

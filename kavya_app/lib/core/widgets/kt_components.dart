@@ -13,7 +13,7 @@ class KTStatCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const KTStatCard({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     required this.icon,
@@ -21,7 +21,7 @@ class KTStatCard extends StatelessWidget {
     this.trend,
     this.trendUp = true,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +106,11 @@ class KTStatusBadge extends StatelessWidget {
   final VoidCallback? onTap;
 
   const KTStatusBadge({
-    Key? key,
+    super.key,
     required this.label,
     required this.status,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -170,13 +170,13 @@ class KTAlertCard extends StatelessWidget {
   final Widget? action;
 
   const KTAlertCard({
-    Key? key,
+    super.key,
     required this.message,
     required this.type,
     this.icon,
     this.onDismiss,
     this.action,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -265,14 +265,14 @@ class KTInfoCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const KTInfoCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.subtitle,
     required this.icon,
     this.backgroundColor,
     this.borderColor,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -332,12 +332,12 @@ class KTEmptyState extends StatelessWidget {
   final Widget? action;
 
   const KTEmptyState({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     required this.message,
     this.action,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -382,11 +382,11 @@ class KTShimmerPlaceholder extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const KTShimmerPlaceholder({
-    Key? key,
+    super.key,
     this.width = double.infinity,
     required this.height,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   State<KTShimmerPlaceholder> createState() => _KTShimmerPlaceholderState();
@@ -448,10 +448,10 @@ class KTRoleBadge extends StatelessWidget {
   final bool compact;
 
   const KTRoleBadge({
-    Key? key,
+    super.key,
     required this.role,
     this.compact = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -501,11 +501,11 @@ class KTTableRow extends StatelessWidget {
   final Color? hoverColor;
 
   const KTTableRow({
-    Key? key,
+    super.key,
     required this.cells,
     this.onTap,
     this.hoverColor = KTColors.amber50,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -17,10 +17,10 @@ class SplashScreen extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
 
   const SplashScreen({
-    Key? key,
+    super.key,
     this.onReadyForLogin,
     required this.onComplete,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();

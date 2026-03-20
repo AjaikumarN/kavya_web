@@ -1,7 +1,2 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'fleet_dashboard_provider.dart'; // for apiServiceProvider
-
-final notificationsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final api = ref.read(apiServiceProvider);
-  return await api.getNotifications();
-});
+// Re-export from notifications_provider so all screens use the same live StateNotifier.
+export 'notifications_provider.dart' show notificationsProvider, unreadCountProvider, notificationServiceProvider;

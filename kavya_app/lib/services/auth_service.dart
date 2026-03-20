@@ -82,6 +82,9 @@ class AuthService {
       case 'pump_operator':
         router.go('/pump/home');
         break;
+      case 'branch_manager':
+        router.go('/branch/home');
+        break;
       default:
         router.go('/web-only');
     }

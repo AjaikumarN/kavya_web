@@ -26,12 +26,17 @@ class NotificationsNotifier extends StateNotifier<List<NotificationModel>> {
 
   Future<void> markAsRead(String notificationId) async {
     await _notificationService.markAsRead(notificationId);
-    state = _notificationService.getNotifications();
+    state = List.from(_notificationService.getNotifications());
   }
 
   Future<void> deleteNotification(String notificationId) async {
     await _notificationService.deleteNotification(notificationId);
-    state = _notificationService.getNotifications();
+    state = List.from(_notificationService.getNotifications());
+  }
+
+  void markAllAsRead() {
+    _notificationService.markAllAsRead();
+    state = List.from(_notificationService.getNotifications());
   }
 
   void clearAll() {

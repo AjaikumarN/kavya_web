@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/trip.dart';
 import '../../providers/trip_provider.dart';
+import '../../providers/fleet_dashboard_provider.dart';
+import '../../services/notification_service.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
-import '../../core/widgets/kt_loading_shimmer.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 
@@ -110,6 +111,10 @@ class DriverTripDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
+          // Map Section
+          _buildMapSection(trip),
+          const SizedBox(height: 24),
+
           // Trip Details
           const SectionHeader(title: 'Details'),
           Card(
@@ -162,12 +167,15 @@ class DriverTripDetailScreen extends ConsumerWidget {
           const SectionHeader(title: 'Actions'),
           const SizedBox(height: 12),
           if (trip.isActive) ...[
-            KtButton(
-              label: 'Update Status',
-              icon: Icons.edit,
-              onPressed: () => _showStatusDialog(context, ref, trip),
-            ),
-            const SizedBox(height: 12),
+            // Hide 'Update Status' when in_transit — ePOD is the only valid path to completion
+            if (trip.status != 'in_transit') ...[
+              KtButton(
+                label: 'Update Status',
+                icon: Icons.edit,
+                onPressed: () => _showStatusDialog(context, ref, trip),
+              ),
+              const SizedBox(height: 12),
+            ],
             KtButton(
               label: 'Complete Delivery (ePOD)',
               icon: Icons.verified,
@@ -176,21 +184,167 @@ class DriverTripDetailScreen extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
           KtButton(
-            label: 'View Documents',
-            icon: Icons.description,
-            outlined: true,
-            onPressed: () {},
-          ),
-          const SizedBox(height: 12),
-          KtButton(
             label: 'Add Expense',
             icon: Icons.receipt_long,
             outlined: true,
-            onPressed: () {},
+            onPressed: () => context.push(
+              '/driver/expenses/${trip.id}?trip=${Uri.encodeComponent(trip.tripNumber)}',
+            ),
           ),
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildMapSection(Trip trip) {
+    final bool isLiveTracking = trip.status == 'started' ||
+        trip.status == 'in_transit' ||
+        trip.status == 'loading' ||
+        trip.status == 'unloading';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: isLiveTracking ? 'Live Tracking' : 'Route Map',
+        ),
+        Container(
+          height: 220,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isLiveTracking
+                  ? KTColors.success.withValues(alpha: 0.4)
+                  : KTColors.primary.withValues(alpha: 0.2),
+              width: 1.5,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Placeholder route visualization
+              CustomPaint(
+                size: const Size(double.infinity, 220),
+                painter: _RoutePlaceholderPainter(isLive: isLiveTracking),
+              ),
+              // Origin marker
+              Positioned(
+                left: 32,
+                top: 90,
+                child: _mapMarker(
+                  Icons.circle,
+                  KTColors.success,
+                  trip.origin ?? 'Origin',
+                ),
+              ),
+              // Destination marker
+              Positioned(
+                right: 32,
+                top: 90,
+                child: _mapMarker(
+                  Icons.flag_rounded,
+                  KTColors.danger,
+                  trip.destination ?? 'Destination',
+                ),
+              ),
+              // Live tracking pulse indicator
+              if (isLiveTracking)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 12,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: KTColors.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: KTColors.success.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: KTColors.success,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'LIVE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: KTColors.success,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              // Google Maps integration note
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isLiveTracking
+                          ? 'Live map available with Google Maps API'
+                          : 'Route map available with Google Maps API',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mapMarker(IconData icon, Color color, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 2),
+          ),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
     );
   }
 
@@ -240,27 +394,137 @@ class DriverTripDetailScreen extends ConsumerWidget {
   }
 
   void _showStatusDialog(BuildContext context, WidgetRef ref, Trip trip) {
-    final statuses = ['pending', 'started', 'in_transit', 'loading', 'completed'];
-    
+    // 'completed' is intentionally excluded — drivers must use the ePOD flow to complete a trip
+    const allStatuses = ['ready', 'started', 'loading', 'in_transit'];
+    final currentIdx = allStatuses.indexOf(trip.status);
+    // Show only the next status in the flow
+    final nextStatuses = currentIdx >= 0 && currentIdx < allStatuses.length - 1
+        ? [allStatuses[currentIdx + 1]]
+        : allStatuses.where((s) => s != trip.status).toList();
+
+    // Should not reach here (button is hidden for in_transit), but guard just in case
+    if (nextStatuses.isEmpty) return;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Update Trip Status'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: statuses
-              .map((status) => RadioListTile<String>(
-                title: Text(status.replaceAll('_', ' ').toUpperCase()),
-                value: status,
-                groupValue: trip.status,
-                onChanged: (value) {
-                  if (value != null) {
-                    ref.read(tripsProvider.notifier).updateTripStatus(trip.id, value);
-                    Navigator.pop(ctx);
+          children: [
+            // Current status display
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  const Text('Current: ', style: TextStyle(color: KTColors.textSecondary, fontSize: 13)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(trip.status).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: _getStatusColor(trip.status).withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      trip.status.replaceAll('_', ' ').toUpperCase(),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _getStatusColor(trip.status)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ...nextStatuses.map((status) => ListTile(
+              leading: Icon(Icons.arrow_forward_rounded, color: _getStatusColor(status)),
+              title: Text(
+                status.replaceAll('_', ' ').toUpperCase(),
+                style: TextStyle(fontWeight: FontWeight.w600, color: _getStatusColor(status)),
+              ),
+              onTap: () async {
+                Navigator.pop(ctx);
+                // Gate: READY → STARTED requires pre-trip checklist to be submitted
+                if (trip.status == 'ready' && status == 'started') {
+                  try {
+                    final api = ref.read(apiServiceProvider);
+                    await api.get(
+                      '/trips/${trip.id}/checklist',
+                      queryParameters: {'type': 'pre_trip'},
+                    );
+                    // 200 → checklist completed → proceed
+                    await ref.read(tripsPaginatedProvider.notifier).updateTripStatus(trip.id, status);
+                    ref.invalidate(tripDetailProvider(trip.id));
+                  } catch (_) {
+                    // 404 or network error → checklist not done → show gate dialog
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (alertCtx) => AlertDialog(
+                          backgroundColor: KTColors.darkSurface,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          title: Row(
+                            children: const [
+                              Icon(Icons.checklist_rtl_rounded,
+                                  color: KTColors.warning, size: 22),
+                              SizedBox(width: 8),
+                              Text('Checklist Required',
+                                  style: TextStyle(
+                                      color: KTColors.textPrimary,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                          content: const Text(
+                            'Please Complete the Pre-trip Checklist to Update',
+                            style: TextStyle(
+                                color: KTColors.textSecondary, fontSize: 14),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(alertCtx),
+                              child: const Text('Later',
+                                  style: TextStyle(color: KTColors.textMuted)),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(alertCtx);
+                                context.push('/driver/checklist');
+                              },
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: KTColors.primary,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8))),
+                              child: const Text('Go to Checklist',
+                                  style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                   }
-                },
-              ))
-              .toList(),
+                } else {
+                  try {
+                    await ref.read(tripsPaginatedProvider.notifier).updateTripStatus(trip.id, status);
+                    ref.invalidate(tripDetailProvider(trip.id));
+                    // Driver is now in transit — send a motivational reminder
+                    if (status == 'in_transit') {
+                      NotificationService().showTripEvent(
+                        title: 'Remember! 🚛',
+                        body: 'There is someone waiting for you!\nDrive safe!',
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to update: $e'), backgroundColor: KTColors.danger),
+                      );
+                    }
+                  }
+                }
+              },
+            )),
+          ],
         ),
       ),
     );
@@ -268,12 +532,71 @@ class DriverTripDetailScreen extends ConsumerWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
+      case 'ready': return KTColors.info;
       case 'pending': return KTColors.warning;
-      case 'started': return KTColors.info;
+      case 'started': return const Color(0xFF3B82F6);
       case 'in_transit': return KTColors.primary;
       case 'loading': return KTColors.warning;
+      case 'unloading': return const Color(0xFFF59E0B);
       case 'completed': return KTColors.success;
       default: return KTColors.textMuted;
     }
   }
+}
+
+class _RoutePlaceholderPainter extends CustomPainter {
+  final bool isLive;
+  _RoutePlaceholderPainter({required this.isLive});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = isLive
+          ? KTColors.success.withValues(alpha: 0.25)
+          : KTColors.primary.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    // Draw dashed curved route line
+    final path = Path()
+      ..moveTo(60, size.height * 0.5)
+      ..cubicTo(
+        size.width * 0.3, size.height * 0.2,
+        size.width * 0.7, size.height * 0.8,
+        size.width - 60, size.height * 0.5,
+      );
+
+    final dashPaint = Paint()
+      ..color = paint.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    // Draw path as dashes
+    final metrics = path.computeMetrics();
+    for (final metric in metrics) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final end = (distance + 8).clamp(0, metric.length).toDouble();
+        final segment = metric.extractPath(distance, end);
+        canvas.drawPath(segment, dashPaint);
+        distance += 16;
+      }
+    }
+
+    // Draw subtle grid dots
+    final dotPaint = Paint()
+      ..color = const Color(0xFF334155).withValues(alpha: 0.3)
+      ..style = PaintingStyle.fill;
+
+    for (double x = 20; x < size.width; x += 40) {
+      for (double y = 20; y < size.height; y += 40) {
+        canvas.drawCircle(Offset(x, y), 1, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoutePlaceholderPainter old) => old.isLive != isLive;
 }

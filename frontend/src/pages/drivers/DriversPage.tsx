@@ -37,6 +37,7 @@ export default function DriversPage() {
     phone: '',
     license_number: '',
     license_expiry: '',
+    security_pin: '',
   });
 
   const { data: dashboard } = useQuery<DriverDashboard>({
@@ -80,6 +81,7 @@ export default function DriversPage() {
       license_number: createForm.license_number,
       license_type: 'HMV',
       license_expiry: createForm.license_expiry,
+      security_pin: createForm.security_pin || undefined,
       status: 'available',
       salary_base: 0,
       total_trips: 0,
@@ -93,7 +95,8 @@ export default function DriversPage() {
       const email = data?.login_email || data?.data?.login_email;
       const password = data?.login_password || data?.data?.login_password;
       if (email && password) {
-        toast.success(`Driver created!\nLogin: ${email}\nPassword: ${password}`, { duration: 10000 });
+        const pinMsg = createForm.security_pin ? `\nSecurity PIN: ${createForm.security_pin}` : '';
+        toast.success(`Driver created!\nLogin: ${email}\nPassword: ${password}${pinMsg}`, { duration: 10000 });
       } else {
         toast.success('Driver created successfully.');
       }
@@ -103,6 +106,7 @@ export default function DriversPage() {
         phone: '',
         license_number: '',
         license_expiry: '',
+        security_pin: '',
       });
       setIsCreateOpen(false);
     },
@@ -420,9 +424,27 @@ export default function DriversPage() {
               <input className="input-field" value={createForm.license_number} onChange={(e) => setCreateForm((p) => ({ ...p, license_number: e.target.value }))} required />
             </div>
           </div>
-          <div>
-            <label className="label">License Expiry</label>
-            <input type="date" className="input-field" value={createForm.license_expiry} onChange={(e) => setCreateForm((p) => ({ ...p, license_expiry: e.target.value }))} required />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">License Expiry</label>
+              <input type="date" className="input-field" value={createForm.license_expiry} onChange={(e) => setCreateForm((p) => ({ ...p, license_expiry: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="label">Security PIN (6 digits)</label>
+              <input
+                className="input-field"
+                value={createForm.security_pin}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setCreateForm((p) => ({ ...p, security_pin: v }));
+                }}
+                placeholder="e.g. 482910"
+                maxLength={6}
+                pattern="\\d{6}"
+                inputMode="numeric"
+                required
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
             <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
@@ -430,7 +452,7 @@ export default function DriversPage() {
               isLoading={createMutation.isPending}
               label="Create Driver"
               loadingLabel="Creating..."
-              disabled={!createForm.employee_id.trim() || !createForm.full_name.trim() || !createForm.phone.trim() || !createForm.license_number.trim() || !createForm.license_expiry}
+              disabled={!createForm.employee_id.trim() || !createForm.full_name.trim() || !createForm.phone.trim() || !createForm.license_number.trim() || !createForm.license_expiry || createForm.security_pin.length !== 6}
             />
           </div>
         </form>

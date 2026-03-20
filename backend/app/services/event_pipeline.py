@@ -111,7 +111,7 @@ async def process_event(
     """Full 10-step event pipeline. Returns the event ID (new or updated)."""
     from app.models.postgres.intelligence import EventBusEvent
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     # Step 2 — Assign priority
     priority, cooldown_minutes = await get_priority_for_event(db, event_type)

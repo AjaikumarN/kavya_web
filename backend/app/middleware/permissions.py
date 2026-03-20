@@ -233,9 +233,9 @@ ROLE_PERMISSIONS = {
         # E-way Bill (view only)
         Permissions.EWAY_BILL_READ,
         # Vehicle
-        Permissions.VEHICLE_READ, Permissions.VEHICLE_UPDATE,
+        Permissions.VEHICLE_CREATE, Permissions.VEHICLE_READ, Permissions.VEHICLE_UPDATE,
         # Driver
-        Permissions.DRIVER_READ, Permissions.DRIVER_UPDATE,
+        Permissions.DRIVER_CREATE, Permissions.DRIVER_READ, Permissions.DRIVER_UPDATE,
         # LR
         Permissions.LR_READ,
         # Invoice (view only for trip reference)
@@ -322,15 +322,15 @@ ROLE_PERMISSIONS = {
     
     "driver": [
         # Trip (own trips only)
-        Permissions.TRIP_READ, Permissions.TRIP_START, Permissions.TRIP_COMPLETE,
+        Permissions.TRIP_READ, Permissions.TRIP_UPDATE, Permissions.TRIP_START, Permissions.TRIP_COMPLETE,
         # Expense (own expenses)
         Permissions.EXPENSE_CREATE, Permissions.EXPENSE_READ,
         # Fuel (own entries)
         Permissions.FUEL_CREATE, Permissions.FUEL_READ,
         # LR (read own)
         Permissions.LR_READ,
-        # Documents (read own)
-        Permissions.DOCUMENT_READ,
+        # Documents (upload receipts, read own)
+        Permissions.DOCUMENT_CREATE, Permissions.DOCUMENT_READ,
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
         # Intelligence (own data only — enforced in endpoints)

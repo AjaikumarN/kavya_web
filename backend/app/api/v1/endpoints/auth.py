@@ -38,7 +38,7 @@ def _get_redirect(roles: list[str]) -> str:
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await authenticate_user(db, data.email, data.password)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid E-mail or Password")
 
     roles = await get_user_roles(db, user.id)
     tokens = create_tokens(

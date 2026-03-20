@@ -89,6 +89,7 @@ class TripCreate(BaseModel):
     planned_end: Optional[datetime] = None
     estimated_fuel_litres: Optional[float] = None
     driver_advance: float = 0
+    driver_pay: float = 0
     lr_ids: List[int] = []
     remarks: Optional[str] = None
 
@@ -101,6 +102,7 @@ class TripUpdate(BaseModel):
     planned_end: Optional[datetime] = None
     estimated_fuel_litres: Optional[float] = None
     driver_advance: Optional[float] = None
+    driver_pay: Optional[float] = None
     remarks: Optional[str] = None
 
 
@@ -133,6 +135,7 @@ class TripResponse(BaseModel):
     revenue: float = 0
     profit_loss: float = 0
     driver_advance: float = 0
+    driver_pay: float = 0
     advance_settled: bool = False
     pod_collected: bool = False
     expenses_verified: bool = False

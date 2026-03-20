@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_stat_card.dart';
@@ -50,28 +49,39 @@ class FleetHomeScreen extends ConsumerWidget {
                 // Section 1 — Fleet status row [cite: 56]
                 SizedBox(
                   height: 120,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      SizedBox(width: 140, child: KTStatCard(title: "Moving", value: data['moving'].toString(), color: KTColors.success, icon: Icons.trending_up)),
-                      SizedBox(width: 140, child: KTStatCard(title: "Idle", value: data['idle'].toString(), color: KTColors.warning, icon: Icons.pause_circle_outline)),
-                      SizedBox(width: 140, child: KTStatCard(title: "Stopped", value: data['stopped'].toString(), color: KTColors.info, icon: Icons.stop_circle_outlined)),
-                      SizedBox(width: 160, child: KTStatCard(title: "Maintenance", value: data['maintenance'].toString(), color: KTColors.danger, icon: Icons.build)),
-                    ],
-                  ),
+                  child: Builder(builder: (_) {
+                    final fleet = (data['fleet_summary'] as Map<String, dynamic>?) ?? {};
+                    final onTrip = fleet['on_trip'] ?? 0;
+                    final available = fleet['available'] ?? 0;
+                    final maintenance = fleet['maintenance'] ?? 0;
+                    final total = fleet['total_vehicles'] ?? 0;
+                    final stopped = (total is int ? total : 0) - (onTrip is int ? onTrip : 0) - (available is int ? available : 0) - (maintenance is int ? maintenance : 0);
+                    return ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        SizedBox(width: 140, child: KTStatCard(title: "On Trip", value: '$onTrip', color: KTColors.success, icon: Icons.trending_up)),
+                        SizedBox(width: 140, child: KTStatCard(title: "Available", value: '$available', color: KTColors.warning, icon: Icons.pause_circle_outline)),
+                        SizedBox(width: 140, child: KTStatCard(title: "Other", value: '${stopped < 0 ? 0 : stopped}', color: KTColors.info, icon: Icons.stop_circle_outlined)),
+                        SizedBox(width: 160, child: KTStatCard(title: "Maintenance", value: '$maintenance', color: KTColors.danger, icon: Icons.build)),
+                      ],
+                    );
+                  }),
                 ),
                 const SizedBox(height: 24),
                 
                 // Section 2 — Alerts [cite: 57-58]
                 Text("Today's alerts", style: KTTextStyles.h3),
                 const SizedBox(height: 12),
-                KTAlertCard(
-                  title: "Documents expiring this week",
-                  count: 2,
-                  severity: AlertSeverity.medium, // 1-3 = medium [cite: 57]
-                  items: const ["TN01AB1234 — RC expires in 3 days", "TN02CD5678 — Insurance expires today"],
-                  onTap: () => context.go('/fleet/vehicles'), // navigate to /fleet/vehicles [cite: 57]
-                ),
+                Builder(builder: (_) {
+                  final expiring = (data['expiring_documents'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                  return KTAlertCard(
+                    title: "Documents expiring soon",
+                    count: expiring.length,
+                    severity: expiring.length > 3 ? AlertSeverity.high : (expiring.isNotEmpty ? AlertSeverity.medium : AlertSeverity.low),
+                    items: expiring.take(5).map((d) => "${d['registration'] ?? '—'} — ${d['type'] ?? ''}").toList(),
+                    onTap: () => context.go('/fleet/vehicles'),
+                  );
+                }),
                 const SizedBox(height: 12),
                 
                 // Section 3 — Quick actions grid (2x2) [cite: 58]

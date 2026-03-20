@@ -47,6 +47,7 @@ from app.api.v1.endpoints import (
     tpms,
     intelligence,
     sync,
+    payables,
 )
 
 api_router = APIRouter()
@@ -87,6 +88,9 @@ api_router.include_router(driver_scoring.router, prefix="/driver-scoring", tags=
 # Finance
 api_router.include_router(finance.router, prefix="/finance", tags=["Finance"])
 api_router.include_router(finance_automation.router, prefix="/finance", tags=["Finance Automation"])
+
+# Payables (Driver Settlements)
+api_router.include_router(payables.router, prefix="/payables", tags=["Payables"])
 
 # Banking
 api_router.include_router(banking.router, prefix="/banking", tags=["Banking"])

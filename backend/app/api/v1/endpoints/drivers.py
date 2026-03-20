@@ -1,5 +1,5 @@
 # Driver Management Endpoints
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from typing import Optional
@@ -7,15 +7,16 @@ from datetime import date, datetime, timedelta
 import random
 
 from app.db.postgres.connection import get_db
-from app.core.security import TokenData, get_current_user
+from app.core.security import TokenData, get_current_user, get_password_hash, verify_password
 from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.driver import DriverCreate, DriverUpdate, DriverLicenseCreate
 from app.services import driver_service, trip_service
-from app.models.postgres.driver import Driver
+from app.models.postgres.driver import Driver, DriverDocument
 from app.models.postgres.trip import Trip
 from app.models.postgres.lr import LR
 from app.models.postgres.user import User
+from app.models.postgres.vehicle import Vehicle, VehicleDocument
 
 router = APIRouter()
 
@@ -278,6 +279,210 @@ async def complete_my_trip(
     return APIResponse(success=True, data={"id": updated_trip.id}, message="Trip completed")
 
 
+# --- Driver Allocated Vehicle ---
+@router.get("/me/vehicle", response_model=APIResponse)
+async def get_my_vehicle(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Get the vehicle allocated to the current driver's active/started trip, including vehicle documents."""
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    # Find active trip (STARTED, IN_TRANSIT, LOADING, UNLOADING) with a vehicle
+    active_statuses = ["STARTED", "IN_TRANSIT", "LOADING", "UNLOADING", "READY", "VEHICLE_ASSIGNED", "DRIVER_ASSIGNED"]
+    trip_result = await db.execute(
+        select(Trip).where(
+            Trip.driver_id == driver.id,
+            Trip.status.in_(active_statuses),
+            Trip.vehicle_id.isnot(None),
+            Trip.is_deleted == False,
+        ).order_by(Trip.trip_date.desc()).limit(1)
+    )
+    trip = trip_result.scalar_one_or_none()
+    if not trip or not trip.vehicle_id:
+        return APIResponse(success=True, data=None, message="No vehicle currently allocated")
+
+    # Get vehicle details
+    vehicle_result = await db.execute(
+        select(Vehicle).where(Vehicle.id == trip.vehicle_id)
+    )
+    vehicle = vehicle_result.scalar_one_or_none()
+    if not vehicle:
+        return APIResponse(success=True, data=None, message="Vehicle not found")
+
+    # Get vehicle documents
+    docs_result = await db.execute(
+        select(VehicleDocument).where(VehicleDocument.vehicle_id == vehicle.id)
+    )
+    docs = docs_result.scalars().all()
+    doc_items = []
+    for d in docs:
+        doc_items.append({
+            "id": d.id,
+            "document_type": d.document_type,
+            "document_number": d.document_number,
+            "issue_date": str(d.issue_date) if d.issue_date else None,
+            "expiry_date": str(d.expiry_date) if d.expiry_date else None,
+            "file_url": d.file_url,
+            "is_verified": d.is_verified,
+            "remarks": d.remarks,
+        })
+
+    data = {
+        "vehicle": {
+            "id": vehicle.id,
+            "registration_number": vehicle.registration_number,
+            "vehicle_type": vehicle.vehicle_type.value if vehicle.vehicle_type else None,
+            "make": vehicle.make,
+            "model": vehicle.model,
+            "year_of_manufacture": vehicle.year_of_manufacture,
+            "fuel_type": vehicle.fuel_type,
+            "status": vehicle.status.value if vehicle.status else None,
+        },
+        "trip": {
+            "id": trip.id,
+            "trip_number": trip.trip_number,
+            "origin": trip.origin,
+            "destination": trip.destination,
+            "status": trip.status.value if trip.status else str(trip.status),
+        },
+        "documents": doc_items,
+    }
+    return APIResponse(success=True, data=data)
+
+
+# --- Driver Self-Service Documents ---
+@router.get("/me/documents", response_model=APIResponse)
+async def get_my_documents(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Get the current driver's own documents."""
+    driver = await db.execute(
+        select(Driver).where(Driver.user_id == current_user.user_id)
+    )
+    driver = driver.scalar_one_or_none()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    result = await db.execute(
+        select(DriverDocument).where(DriverDocument.driver_id == driver.id)
+    )
+    docs = result.scalars().all()
+    items = []
+    for dd in docs:
+        items.append({
+            "id": dd.id,
+            "document_type": dd.document_type,
+            "document_number": dd.document_number,
+            "file_url": dd.file_url,
+            "is_verified": dd.is_verified,
+            "remarks": dd.remarks,
+            "uploaded_at": dd.created_at.isoformat() if dd.created_at else None,
+            "updated_at": dd.updated_at.isoformat() if dd.updated_at else None,
+        })
+    return APIResponse(success=True, data={"items": items})
+
+
+@router.post("/me/documents/upload", response_model=APIResponse, status_code=201)
+async def upload_my_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    document_number: str = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Upload a personal document (license, aadhaar, badge, medical cert)."""
+    ALLOWED_TYPES = ["driving_license", "aadhaar_card", "driver_badge", "medical_fitness"]
+    if document_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid document_type. Allowed: {ALLOWED_TYPES}")
+
+    driver = await db.execute(
+        select(Driver).where(Driver.user_id == current_user.user_id)
+    )
+    driver = driver.scalar_one_or_none()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    existing = await db.execute(
+        select(DriverDocument).where(
+            DriverDocument.driver_id == driver.id,
+            DriverDocument.document_type == document_type,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Document already exists. Use PUT to update.")
+
+    from app.services import s3_service
+    content = await file.read()
+    folder = f"driver-documents/{driver.id}"
+    result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
+
+    doc = DriverDocument(
+        driver_id=driver.id,
+        document_type=document_type,
+        document_number=document_number,
+        file_url=result.get("url", ""),
+        is_verified=False,
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+
+    return APIResponse(
+        success=True,
+        data={"id": doc.id, "file_url": doc.file_url, "document_type": doc.document_type},
+        message="Document uploaded successfully",
+    )
+
+
+@router.put("/me/documents/{doc_id}", response_model=APIResponse)
+async def update_my_document(
+    doc_id: int,
+    file: UploadFile = File(...),
+    document_number: str = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Update (re-upload) a driver's personal document."""
+    driver = await db.execute(
+        select(Driver).where(Driver.user_id == current_user.user_id)
+    )
+    driver = driver.scalar_one_or_none()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    result = await db.execute(
+        select(DriverDocument).where(
+            DriverDocument.id == doc_id,
+            DriverDocument.driver_id == driver.id,
+        )
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    from app.services import s3_service
+    content = await file.read()
+    folder = f"driver-documents/{driver.id}"
+    upload_result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
+
+    doc.file_url = upload_result.get("url", doc.file_url)
+    doc.is_verified = False
+    if document_number:
+        doc.document_number = document_number
+    await db.commit()
+    await db.refresh(doc)
+
+    return APIResponse(
+        success=True,
+        data={"id": doc.id, "file_url": doc.file_url, "document_type": doc.document_type},
+        message="Document updated successfully",
+    )
+
+
 @router.get("/{driver_id}", response_model=APIResponse)
 async def get_driver(driver_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     driver = await driver_service.get_driver(db, driver_id)
@@ -344,6 +549,44 @@ async def delete_driver(
     if not success:
         raise HTTPException(status_code=404, detail="Driver not found")
     return APIResponse(success=True, message="Driver deleted")
+
+
+# --- Security PIN ---
+@router.put("/{driver_id}/pin", response_model=APIResponse)
+async def set_driver_pin(
+    driver_id: int,
+    pin: str = Body(..., embed=True, min_length=6, max_length=6, pattern=r'^\d{6}$'),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_UPDATE)),
+):
+    """Admin sets or resets a driver's 6-digit security PIN."""
+    driver = await driver_service.get_driver(db, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    driver.security_pin_hash = get_password_hash(pin)
+    await db.flush()
+    return APIResponse(success=True, message="Security PIN updated")
+
+
+@router.post("/verify-pin", response_model=APIResponse)
+async def verify_driver_pin(
+    pin: str = Body(..., embed=True, min_length=6, max_length=6),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Driver verifies their own security PIN (e.g. for high-value expenses)."""
+    result = await db.execute(
+        select(Driver).where(Driver.user_id == current_user.user_id, Driver.is_deleted == False)
+    )
+    driver = result.scalar_one_or_none()
+    if not driver:
+        raise HTTPException(status_code=404, detail="No driver profile linked to this account")
+    if not driver.security_pin_hash:
+        raise HTTPException(status_code=400, detail="No security PIN has been set. Contact your admin.")
+    if not verify_password(pin, driver.security_pin_hash):
+        raise HTTPException(status_code=403, detail="Incorrect PIN")
+    return APIResponse(success=True, message="PIN verified")
 
 
 # --- License ---
@@ -465,7 +708,7 @@ async def get_driver_documents(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    """Get documents for a specific driver."""
+    """Get documents for a specific driver (licenses + uploaded documents)."""
     driver = await driver_service.get_driver(db, driver_id)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
@@ -483,12 +726,31 @@ async def get_driver_documents(
             "verified": True,
         })
 
+    # Include DriverDocument records
+    result = await db.execute(
+        select(DriverDocument).where(DriverDocument.driver_id == driver_id)
+    )
+    driver_docs = result.scalars().all()
+    for dd in driver_docs:
+        docs.append({
+            "id": dd.id,
+            "doc_type": dd.document_type,
+            "doc_name": dd.document_type.replace('_', ' ').title(),
+            "doc_number": dd.document_number,
+            "file_url": dd.file_url,
+            "status": "verified" if dd.is_verified else "pending",
+            "verified": dd.is_verified,
+            "uploaded_at": dd.created_at.isoformat() if dd.created_at else None,
+            "updated_at": dd.updated_at.isoformat() if dd.updated_at else None,
+            "remarks": dd.remarks,
+        })
+
     compliance = {
         "total": len(docs),
-        "valid": sum(1 for d in docs if d["status"] == "valid"),
-        "expired": sum(1 for d in docs if d["status"] == "expired"),
+        "valid": sum(1 for d in docs if d.get("status") in ("valid", "verified")),
+        "expired": sum(1 for d in docs if d.get("status") == "expired"),
+        "pending": sum(1 for d in docs if d.get("status") == "pending"),
         "missing": 0,
-        "expiring_soon": 0,
     }
     return APIResponse(success=True, data={"items": docs, "compliance": compliance})
 

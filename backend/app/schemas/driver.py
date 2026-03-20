@@ -51,6 +51,7 @@ class DriverCreate(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relation: Optional[str] = None
+    security_pin: Optional[str] = Field(None, min_length=6, max_length=6, pattern=r'^\d{6}$', description='6-digit security PIN for expense verification')
     licenses: List[DriverLicenseCreate] = []
 
 
@@ -75,6 +76,7 @@ class DriverUpdate(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relation: Optional[str] = None
+    security_pin: Optional[str] = Field(None, min_length=6, max_length=6, pattern=r'^\d{6}$', description='6-digit security PIN')
     status: Optional[str] = None
 
 

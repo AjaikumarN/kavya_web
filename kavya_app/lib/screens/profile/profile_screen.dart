@@ -84,14 +84,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               value: _notificationsEnabled,
               onChanged: (val) => setState(() => _notificationsEnabled = val),
               secondary: const Icon(Icons.notifications_active),
-              activeColor: KTColors.primary,
+              activeThumbColor: KTColors.primary,
             ),
             SwitchListTile(
               title: const Text("Dark mode"), // toggle app theme
               value: _darkModeEnabled,
               onChanged: (val) => setState(() => _darkModeEnabled = val),
               secondary: const Icon(Icons.dark_mode),
-              activeColor: KTColors.primary,
+              activeThumbColor: KTColors.primary,
             ),
             ListTile(
               title: const Text("Change password"),

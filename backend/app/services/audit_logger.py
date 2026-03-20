@@ -37,8 +37,8 @@ async def log_audit(
             ip_address=ip_address,
             device_id=device_id,
         )
-        db.add(entry)
-        await db.flush()
+        # Use a savepoint so a failure here doesn't roll back the parent transaction
+        async with db.begin_nested():
+            db.add(entry)
     except Exception as e:
-        await db.rollback()
-        logger.error(f"Audit log write failed: {e}")
+        logger.error(f"Audit log write failed (non-critical): {e}")

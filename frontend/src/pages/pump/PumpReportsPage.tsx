@@ -6,8 +6,15 @@ import { fuelPumpService } from '@/services/fuelPumpService';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
+function toIsoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export default function PumpReportsPage() {
   const [range, setRange] = useState(30);
+
+  const fromDate = toIsoDate(new Date(Date.now() - range * 24 * 60 * 60 * 1000));
+  const toDate = toIsoDate(new Date());
 
   const { data: dashData } = useQuery({
     queryKey: ['pump-dashboard'],
@@ -15,8 +22,8 @@ export default function PumpReportsPage() {
   });
 
   const { data: issuesData } = useQuery({
-    queryKey: ['fuel-issues-report', range],
-    queryFn: () => fuelPumpService.getIssues({ page: 1, limit: 500 }),
+    queryKey: ['fuel-issues-report', fromDate, toDate],
+    queryFn: () => fuelPumpService.getIssues({ page: 1, limit: 500, date_from: fromDate, date_to: toDate }),
   });
 
   const { data: tanksData } = useQuery({
@@ -28,18 +35,15 @@ export default function PumpReportsPage() {
   const issues = issuesData?.data || [];
   const tanks = tanksData?.data || [];
 
-  // Daily aggregation
+  // Daily aggregation — all returned issues are already in the date range
   const dailyMap = new Map<string, { date: string; litres: number; amount: number; count: number }>();
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - range);
 
   issues.forEach((issue: any) => {
     const d = new Date(issue.issued_at || issue.created_at);
-    if (d < cutoff) return;
     const key = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
     const existing = dailyMap.get(key) || { date: key, litres: 0, amount: 0, count: 0 };
-    existing.litres += Number(issue.quantity_litres) || 0;
-    existing.amount += Number(issue.total_amount) || 0;
+    existing.litres += Number(issue.quantity_litres ?? 0) || 0;
+    existing.amount += Number(issue.total_amount ?? 0) || 0;
     existing.count += 1;
     dailyMap.set(key, existing);
   });
@@ -48,10 +52,8 @@ export default function PumpReportsPage() {
   // Vehicle breakdown
   const vehicleMap = new Map<string, number>();
   issues.forEach((issue: any) => {
-    const d = new Date(issue.issued_at || issue.created_at);
-    if (d < cutoff) return;
     const v = issue.vehicle_registration || `V#${issue.vehicle_id}`;
-    vehicleMap.set(v, (vehicleMap.get(v) || 0) + (Number(issue.quantity_litres) || 0));
+    vehicleMap.set(v, (vehicleMap.get(v) || 0) + (Number(issue.quantity_litres ?? 0) || 0));
   });
   const vehicleData = Array.from(vehicleMap.entries())
     .map(([name, value]) => ({ name, value: Math.round(value) }))
@@ -115,10 +117,10 @@ export default function PumpReportsPage() {
       {dashboard && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Stock (L)', value: (+(dashboard?.total_stock_litres ?? 0)).toLocaleString('en-IN') },
-            { label: 'Month Issued (L)', value: (+(dashboard?.month_issued_litres ?? 0)).toLocaleString('en-IN') },
-            { label: 'Month Amount', value: `₹${(+(dashboard?.month_cost ?? 0)).toLocaleString('en-IN')}` },
-            { label: 'Open Alerts', value: dashboard?.open_alerts ?? 0 },
+            { label: 'Total Stock (L)', value: (+(dashboard?.total_stock_litres ?? 0) || 0).toLocaleString('en-IN') },
+            { label: 'Month Issued (L)', value: (+(dashboard?.month_issued_litres ?? 0) || 0).toLocaleString('en-IN') },
+            { label: 'Month Amount', value: `₹${(+(dashboard?.month_cost ?? 0) || 0).toLocaleString('en-IN')}` },
+            { label: 'Open Alerts', value: (dashboard?.open_alerts ?? 0) },
           ].map((c) => (
             <div key={c.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <p className="text-xs text-gray-500">{c.label}</p>
@@ -139,7 +141,7 @@ export default function PumpReportsPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => `${v.toFixed(1)} L`} />
+              <Tooltip formatter={(v: number) => `${(v ?? 0).toFixed(1)} L`} />
               <Bar dataKey="litres" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

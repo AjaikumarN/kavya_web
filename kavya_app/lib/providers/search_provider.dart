@@ -1,9 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:debounce_throttle/debounce_throttle.dart';
 import '../models/trip.dart';
 import '../models/expense.dart';
-import '../services/api_service.dart';
-import 'cache_manager_provider.dart';
 import 'fleet_dashboard_provider.dart'; // canonical apiServiceProvider
 
 // Debounced trip search provider
@@ -26,7 +23,7 @@ final tripSearchProvider = FutureProvider.autoDispose<List<Trip>>((ref) async {
     );
     
     final rawData = data['data'];
-    final items = (rawData is List ? rawData as List<dynamic> : [])
+    final items = (rawData is List ? rawData : [])
         .map((e) => Trip.fromJson(e as Map<String, dynamic>))
         .toList();
     

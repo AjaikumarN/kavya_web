@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/api_service.dart';
 import 'fleet_dashboard_provider.dart'; // Reusing apiServiceProvider
 
 final receivablesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {

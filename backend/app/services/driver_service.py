@@ -79,11 +79,16 @@ async def create_driver(db: AsyncSession, data: dict) -> dict:
     data.pop("is_active", None)
     data.pop("status", None)
 
+    # Hash security PIN if provided
+    raw_pin = data.pop("security_pin", None)
+
     if not data.get("employee_code"):
         next_id = (await db.execute(select(func.coalesce(func.max(Driver.id), 0) + 1))).scalar() or 1
         data["employee_code"] = f"DRV{int(next_id):05d}"
 
     driver = Driver(**data)
+    if raw_pin:
+        driver.security_pin_hash = get_password_hash(raw_pin)
     db.add(driver)
     await db.flush()
 
@@ -153,6 +158,10 @@ async def update_driver(db: AsyncSession, driver_id: int, data: dict):
     driver = await get_driver(db, driver_id)
     if not driver:
         return None
+    # Hash security PIN if provided
+    raw_pin = data.pop("security_pin", None)
+    if raw_pin:
+        driver.security_pin_hash = get_password_hash(raw_pin)
     for k, v in data.items():
         if v is not None:
             setattr(driver, k, v)

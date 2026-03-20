@@ -92,6 +92,6 @@ class IndianFormat {
     }
     if (rest.isNotEmpty) groups.insert(0, rest);
 
-    return '${groups.join(',')},${last3}';
+    return '${groups.join(',')},$last3';
   }
 }

@@ -45,12 +45,13 @@ class ChecklistNotifier extends StateNotifier<AsyncValue<Checklist>> {
     final updated = current.items
         .map((i) => i.id == itemId ? i.copyWith(checked: checked) : i)
         .toList();
-    state = AsyncValue.data(Checklist(
-      tripId: current.tripId,
-      type: current.type,
-      items: updated,
-      completedAt: current.completedAt,
-    ));
+    state = AsyncValue.data(current.copyWith(items: updated));
+  }
+
+  void setNotes(String notes) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncValue.data(current.copyWith(notes: notes));
   }
 
   Future<void> submit() async {

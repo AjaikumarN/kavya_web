@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/expense.dart';
 import '../services/api_service.dart';
@@ -235,17 +236,22 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
     state = const AsyncValue.loading();
     try {
       final path = tripId != null ? '/expenses?trip_id=$tripId' : '/expenses';
+      debugPrint('[ExpensesNotifier] fetchExpenses GET $path');
       final response = await _api.get(path);
+      debugPrint('[ExpensesNotifier] response type=${response.runtimeType}');
       final innerData = (response['data'] is Map ? response['data'] as Map<String, dynamic> : {});
+      debugPrint('[ExpensesNotifier] innerData keys=${innerData.keys.toList()}');
       final items = (innerData['items'] as List<dynamic>?)
               ?.map((e) => Expense.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];
+      debugPrint('[ExpensesNotifier] parsed ${items.length} expenses');
       state = AsyncValue.data(items);
 
       // Cache results
       _ref.read(expensesCacheProvider).set(cacheKey, items);
     } catch (e, st) {
+      debugPrint('[ExpensesNotifier] fetchExpenses ERROR: $e');
       state = AsyncValue.error(e, st);
     }
   }
@@ -263,11 +269,14 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
 
       // Send to server (include biometric flag)
       final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
-      await _api.post('/expenses', data: payload);
+      debugPrint('[ExpensesNotifier] addExpense POST /expenses payload=$payload');
+      final result = await _api.post('/expenses', data: payload);
+      debugPrint('[ExpensesNotifier] addExpense POST result=$result');
 
       // Success - refresh to get server ID
       await refresh();
     } catch (e, st) {
+      debugPrint('[ExpensesNotifier] addExpense ERROR: $e');
       try {
         // Offline-first: queue the write
         await _offline.enqueueRequest(

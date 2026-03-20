@@ -1,107 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/notification.dart' as models;
-
-/// Background message handler - called when app is terminated
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('Handling background message: ${message.messageId}');
-}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
-  
-  factory NotificationService() {
-    return _instance;
-  }
-  
+
+  factory NotificationService() => _instance;
+
   NotificationService._internal();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  late FlutterLocalNotificationsPlugin _localNotifications;
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   final List<models.NotificationModel> _notifications = [];
   VoidCallback? _onNotificationReceived;
+  bool _initialized = false;
 
   Future<void> initialize() async {
-    debugPrint('[FCM] Initializing Firebase Messaging...');
-
-    // Request permissions
-    final settings = await _fcm.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: true,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('[FCM] User denied notification permissions');
-      return;
-    }
-
-    if (settings.authorizationStatus == AuthorizationStatus.provisional) {
-      debugPrint('[FCM] Provisional permission granted');
-    }
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('[FCM] Full permission granted');
-    }
-
-    // Get FCM token
-    final token = await _fcm.getToken();
-    debugPrint('[FCM] Device token: $token');
-
-    // Setup local notifications for foreground display
-    _initializeLocalNotifications();
-
-    // Handle notification when app is in foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('[FCM] Message received in foreground: ${message.messageId}');
-      _handleForegroundMessage(message);
-    });
-
-    // Handle notification when app is opened from terminated state
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('[FCM] Message opened from terminated state: ${message.messageId}');
-      _handleNotificationTap(message.data);
-    });
-
-    // Set background message handler BEFORE app starts receiving background messages
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // Check if app was opened with a notification
-    final initialMessage = await _fcm.getInitialMessage();
-    if (initialMessage != null) {
-      debugPrint('[FCM] App opened with initial message: ${initialMessage.messageId}');
-      _handleNotificationTap(initialMessage.data);
-    }
-
-    debugPrint('[FCM] Firebase Messaging initialized successfully');
-  }
-
-  void _initializeLocalNotifications() {
-    _localNotifications = FlutterLocalNotificationsPlugin();
+    if (_initialized) return;
 
     const androidChannel = AndroidNotificationChannel(
       'kavya_transport_notifications',
       'Kavya Transport Notifications',
-      description: 'Notifications for Kavya Transport ERP',
+      description: 'Trip updates and alerts for Kavya Transport drivers',
       importance: Importance.high,
       enableVibration: true,
       playSound: true,
     );
 
-    _localNotifications
+    await _localNotifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
 
-    _localNotifications.initialize(
+    await _localNotifications.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(
@@ -111,56 +42,48 @@ class NotificationService {
         ),
       ),
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint('[Local] Notification tapped: ${response.payload}');
-        if (response.payload != null) {
-          final data = _parsePayload(response.payload!);
-          _handleNotificationTap(data);
-        }
+        debugPrint('[Notifications] Tapped: ${response.payload}');
       },
     );
+
+    _initialized = true;
+    debugPrint('[Notifications] Local notifications initialized');
   }
 
-  void _handleForegroundMessage(RemoteMessage message) {
-    final notification = models.NotificationModel(
-      id: message.messageId ?? '',
-      title: message.notification?.title ?? 'Kavya Transport',
-      body: message.notification?.body ?? '',
-      type: message.data['type'] ?? 'default',
+  /// Post a system banner AND add to the in-app notification list.
+  Future<void> showTripEvent({
+    required String title,
+    required String body,
+  }) async {
+    // 1. Add to in-app list
+    final notif = models.NotificationModel(
+      id: 'trip_event_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      body: body,
+      type: 'trip_event',
       createdAt: DateTime.now().toIso8601String(),
       read: false,
     );
-
-    _notifications.insert(0, notification);
-
-    // Show local notification banner
-    _showLocalNotification(
-      title: notification.title,
-      body: notification.body,
-      payload: _encodePayload(message.data),
-    );
-
-    // Trigger callback if listener is attached
+    _notifications.insert(0, notif);
     _onNotificationReceived?.call();
-  }
 
-  Future<void> _showLocalNotification({
-    required String title,
-    required String body,
-    required String payload,
-  }) async {
+    // 2. Show system banner
+    if (!_initialized) await initialize();
     try {
       await _localNotifications.show(
-        id: title.hashCode,
+        id: notif.id.hashCode,
         title: title,
         body: body,
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'kavya_transport_notifications',
             'Kavya Transport Notifications',
-            channelDescription: 'Notifications for Kavya Transport ERP',
+            channelDescription:
+                'Trip updates and alerts for Kavya Transport drivers',
             importance: Importance.high,
             priority: Priority.high,
             showWhen: true,
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -168,96 +91,42 @@ class NotificationService {
             presentSound: true,
           ),
         ),
-        payload: payload,
       );
     } catch (e) {
-      debugPrint('[Local Notifications] Error showing notification: $e');
+      debugPrint('[Notifications] System banner failed: $e');
     }
-  }
-
-  // Handle routing based on notification type
-  void _handleNotificationTap(Map<String, dynamic> data) {
-    final type = data['type'] ?? 'default';
-    final entityId = data['entity_id'];
-
-    debugPrint('[FCM] Handling notification tap - type: $type, entityId: $entityId');
-
-    switch (type) {
-      case 'trip_assigned':
-        // Trip assigned to driver
-        if (entityId != null) {
-          // TODO: Navigate to trip detail
-        }
-        break;
-
-      case 'expense_approved':
-      case 'expense_rejected':
-        // Expense approval status changed
-        // TODO: Navigate to expense list/detail
-        break;
-
-      case 'ewb_expiring':
-        // E-way bill expiring soon
-        // TODO: Navigate to e-way bill list
-        break;
-
-      case 'checklist_reminder':
-        // Reminder to complete checklist
-        // TODO: Navigate to checklist
-        break;
-
-      case 'payment_received':
-        // Payment received notification (for accountant)
-        // TODO: Navigate to receivables/invoices
-        break;
-
-      case 'location_report':
-        // Location report for fleet manager
-        // TODO: Navigate to fleet analytics
-        break;
-
-      default:
-        debugPrint('[FCM] Unknown notification type: $type');
-    }
-  }
-
-  String _encodePayload(Map<String, dynamic> data) {
-    return data.entries.map((e) => '${e.key}=${e.value}').join('&');
-  }
-
-  Map<String, dynamic> _parsePayload(String payload) {
-    final result = <String, dynamic>{};
-    final pairs = payload.split('&');
-    for (final pair in pairs) {
-      final split = pair.split('=');
-      if (split.length == 2) {
-        result[split[0]] = split[1];
-      }
-    }
-    return result;
   }
 
   // Public API
-  List<models.NotificationModel> getNotifications() => _notifications;
+  List<models.NotificationModel> getNotifications() =>
+      List.unmodifiable(_notifications);
 
   Future<void> markAsRead(String notificationId) async {
     final index = _notifications.indexWhere((n) => n.id == notificationId);
     if (index >= 0) {
       _notifications[index] = _notifications[index].copyWith(read: true);
+      _onNotificationReceived?.call();
     }
+  }
+
+  void markAllAsRead() {
+    for (int i = 0; i < _notifications.length; i++) {
+      _notifications[i] = _notifications[i].copyWith(read: true);
+    }
+    _onNotificationReceived?.call();
   }
 
   Future<void> deleteNotification(String notificationId) async {
     _notifications.removeWhere((n) => n.id == notificationId);
+    _onNotificationReceived?.call();
   }
 
   void clearAllNotifications() {
     _notifications.clear();
+    _onNotificationReceived?.call();
   }
 
   void setOnNotificationReceivedCallback(VoidCallback callback) {
     _onNotificationReceived = callback;
   }
-
-  Future<String?> getFCMToken() => _fcm.getToken();
 }

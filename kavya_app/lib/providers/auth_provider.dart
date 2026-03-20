@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 
@@ -63,8 +64,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _authService.login(email, password);
       state = state.copyWith(isLoading: false);
       return true;
+    } on DioException catch (e) {
+      String message = 'Login failed. Please try again.';
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic>) {
+        message = responseData['detail']?.toString() ??
+            responseData['message']?.toString() ??
+            message;
+      } else if (e.response?.statusCode == 401) {
+        message = 'Invalid E-mail or Password';
+      }
+      state = state.copyWith(isLoading: false, error: message);
+      return false;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: 'Login failed. Please try again.');
       return false;
     }
   }

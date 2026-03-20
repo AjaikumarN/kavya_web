@@ -62,7 +62,7 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: method,
+                initialValue: method,
                 decoration: const InputDecoration(labelText: 'Payment Method'),
                 items: methods.map((m) => DropdownMenuItem(
                   value: m,

@@ -21,6 +21,8 @@ class VehicleCreate(BaseModel):
     owner_phone: Optional[str] = None
     fuel_type: str = "diesel"
     fuel_tank_capacity: Optional[float] = None
+    mileage_per_litre: Optional[float] = None
+    odometer_reading: Optional[float] = None
     gps_device_id: Optional[str] = None
     gps_provider: Optional[str] = None
     fitness_valid_until: Optional[date] = None

@@ -85,7 +85,7 @@ mixin OptimisticUpdateMixin<T> on StateNotifier<T> {
   /// Restore to previous state (rollback)
   void restorePreviousState() {
     if (_previousState != null) {
-      state = _previousState!;
+      state = _previousState as T;
     }
   }
 

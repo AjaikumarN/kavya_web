@@ -38,6 +38,13 @@ class ExpenseCategory(enum.Enum):
     ADVANCE = "ADVANCE"
 
 
+class ExpenseStatusEnum(enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    PAID = "PAID"
+
+
 class Trip(Base, TimestampMixin, SoftDeleteMixin):
     """Trip model - represents a physical journey."""
     
@@ -99,6 +106,9 @@ class Trip(Base, TimestampMixin, SoftDeleteMixin):
     # Advance given to driver
     driver_advance = Column(Numeric(12, 2), default=0)
     advance_settled = Column(Boolean, default=False)
+    
+    # Driver pay (set by admin during trip allocation)
+    driver_pay = Column(Numeric(12, 2), default=0)
     
     # Completion
     pod_collected = Column(Boolean, default=False)
@@ -169,6 +179,11 @@ class TripExpense(Base, TimestampMixin):
     verified_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     verified_at = Column(DateTime, nullable=True)
     verification_remarks = Column(Text, nullable=True)
+    
+    # Expense approval status: PENDING -> APPROVED -> PAID (or REJECTED)
+    expense_status = Column(SQLEnum(ExpenseStatusEnum), default=ExpenseStatusEnum.PENDING)
+    paid_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    paid_at = Column(DateTime, nullable=True)
     
     # Biometric verification (required for high-value expenses)
     biometric_verified = Column(Boolean, default=False)

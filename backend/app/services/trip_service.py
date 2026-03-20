@@ -15,9 +15,9 @@ VALID_TRIP_TRANSITIONS = {
     "planned": ["vehicle_assigned", "started", "cancelled"],
     "vehicle_assigned": ["driver_assigned", "planned", "cancelled"],
     "driver_assigned": ["ready", "started", "vehicle_assigned", "cancelled"],
-    "ready": ["started", "cancelled"],
-    "started": ["loading", "in_transit", "cancelled"],
-    "loading": ["in_transit"],
+    "ready": ["started", "completed", "cancelled"],
+    "started": ["loading", "in_transit", "completed", "cancelled"],
+    "loading": ["in_transit", "completed"],
     "in_transit": ["unloading", "completed"],
     "unloading": ["completed"],
     "completed": [],
@@ -228,6 +228,14 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
         await db.execute(
             update(LR).where(LR.trip_id == trip.id).values(status=LRStatus.IN_TRANSIT)
         )
+    elif target_status == "vehicle_assigned":
+        # Driver declined – release the driver back to available
+        if trip.driver_id:
+            dr = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
+            d = dr.scalar_one_or_none()
+            if d:
+                d.status = DriverStatus.AVAILABLE
+        trip.driver_id = None
     elif target_status == "loading":
         trip.loading_start = now
     elif target_status == "in_transit":
@@ -299,6 +307,44 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"Auto-invoice generation failed for trip {trip.id}: {e}")
+
+        # Auto-generate driver settlement for this trip
+        try:
+            from app.models.postgres.finance_automation import DriverSettlement, SettlementStatus
+            from app.utils.generators import generate_settlement_number
+            from decimal import Decimal
+
+            driver_pay = Decimal(str(trip.driver_pay or 0))
+            driver_advance = Decimal(str(trip.driver_advance or 0))
+            trip_expense_total = Decimal(str(trip.total_expense or 0))
+            gross = driver_pay
+            net = gross - driver_advance - trip_expense_total
+            if net < 0:
+                net = Decimal("0")
+
+            async with db.begin_nested():
+                settlement = DriverSettlement(
+                    settlement_number=generate_settlement_number(),
+                    settlement_date=now.date() if hasattr(now, 'date') else date.today(),
+                    driver_id=trip.driver_id,
+                    trip_id=trip.id,
+                    period_from=trip.trip_date,
+                    period_to=trip.trip_date,
+                    base_salary=Decimal("0"),
+                    trip_allowance=Decimal("0"),
+                    gross_amount=gross,
+                    advance_deducted=driver_advance,
+                    total_deductions=driver_advance + trip_expense_total,
+                    net_amount=net,
+                    trips_completed=1,
+                    total_km=Decimal(str(trip.actual_distance_km or trip.planned_distance_km or 0)),
+                    status=SettlementStatus.PENDING,
+                    created_by=user_id,
+                )
+                db.add(settlement)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-settlement generation failed for trip {trip.id}: {e}")
 
         # Keep job lifecycle aligned with trip completion.
         if trip.job_id:

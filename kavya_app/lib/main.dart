@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'services/offline_sync_service.dart';
@@ -13,13 +12,8 @@ void main() async {
   final offlineSync = OfflineSyncService();
   await offlineSync.init();
 
-  // Initialize Firebase (safe no-op if google-services.json missing)
-  try {
-    await Firebase.initializeApp();
-    await NotificationService().initialize();
-  } catch (e) {
-    debugPrint('[INIT] Firebase init skipped: $e');
-  }
+  // Initialize local notifications (system banners)
+  await NotificationService().initialize();
 
   runApp(const ProviderScope(child: KavyaApp()));
 }

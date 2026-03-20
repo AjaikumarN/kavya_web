@@ -12,8 +12,10 @@ import '../../screens/driver/driver_today_screen.dart';
 import '../../screens/driver/driver_trip_list_screen.dart';
 import '../../screens/driver/driver_trip_detail_screen.dart';
 import '../../screens/driver/driver_expense_list_screen.dart';
+import '../../screens/driver/driver_expense_trips_screen.dart';
 import '../../screens/driver/driver_checklist_screen.dart';
 import '../../screens/driver/driver_documents_screen.dart';
+import '../../screens/driver/driver_vehicle_screen.dart';
 import '../../screens/driver/driver_notifications_screen.dart';
 import '../../screens/driver/driver_add_expense_screen.dart';
 import '../../screens/driver/driver_profile_screen.dart';
@@ -23,9 +25,29 @@ import '../../screens/driver/driver_epod_screen.dart';
 import '../../screens/fleet/fleet_home_screen.dart';
 import '../../screens/fleet/fleet_vehicles_screen.dart';
 import '../../screens/fleet/fleet_analytics_screen.dart';
+import '../../screens/fleet/fleet_driver_list_screen.dart';
+import '../../screens/fleet/fleet_trip_management_screen.dart';
+import '../../screens/fleet/fleet_profile_screen.dart';
+import '../../screens/fleet/fleet_add_vehicle_screen.dart';
+import '../../screens/fleet/fleet_edit_vehicle_screen.dart';
+import '../../screens/fleet/fleet_driver_detail_screen.dart';
+import '../../screens/fleet/fleet_add_driver_screen.dart';
+import '../../screens/fleet/fleet_create_trip_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
 import '../../screens/accountant/accountant_payments_screen.dart';
+import '../../screens/accountant/accountant_banking_screen.dart';
+import '../../screens/accountant/accountant_settlement_screen.dart';
+// Driver settlement
+import '../../screens/driver/driver_settlement_screen.dart';
+// Pump Shift screen
+import '../../screens/pump/pump_shift_screen.dart';
+// Branch Manager screens
+import '../../screens/branch/branch_home_screen.dart';
+import '../../screens/branch/branch_dashboard_screen.dart';
+import '../../screens/branch/branch_trips_screen.dart';
+import '../../screens/branch/branch_drivers_screen.dart';
+import '../../screens/branch/branch_reports_screen.dart';
 // Project Associate screens
 import '../../screens/associate/associate_home_screen.dart';
 // Admin screens
@@ -71,6 +93,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'admin':
           case 'super_admin': return '/admin/home';
           case 'pump_operator': return '/pump/home';
+          case 'branch_manager': return '/branch/home';
           default: return '/web-only';
         }
       }
@@ -124,7 +147,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               pageBuilder: (context, state) => PageTransitionPreset.fast(
                 context: context,
                 state: state,
-                child: const DriverExpenseListScreen(),
+                child: const DriverExpenseTripsScreen(),
               ),
             ),
           ]),
@@ -142,6 +165,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       
       // Driver modal routes (outside shell)
+      GoRoute(
+        path: '/driver/expenses/:tripId',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) {
+          final tripId = int.parse(state.pathParameters['tripId'] ?? '0');
+          final tripNumber = state.uri.queryParameters['trip'] ?? '';
+          return PageTransitionPreset.modal(
+            context: context,
+            state: state,
+            child: DriverExpenseListScreen(tripId: tripId, tripNumber: tripNumber.isNotEmpty ? tripNumber : null),
+          );
+        },
+      ),
       GoRoute(
         path: '/driver/add-expense',
         parentNavigatorKey: _rootNavigatorKey,
@@ -188,6 +224,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/driver/vehicle',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) => PageTransitionPreset.modal(
+          context: context,
+          state: state,
+          child: const DriverVehicleScreen(),
+        ),
+      ),
+      GoRoute(
         path: '/driver/documents',
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
@@ -211,9 +256,30 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/vehicles', builder: (context, state) => const FleetVehiclesScreen()),
       GoRoute(path: '/fleet/analytics', builder: (context, state) => const FleetAnalyticsScreen()),
       GoRoute(path: '/fleet/map', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/fleet/drivers', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/fleet/trips', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/fleet/vehicle/:id', builder: (context, state) => const Scaffold()),
+      GoRoute(path: '/fleet/drivers', builder: (context, state) => const FleetDriverListScreen()),
+      GoRoute(path: '/fleet/trips', builder: (context, state) => const FleetTripManagementScreen()),
+      GoRoute(path: '/fleet/profile', builder: (context, state) => const FleetProfileScreen()),
+      GoRoute(path: '/fleet/vehicle/add', builder: (context, state) => const FleetAddVehicleScreen()),
+      GoRoute(
+        path: '/fleet/vehicle/:id/edit',
+        builder: (context, state) => FleetEditVehicleScreen(
+          vehicleId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/fleet/vehicle/:id',
+        builder: (context, state) => FleetEditVehicleScreen(
+          vehicleId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(path: '/fleet/driver/add', builder: (context, state) => const FleetAddDriverScreen()),
+      GoRoute(
+        path: '/fleet/driver/:id',
+        builder: (context, state) => FleetDriverDetailScreen(
+          driverId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(path: '/fleet/trip/create', builder: (context, state) => const FleetCreateTripScreen()),
       GoRoute(path: '/fleet/expenses', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/fleet/service/new', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const Scaffold()),
@@ -224,6 +290,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/accountant/invoice/:id', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/accountant/approvals', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/accountant/payments', builder: (context, state) => const AccountantPaymentsScreen()),
+      GoRoute(path: '/accountant/banking', builder: (context, state) => const AccountantBankingScreen()),
+      GoRoute(path: '/accountant/settlements', builder: (context, state) => const AccountantSettlementScreen()),
       GoRoute(path: '/accountant/reports', builder: (context, state) => const Scaffold()),
       
       // --- Associate Routes ---
@@ -279,7 +347,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ]),
         ],
       ),
-      // Standalone refill screen (no bottom nav)
+      // Standalone pump screens (no bottom nav)
+      GoRoute(
+        path: '/pump/shift',
+        builder: (context, state) => const PumpShiftScreen(),
+      ),
       GoRoute(
         path: '/pump/refill',
         builder: (context, state) => const PumpTankRefillScreen(),
@@ -288,6 +360,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pump/create-tank',
         builder: (context, state) => const PumpCreateTankScreen(),
+      ),
+
+      // Driver settlement (standalone, no shell)
+      GoRoute(
+        path: '/driver/settlement',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const DriverSettlementScreen(),
+      ),
+
+      // --- Branch Manager Routes --- (Stateful shell with bottom nav)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            BranchHomeScreen(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/branch/home', builder: (context, state) => const BranchDashboardScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/branch/trips', builder: (context, state) => const BranchTripsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/branch/drivers', builder: (context, state) => const BranchDriversScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/branch/reports', builder: (context, state) => const BranchReportsScreen()),
+          ]),
+        ],
       ),
     ],
   );

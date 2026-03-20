@@ -91,7 +91,7 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
                 error: (_, __) => const Text('Failed to load tanks',
                     style: TextStyle(color: Colors.red)),
                 data: (tanks) => DropdownButtonFormField<int>(
-                  value: _selectedTankId,
+                  initialValue: _selectedTankId,
                   hint: const Text('Choose tank to refill',
                       style: TextStyle(color: Color(0xFF94A3B8))),
                   dropdownColor: _card,
@@ -322,13 +322,16 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
     try {
       await _api.post('/fuel-pump/stock', data: {
         'tank_id': _selectedTankId,
-        'transaction_type': 'refill',
+        'transaction_type': 'tanker_refill',
         'quantity_litres': double.parse(_qtyCtrl.text),
         'rate_per_litre': double.parse(_rateCtrl.text),
-        'supplier_name': _supplierCtrl.text.trim(),
-        'invoice_no': _invoiceCtrl.text.trim(),
-        'received_at': _date.toIso8601String(),
-        if (_notesCtrl.text.isNotEmpty) 'remarks': _notesCtrl.text.trim(),
+        if (_invoiceCtrl.text.trim().isNotEmpty)
+          'reference_number': _invoiceCtrl.text.trim(),
+        if (_supplierCtrl.text.trim().isNotEmpty || _notesCtrl.text.trim().isNotEmpty)
+          'remarks': [
+            if (_supplierCtrl.text.trim().isNotEmpty) 'Supplier: ${_supplierCtrl.text.trim()}',
+            if (_notesCtrl.text.trim().isNotEmpty) _notesCtrl.text.trim(),
+          ].join(' | '),
       });
 
       if (!mounted) return;

@@ -6,10 +6,7 @@ import '../../providers/trip_provider.dart';
 import '../../providers/search_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
-import '../../core/widgets/kt_loading_shimmer.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../core/widgets/section_header.dart';
-import '../../core/widgets/status_chip.dart';
 
 class DriverTripListScreen extends ConsumerStatefulWidget {
   const DriverTripListScreen({super.key});

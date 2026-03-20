@@ -81,6 +81,9 @@ class Driver(Base, TimestampMixin, SoftDeleteMixin):
     emergency_contact_phone = Column(String(20), nullable=True)
     emergency_contact_relation = Column(String(50), nullable=True)
     
+    # Security PIN (hashed, admin-assigned, 6 digits)
+    security_pin_hash = Column(String(128), nullable=True)
+
     # Training & Certification
     is_hazmat_certified = Column(Boolean, default=False)
     is_adr_certified = Column(Boolean, default=False)

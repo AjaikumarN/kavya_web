@@ -26,8 +26,9 @@ class Expense {
         amount: (json['amount'] as num?)?.toDouble() ?? 0,
         description: json['description'] as String?,
         receiptUrl: json['receipt_url'] as String?,
-        date: json['date'] as String?,
-        status: json['status'] as String?,
+        date: (json['expense_date'] ?? json['date']) as String?,
+        status: json['status'] as String? ??
+            ((json['is_verified'] == true) ? 'approved' : 'pending'),
       );
 
   Map<String, dynamic> toJson() => {
@@ -37,6 +38,9 @@ class Expense {
         'amount': amount,
         if (description != null) 'description': description,
         if (receiptUrl != null) 'receipt_url': receiptUrl,
-        if (date != null) 'date': date,
+        // Backend expects 'expense_date' as ISO datetime
+        'expense_date': date != null
+            ? (date!.contains('T') ? date : '${date}T00:00:00')
+            : DateTime.now().toIso8601String(),
       };
 }

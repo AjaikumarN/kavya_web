@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 enum BiometricType { fingerprint, face, iris, unknown }
@@ -44,7 +46,10 @@ class BiometricAuthService {
     }
   }
 
-  Future<bool> authenticate({
+  /// Returns a record: (success, errorCode).
+  /// errorCode is null on success, or one of: 'notAvailable', 'notEnrolled',
+  /// 'lockedOut', 'permanentlyLockedOut', 'cancelled', 'unknown'.
+  Future<({bool success, String? errorCode})> authenticateWithDetails({
     String reason = 'Authenticate to access Kavya Driver App',
     bool useErrorDialogs = true,
     bool stickyAuth = true,
@@ -66,13 +71,49 @@ class BiometricAuthService {
           value: DateTime.now().toIso8601String(),
         );
         debugPrint('Biometric authentication successful');
-        return true;
+        return (success: true, errorCode: null);
       }
-      return false;
+      return (success: false, errorCode: 'cancelled');
+    } on PlatformException catch (e) {
+      debugPrint('Biometric PlatformException: code=${e.code} message=${e.message}');
+      String errorCode;
+      switch (e.code) {
+        case auth_error.notAvailable:
+          errorCode = 'notAvailable';
+          break;
+        case auth_error.notEnrolled:
+          errorCode = 'notEnrolled';
+          break;
+        case auth_error.lockedOut:
+          errorCode = 'lockedOut';
+          break;
+        case auth_error.permanentlyLockedOut:
+          errorCode = 'permanentlyLockedOut';
+          break;
+        case auth_error.passcodeNotSet:
+          errorCode = 'notEnrolled';
+          break;
+        default:
+          errorCode = 'unknown';
+      }
+      return (success: false, errorCode: errorCode);
     } catch (e) {
       debugPrint('Biometric authentication error: $e');
-      return false;
+      return (success: false, errorCode: 'unknown');
     }
+  }
+
+  Future<bool> authenticate({
+    String reason = 'Authenticate to access Kavya Driver App',
+    bool useErrorDialogs = true,
+    bool stickyAuth = true,
+  }) async {
+    final result = await authenticateWithDetails(
+      reason: reason,
+      useErrorDialogs: useErrorDialogs,
+      stickyAuth: stickyAuth,
+    );
+    return result.success;
   }
 
   Future<void> enableBiometricAuth(String userId) async {

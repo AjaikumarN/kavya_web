@@ -38,12 +38,14 @@ class Checklist {
   final String type; // pre_trip or post_trip
   final List<ChecklistItem> items;
   final String? completedAt;
+  final String? notes;
 
   const Checklist({
     this.tripId,
     required this.type,
     required this.items,
     this.completedAt,
+    this.notes,
   });
 
   factory Checklist.fromJson(Map<String, dynamic> json) => Checklist(
@@ -54,12 +56,14 @@ class Checklist {
                 .toList() ??
             [],
         completedAt: json['completed_at'] as String?,
+        notes: json['notes'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
         if (tripId != null) 'trip_id': tripId,
         'type': type,
         'items': items.map((e) => e.toJson()).toList(),
+        if (notes != null && notes!.isNotEmpty) 'notes': notes,
       };
 
   bool get isComplete => items.isNotEmpty && items.every((i) => i.checked);
@@ -69,12 +73,14 @@ class Checklist {
     String? type,
     List<ChecklistItem>? items,
     String? completedAt,
+    String? notes,
   }) =>
       Checklist(
         tripId: tripId ?? this.tripId,
         type: type ?? this.type,
         items: items ?? this.items,
         completedAt: completedAt ?? this.completedAt,
+        notes: notes ?? this.notes,
       );
 }
 

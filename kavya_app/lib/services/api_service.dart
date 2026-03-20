@@ -132,8 +132,12 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getDashboardFleet() async {
-    final response = await _dio.get('/dashboard/fleet-manager');
-    return response.data;
+    final response = await _dio.get('/fleet/dashboard');
+    final body = response.data;
+    if (body is Map<String, dynamic> && body['data'] != null) {
+      return body['data'] as Map<String, dynamic>;
+    }
+    return body;
   }
 
   Future<Map<String, dynamic>> getDashboardAccountant() async {
@@ -208,18 +212,129 @@ class ApiService {
     return response.data;
   }
 
-  // --- Expenses & Finance ---
-  Future<List<dynamic>> getExpensesPending() async { // [cite: 33]
-    final response = await _dio.get('/trips', queryParameters: {'status': 'in_progress'});
-    return response.data;
+  // --- Driver Documents (self-service) ---
+
+  /// Fetch the current driver's allocated vehicle + documents for active trip.
+  Future<Map<String, dynamic>?> getMyVehicle() async {
+    final response = await _dio.get('/drivers/me/vehicle');
+    final data = response.data;
+    if (data is Map && data['data'] is Map) {
+      return Map<String, dynamic>.from(data['data'] as Map);
+    }
+    return null;
   }
 
-  Future<void> approveExpense(String id) async { // [cite: 33]
+  /// Fetch the current driver's personal documents.
+  Future<List<dynamic>> getMyDocuments() async {
+    final response = await _dio.get('/drivers/me/documents');
+    final data = response.data;
+    if (data is Map && data['data'] is Map && data['data']['items'] is List) {
+      return data['data']['items'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Upload a new driver document (driving_license, aadhaar_card, driver_badge, medical_fitness).
+  Future<Map<String, dynamic>> uploadDriverDocument(File file, String documentType, {String? documentNumber}) async {
+    String fileName = file.path.split('/').last;
+    final map = <String, dynamic>{
+      "file": await MultipartFile.fromFile(file.path, filename: fileName),
+      "document_type": documentType,
+    };
+    if (documentNumber != null && documentNumber.isNotEmpty) {
+      map["document_number"] = documentNumber;
+    }
+    FormData formData = FormData.fromMap(map);
+    final response = await _dio.post('/drivers/me/documents/upload', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Update (re-upload) an existing driver document.
+  Future<Map<String, dynamic>> updateDriverDocument(int docId, File file, {String? documentNumber}) async {
+    String fileName = file.path.split('/').last;
+    final map = <String, dynamic>{
+      "file": await MultipartFile.fromFile(file.path, filename: fileName),
+    };
+    if (documentNumber != null && documentNumber.isNotEmpty) {
+      map["document_number"] = documentNumber;
+    }
+    FormData formData = FormData.fromMap(map);
+    final response = await _dio.put('/drivers/me/documents/$docId', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  // --- Expenses & Finance ---
+
+  /// Verify the driver's 6-digit security PIN against the backend.
+  /// Returns true if PIN is correct, throws on error.
+  Future<bool> verifySecurityPin(String pin) async {
+    try {
+      await _dio.post('/drivers/verify-pin', data: {'pin': pin});
+      return true;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) return false; // Incorrect PIN
+      final detail = (e.response?.data is Map)
+          ? e.response!.data['detail'] as String?
+          : null;
+      throw Exception(detail ?? 'PIN verification failed');
+    }
+  }
+
+  /// Upload a receipt image and run OCR to extract amount/vendor/category.
+  Future<Map<String, dynamic>> ocrReceipt(File file) async {
+    String fileName = file.path.split('/').last;
+    FormData formData = FormData.fromMap({
+      "file": await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final response = await _dio.post('/trips/expenses/ocr', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Upload a receipt image as a document and return the server URL.
+  Future<String?> uploadReceiptImage(File file) async {
+    String fileName = file.path.split('/').last;
+    FormData formData = FormData.fromMap({
+      "file": await MultipartFile.fromFile(file.path, filename: fileName),
+      "entity_type": "expense",
+      "entity_id": 0,
+      "document_type": "other",
+      "title": "Expense Receipt",
+    });
+    final response = await _dio.post('/documents/upload', data: formData);
+    final data = response.data;
+    if (data is Map && data['data'] is Map) {
+      return data['data']['url'] as String?;
+    }
+    return null;
+  }
+
+  Future<List<dynamic>> getExpensesPending() async {
+    final response = await _dio.get('/accountant/expenses', queryParameters: {'status': 'pending'});
+    final data = response.data;
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    if (data is List) return data;
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getAccountantExpenses({String? status, int page = 1, int limit = 50}) async {
+    final params = <String, dynamic>{'page': page, 'limit': limit};
+    if (status != null) params['status'] = status;
+    final response = await _dio.get('/accountant/expenses', queryParameters: params);
+    final data = response.data;
+    if (data is Map) return data as Map<String, dynamic>;
+    return {'data': data};
+  }
+
+  Future<void> approveExpense(String id) async {
     await _dio.patch('/expenses/$id/status', data: {'status': 'approved'});
   }
 
-  Future<void> rejectExpense(String id, String reason) async { // [cite: 33]
+  Future<void> rejectExpense(String id, String reason) async {
     await _dio.patch('/expenses/$id/status', data: {'status': 'rejected', 'reason': reason});
+  }
+
+  Future<void> markExpensePaid(String id) async {
+    await _dio.patch('/expenses/$id/status', data: {'status': 'paid'});
   }
 
   Future<List<dynamic>> getInvoices() async { // [cite: 34]

@@ -6,6 +6,7 @@ import '../../models/fuel.dart';
 import '../../providers/pump_dashboard_provider.dart';
 import '../../providers/intelligence_provider.dart';
 import '../../utils/indian_format.dart';
+import 'pump_shift_screen.dart';
 
 /// Pump Operator dashboard — Today's summary, tank gauge, mismatch alerts.
 /// UI: Dark slate, bold amber numbers, industrial high-contrast.
@@ -23,6 +24,8 @@ class PumpDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dashAsync = ref.watch(pumpDashboardProvider);
 
+    final shiftAsync = ref.watch(activeShiftProvider);
+
     return dashAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
       error: (e, _) => _errorState(ref, e.toString()),
@@ -31,10 +34,53 @@ class PumpDashboardScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(pumpDashboardProvider);
           ref.invalidate(recentEventsProvider);
+          ref.invalidate(activeShiftProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // ─── Shift Banner ───
+            shiftAsync.maybeWhen(
+              data: (shift) => GestureDetector(
+                onTap: () => context.push('/pump/shift'),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: shift == null
+                        ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
+                        : const Color(0xFF14532D).withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: shift == null ? _red : _green,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        shift == null ? Icons.lock_open_outlined : Icons.lock_outlined,
+                        color: shift == null ? _red : _green,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          shift == null
+                              ? 'No active shift — Tap to open shift'
+                              : 'Shift open since ${shift['started_at']?.toString().substring(11, 16) ?? '--:--'} — Tap to close',
+                          style: TextStyle(
+                            color: shift == null ? _red : _green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: shift == null ? _red : _green, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
             // ─── Quick Actions ───
             Row(
               children: [

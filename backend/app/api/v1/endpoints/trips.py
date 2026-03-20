@@ -1,4 +1,5 @@
 # Trip Management Endpoints
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,6 +18,8 @@ from app.models.postgres.driver import Driver
 from app.models.postgres.lr import LR
 from app.models.postgres.route import Route
 from app.models.postgres.trip import Trip
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -109,7 +112,7 @@ async def delete_trip(
     return APIResponse(success=True, message="Trip deleted")
 
 
-@router.post("/{trip_id}/status", response_model=APIResponse)
+@router.patch("/{trip_id}/status", response_model=APIResponse)
 async def change_trip_status(
     trip_id: int, data: TripStatusChange, db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
@@ -189,6 +192,101 @@ async def close_trip(
     return APIResponse(success=True, data={"id": trip.id}, message="Trip closed")
 
 
+# --- Driver Checklist ---
+class ChecklistItemPayload(BaseModel):
+    id: str
+    label: str
+    checked: bool = False
+    note: Optional[str] = None
+
+class ChecklistPayload(BaseModel):
+    type: str = "pre_trip"  # pre_trip | post_trip
+    items: list[ChecklistItemPayload] = []
+    notes: Optional[str] = None
+
+
+@router.get("/{trip_id}/checklist", response_model=APIResponse)
+async def get_trip_checklist(
+    trip_id: int,
+    type: str = Query("pre_trip"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Fetch a saved checklist for a trip. Returns 404 if not saved yet (client uses defaults)."""
+    from app.db.mongo import MongoDB
+    mongo_db = await MongoDB.get_db()
+    doc = await mongo_db.driver_checklist_logs.find_one(
+        {"trip_id": trip_id, "checklist_type": type},
+        sort=[("submitted_at", -1)],
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="No checklist found for this trip")
+    doc.pop("_id", None)
+    return APIResponse(success=True, data={
+        "trip_id": trip_id,
+        "type": type,
+        "items": doc.get("items", []),
+        "notes": doc.get("notes"),
+        "completed_at": doc.get("submitted_at"),
+    })
+
+
+@router.post("/{trip_id}/checklist", response_model=APIResponse)
+async def save_trip_checklist(
+    trip_id: int,
+    payload: ChecklistPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Save a completed pre-trip or post-trip checklist to MongoDB and mark trip.pod_collected."""
+    from datetime import datetime
+    from app.db.mongo import MongoDB
+    mongo_db = await MongoDB.get_db()
+
+    # Verify trip exists and driver has access
+    trip = await trip_service.get_trip(db, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if _is_role(current_user, "driver"):
+        resolved = await _resolve_driver_id(current_user, db)
+        if trip.driver_id != resolved:
+            raise HTTPException(status_code=403, detail="Access denied: not your trip")
+
+    total = len(payload.items)
+    ok_count = sum(1 for i in payload.items if i.checked)
+    overall_status = "passed" if ok_count == total else "attention_needed"
+
+    doc = {
+        "trip_id": trip_id,
+        "driver_id": trip.driver_id,
+        "vehicle_id": trip.vehicle_id,
+        "checklist_type": payload.type,
+        "items": [i.model_dump() for i in payload.items],
+        "notes": payload.notes or "",
+        "total_items": total,
+        "ok_count": ok_count,
+        "issue_count": total - ok_count,
+        "overall_status": overall_status,
+        "submitted_at": datetime.utcnow().isoformat(),
+        "submitted_by_user_id": current_user.user_id,
+    }
+    await mongo_db.driver_checklist_logs.insert_one(doc)
+
+    # Mark pod_collected on the trip when checklist is passed
+    if overall_status == "passed" and payload.type == "pre_trip":
+        try:
+            trip.pod_collected = True
+            await db.commit()
+        except Exception:
+            pass  # Non-critical
+
+    return APIResponse(
+        success=True,
+        data={"ok_count": ok_count, "total": total, "status": overall_status},
+        message=f"{'Pre-trip' if payload.type == 'pre_trip' else 'Post-trip'} checklist saved successfully.",
+    )
+
+
 # --- SOS Emergency ---
 class SOSPayload(BaseModel):
     latitude: Optional[float] = None
@@ -214,6 +312,20 @@ async def trigger_sos(
         raise HTTPException(status_code=403, detail="Access denied: not your trip")
 
     driver_id = resolved or trip.driver_id
+
+    # Fetch full driver details for the notification
+    driver_result = await db.execute(select(Driver).where(Driver.id == driver_id))
+    driver_obj = driver_result.scalar_one_or_none()
+    driver_full_name = f"{driver_obj.first_name} {driver_obj.last_name}" if driver_obj else (trip.driver_name or "Unknown")
+    driver_phone = driver_obj.phone if driver_obj else (trip.driver_phone or "N/A")
+    emergency_contact_name = driver_obj.emergency_contact_name if driver_obj else None
+    emergency_contact_phone = driver_obj.emergency_contact_phone if driver_obj else None
+
+    # Fetch vehicle details
+    vehicle_result = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
+    vehicle_obj = vehicle_result.scalar_one_or_none()
+    vehicle_reg = trip.vehicle_registration or (vehicle_obj.registration_number if vehicle_obj else "N/A")
+    vehicle_type = vehicle_obj.vehicle_type.value if vehicle_obj and hasattr(vehicle_obj.vehicle_type, 'value') else (vehicle_obj.vehicle_type if vehicle_obj else "N/A")
 
     # 1. Create DriverEvent record (SOS, severity 5)
     from app.models.postgres.driver_event import DriverEvent, DriverEventType
@@ -261,26 +373,50 @@ async def trigger_sos(
             "trip_id": trip_id,
             "trip_number": trip.trip_number,
             "driver_id": driver_id,
-            "driver_name": trip.driver_name,
-            "driver_phone": trip.driver_phone,
+            "driver_name": driver_full_name,
+            "driver_phone": driver_phone,
             "vehicle_id": trip.vehicle_id,
-            "vehicle_registration": trip.vehicle_registration,
+            "vehicle_registration": vehicle_reg,
+            "vehicle_type": vehicle_type,
+            "origin": trip.origin,
+            "destination": trip.destination,
             "latitude": payload.latitude,
             "longitude": payload.longitude,
             "location_name": payload.location_name,
+            "emergency_message": (
+                f"🆘 SOS ALERT — IMMEDIATE ATTENTION REQUIRED\n"
+                f"Driver: {driver_full_name} ({driver_phone})\n"
+                f"Trip: {trip.trip_number} | {trip.origin} → {trip.destination}\n"
+                f"Vehicle: {vehicle_reg} ({vehicle_type})\n"
+                f"Location: {payload.location_name or 'Unknown'}"
+            ),
         },
         persist=True,
         db_session=db,
     )
 
-    # 4. Fetch emergency contact info for response
-    driver_result = await db.execute(
-        select(
-            Driver.emergency_contact_name,
-            Driver.emergency_contact_phone,
-        ).where(Driver.id == driver_id)
-    )
-    ec = driver_result.one_or_none()
+    # 4. Create in-app notification records for admin and fleet_manager users
+    try:
+        from app.models.postgres.user import User  # noqa
+        admin_users = (await db.execute(
+            select(User).where(User.is_active == True)
+        )).scalars().all()
+        from app.models.postgres.intelligence import NotificationQueue
+        from datetime import datetime
+        for u in admin_users:
+            roles = getattr(u, 'roles', [])
+            role_names = [r.name if hasattr(r, 'name') else str(r) for r in roles]
+            if any(rn in ('admin', 'fleet_manager', 'manager') for rn in role_names):
+                nq = NotificationQueue(
+                    event_id=None,  # not linked to event_bus_event yet
+                    target_user_id=u.id,
+                    channel="in_app",
+                    scheduled_for=datetime.utcnow(),
+                    status="pending",
+                )
+                db.add(nq)
+    except Exception as e:
+        logger.warning(f"SOS in-app notification creation failed (non-critical): {e}")
 
     await db.commit()
 
@@ -290,10 +426,15 @@ async def trigger_sos(
             "event_id": sos_event.id,
             "trip_id": trip_id,
             "trip_number": trip.trip_number,
-            "emergency_contact_name": ec.emergency_contact_name if ec else None,
-            "emergency_contact_phone": ec.emergency_contact_phone if ec else None,
+            "driver_name": driver_full_name,
+            "driver_phone": driver_phone,
+            "vehicle_registration": vehicle_reg,
+            "origin": trip.origin,
+            "destination": trip.destination,
+            "emergency_contact_name": emergency_contact_name,
+            "emergency_contact_phone": emergency_contact_phone,
         },
-        message="SOS alert sent. Admin and fleet managers have been notified.",
+        message="🆘 SOS alert sent! Admin and fleet managers have been notified immediately.",
     )
 
 

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import '../core/theme/kt_colors.dart';
 import 'api_service.dart';
 
 class OfflineSyncStatus {
@@ -30,9 +29,6 @@ final offlineSyncProvider = Provider<OfflineSyncService>((ref) {
 });
 
 class OfflineSyncService {
-  late Box _fleetCache;
-  late Box _acctCache;
-  late Box _assocCache;
   late Box<String> _offlineQueue; // NEW: Hive queue for failed requests
   
   bool isOnline = true;
@@ -56,10 +52,6 @@ class OfflineSyncService {
     await Hive.initFlutter();
     
     // Open role-specific caches [cite: 105-106]
-    _fleetCache = await Hive.openBox('fleet_cache'); // TTL: 30 minutes
-    _acctCache = await Hive.openBox('acct_cache');   // TTL: 15 minutes
-    _assocCache = await Hive.openBox('assoc_cache'); // TTL: 10 minutes
-    
     // NEW: Open offline request queue
     _offlineQueue = await Hive.openBox<String>('offline_queue');
 

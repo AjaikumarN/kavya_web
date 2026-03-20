@@ -39,7 +39,7 @@ class EventBus:
         """Publish an event. Routes through the priority pipeline (dedup, priority,
         notification dispatch) then invokes all legacy subscribers."""
         event_id = str(uuid4())
-        triggered_at = datetime.now(timezone.utc)
+        triggered_at = datetime.utcnow()
 
         # ── Route through priority pipeline (persist + dedup + notify) ──
         stored_event_id = None

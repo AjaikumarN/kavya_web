@@ -25,12 +25,20 @@ final managerSparklineProvider = FutureProvider.autoDispose<Map<String, dynamic>
 final managerUnassignedJobsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
   final response = await api.get('/jobs', queryParameters: {
-    'status': 'PENDING_APPROVAL',
-    'limit': 3,
+    'limit': 20,
   });
-  if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
-  if (response is List) return response;
-  return [];
+  List<dynamic> all = [];
+  if (response is Map && response['data'] is List) {
+    all = response['data'] as List<dynamic>;
+  } else if (response is List) {
+    all = response;
+  }
+  const unassignedStatuses = {'DRAFT', 'PENDING_APPROVAL', 'APPROVED'};
+  final filtered = all
+      .where((j) => unassignedStatuses.contains((j['status'] as String?)?.toUpperCase()))
+      .take(5)
+      .toList();
+  return filtered;
 });
 
 // ─── Job List ──────────────────────────────────────────────────────────────
@@ -102,7 +110,7 @@ final managerVehicleListProvider = FutureProvider.autoDispose<List<dynamic>>((re
 
 // ─── Reports ───────────────────────────────────────────────────────────────
 
-final managerReportPeriodProvider = StateProvider<String>((ref) => 'this_month');
+final managerReportPeriodProvider = StateProvider<String>((ref) => 'month');
 
 final managerReportsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final period = ref.watch(managerReportPeriodProvider);

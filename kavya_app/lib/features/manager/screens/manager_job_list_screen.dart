@@ -11,8 +11,8 @@ import '../widgets/job_card_widget.dart';
 class ManagerJobListScreen extends ConsumerWidget {
   const ManagerJobListScreen({super.key});
 
-  static const _filters = ['all', 'PENDING_APPROVAL', 'IN_PROGRESS', 'DELIVERED', 'CLOSED'];
-  static const _filterLabels = ['All', 'Unassigned', 'In transit', 'Delivered', 'Closed'];
+  static const _filters = ['all', 'PENDING_APPROVAL', 'DRAFT', 'IN_PROGRESS', 'COMPLETED'];
+  static const _filterLabels = ['All', 'Pending', 'Draft', 'In transit', 'Completed'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

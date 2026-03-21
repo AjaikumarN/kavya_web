@@ -1,6 +1,6 @@
 # Reports Endpoints
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Optional, Tuple
 import csv
@@ -83,6 +83,116 @@ async def reports_dashboard(
         "trips": pa_payload.get("trips", {"today": 0, "total": 0, "active": 0}),
         "ewb": pa_payload.get("ewb", {"expiring": 0, "total": 0}),
         "documents": pa_payload.get("documents", {"pending": 0, "total": 0}),
+    }, message="ok")
+
+
+@router.get("/summary", response_model=APIResponse)
+async def reports_summary(
+    period: str = Query("month", pattern="^(week|month|quarter|year)$"),
+    db: AsyncSession = Depends(get_db),
+    _perm: TokenData = Depends(require_permission(Permissions.REPORT_VIEW)),
+):
+    """Aggregated financial summary for the manager reports screen."""
+    today = date.today()
+    if period == "week":
+        from_date = today - timedelta(days=7)
+    elif period == "month":
+        from_date = today.replace(day=1)
+    elif period == "quarter":
+        from_date = today.replace(month=((today.month - 1) // 3) * 3 + 1, day=1)
+    else:  # year
+        from_date = today.replace(month=1, day=1)
+
+    # Total revenue = sum of total_amount from completed jobs in period
+    rev_res = await db.execute(
+        select(func.coalesce(func.sum(Job.total_amount), 0)).where(
+            Job.is_deleted.is_(False),
+            Job.status.in_(["COMPLETED", "CLOSED", "DELIVERED"]),
+            func.date(Job.completed_at) >= from_date,
+            func.date(Job.completed_at) <= today,
+        )
+    )
+    total_revenue = _to_number(rev_res.scalar())
+
+    # Total expenses = sum of trip expenses in period
+    exp_res = await db.execute(
+        select(func.coalesce(func.sum(TripExpense.amount), 0)).where(
+            func.date(TripExpense.expense_date) >= from_date,
+            func.date(TripExpense.expense_date) <= today,
+        )
+    )
+    total_expenses = _to_number(exp_res.scalar())
+
+    # Jobs completed in period
+    jobs_res = await db.execute(
+        select(func.count(Job.id)).where(
+            Job.is_deleted.is_(False),
+            Job.status.in_(["COMPLETED", "CLOSED", "DELIVERED"]),
+            func.date(Job.completed_at) >= from_date,
+            func.date(Job.completed_at) <= today,
+        )
+    )
+    jobs_completed = int(jobs_res.scalar() or 0)
+
+    avg_revenue_per_trip = round(total_revenue / jobs_completed, 2) if jobs_completed > 0 else 0.0
+
+    # Top routes = most frequent origin→destination from trips in period
+    route_res = await db.execute(
+        select(
+            Trip.origin,
+            Trip.destination,
+            func.count(Trip.id).label("trip_count"),
+            func.coalesce(func.sum(Trip.revenue), 0).label("revenue"),
+        )
+        .where(
+            Trip.is_deleted.is_(False),
+            func.date(Trip.trip_date) >= from_date,
+            func.date(Trip.trip_date) <= today,
+        )
+        .group_by(Trip.origin, Trip.destination)
+        .order_by(func.count(Trip.id).desc())
+        .limit(5)
+    )
+    top_routes = [
+        {
+            "route": f"{origin or 'Unknown'} → {destination or 'Unknown'}",
+            "trip_count": int(trip_count or 0),
+            "revenue": _to_number(revenue),
+        }
+        for origin, destination, trip_count, revenue in route_res.fetchall()
+    ]
+
+    # Expense breakdown by category
+    breakdown_res = await db.execute(
+        select(
+            TripExpense.category,
+            func.coalesce(func.sum(TripExpense.amount), 0).label("total"),
+        )
+        .where(
+            func.date(TripExpense.expense_date) >= from_date,
+            func.date(TripExpense.expense_date) <= today,
+        )
+        .group_by(TripExpense.category)
+        .order_by(func.sum(TripExpense.amount).desc())
+    )
+    expense_breakdown = [
+        {
+            "category": str(cat.value if hasattr(cat, "value") else cat) if cat else "Other",
+            "amount": _to_number(total),
+        }
+        for cat, total in breakdown_res.fetchall()
+    ]
+
+    return APIResponse(success=True, data={
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "jobs_completed": jobs_completed,
+        "avg_revenue_per_trip": avg_revenue_per_trip,
+        "top_routes": top_routes,
+        "expense_breakdown": expense_breakdown,
+        "period": period,
+        "from_date": from_date.isoformat(),
+        "to_date": today.isoformat(),
     }, message="ok")
 
 

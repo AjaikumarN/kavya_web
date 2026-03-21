@@ -21,7 +21,10 @@ class VehicleTileWidget extends StatelessWidget {
     final regNumber = vehicle['registration_number'] ?? '—';
     final make = vehicle['make'] ?? '';
     final model = vehicle['model'] ?? '';
-    final capacity = vehicle['capacity_tons'] ?? '';
+    final capacityRaw = vehicle['capacity_tons'];
+    final capacity = capacityRaw == null
+        ? ''
+        : (double.tryParse(capacityRaw.toString()) ?? 0.0).toInt().toString();
     final status = (vehicle['status'] as String?)?.toUpperCase() ?? '';
     final isAvailable = status == 'AVAILABLE';
     final location = vehicle['current_location'] ?? '';

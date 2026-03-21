@@ -3,6 +3,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../../../core/theme/kt_text_styles.dart';
 
+double _safeDouble(dynamic v) {
+  if (v == null) return 0.0;
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0.0;
+}
+
 class ClientCardWidget extends StatelessWidget {
   final Map<String, dynamic> client;
   const ClientCardWidget({super.key, required this.client});
@@ -12,8 +19,8 @@ class ClientCardWidget extends StatelessWidget {
     final name = client['name'] ?? '—';
     final gstin = client['gstin'] ?? '';
     final status = client['status'] ?? 'ACTIVE';
-    final creditLimit = (client['credit_limit'] as num?)?.toDouble() ?? 0;
-    final outstanding = (client['outstanding_amount'] as num?)?.toDouble() ?? 0;
+    final creditLimit = _safeDouble(client['credit_limit']);
+    final outstanding = _safeDouble(client['outstanding_amount']);
     final isOverdue = status.toString().toUpperCase() == 'OVERDUE';
     final utilisation = creditLimit > 0 ? (outstanding / creditLimit).clamp(0.0, 1.0) : 0.0;
     final initials = name.split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();

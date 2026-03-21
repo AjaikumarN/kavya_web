@@ -8,6 +8,13 @@ import '../../../core/widgets/kt_error_state.dart';
 import '../../../services/api_service.dart';
 import '../../../providers/fleet_dashboard_provider.dart';
 
+double _safeDouble(dynamic v) {
+  if (v == null) return 0.0;
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0.0;
+}
+
 class ManagerClientDetailScreen extends ConsumerWidget {
   final String clientId;
   const ManagerClientDetailScreen({super.key, required this.clientId});
@@ -27,8 +34,8 @@ class ManagerClientDetailScreen extends ConsumerWidget {
         loading: () => const KTLoadingShimmer(type: ShimmerType.list),
         error: (e, _) => KTErrorState(message: e.toString(), onRetry: () => ref.invalidate(_clientDetailProvider(clientId))),
         data: (c) {
-          final creditLimit = (c['credit_limit'] as num?)?.toDouble() ?? 0;
-          final outstanding = (c['outstanding_amount'] as num?)?.toDouble() ?? 0;
+          final creditLimit = _safeDouble(c['credit_limit']);
+          final outstanding = _safeDouble(c['outstanding_amount']);
           final utilization = creditLimit > 0 ? (outstanding / creditLimit).clamp(0.0, 1.0) : 0.0;
 
           return ListView(

@@ -405,14 +405,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       
       // --- Associate Routes (legacy redirects → PA screens) ---
-      GoRoute(path: '/associate/home', redirect: (context, state) => '/pa/dashboard'),
-      GoRoute(path: '/associate/jobs', redirect: (context, state) => '/pa/jobs'),
-      GoRoute(path: '/associate/lr/create', redirect: (context, state) => '/pa/jobs'),
-      GoRoute(path: '/associate/lr/list', redirect: (context, state) => '/pa/jobs'),
-      GoRoute(path: '/associate/ewb/create', redirect: (context, state) => '/pa/ewb'),
-      GoRoute(path: '/associate/ewb/list', redirect: (context, state) => '/pa/ewb'),
-      GoRoute(path: '/associate/trip/close', redirect: (context, state) => '/pa/jobs'),
-      GoRoute(path: '/associate/upload', redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/home',        redirect: (context, state) => '/pa/dashboard'),
+      GoRoute(path: '/associate/jobs',         redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/lr/create',    redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/lr/list',      redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/ewb/create',   redirect: (context, state) => '/pa/ewb'),
+      GoRoute(path: '/associate/ewb/list',     redirect: (context, state) => '/pa/ewb'),
+      GoRoute(path: '/associate/trip/close',   redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/upload',       redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/trips',        redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/documents',    redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/banking',      redirect: (context, state) => '/pa/banking'),
 
       // --- PA Routes (full workflow with bottom nav shell) ---
       StatefulShellRoute.indexedStack(

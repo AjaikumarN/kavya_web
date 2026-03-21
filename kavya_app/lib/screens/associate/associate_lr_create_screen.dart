@@ -191,13 +191,13 @@ class _AssociateLRCreateScreenState extends ConsumerState<AssociateLRCreateScree
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon( // "Generate EWB for this LR" button → /associate/ewb/create?lr_id=X
-                onPressed: () => context.pushReplacement('/associate/ewb/create?lr_id=$_generatedLrNumber'),
+                onPressed: () => context.go('/pa/ewb'),
                 icon: const Icon(Icons.fire_truck),
                 label: const Text("Generate EWB for this LR"),
               ),
               const SizedBox(height: 32),
               TextButton( // "Back to home" button
-                onPressed: () => context.go('/associate/home'),
+                onPressed: () => context.go('/pa/dashboard'),
                 child: const Text("Back to home"),
               )
             ],

@@ -110,7 +110,7 @@ class _AssociateJobListScreenState extends ConsumerState<AssociateJobListScreen>
                               if (showCreateLrBtn) ...[
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: () => context.push('/associate/lr/create?job_id=${job['id'] ?? 1}'),
+                                  onPressed: () => context.push('/pa/jobs/${job["id"] ?? 1}/lr'),
                                   icon: const Icon(Icons.receipt),
                                   label: const Text("Create LR"), // [cite: 90]
                                 )

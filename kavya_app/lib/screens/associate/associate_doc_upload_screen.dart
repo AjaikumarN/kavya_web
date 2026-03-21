@@ -70,7 +70,7 @@ class _AssociateDocUploadScreenState extends ConsumerState<AssociateDocUploadScr
               Text("Document Uploaded", style: KTTextStyles.h2),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: () => context.go('/associate/home'),
+                onPressed: () => context.go('/pa/dashboard'),
                 child: const Text("Back to Home"),
               )
             ],

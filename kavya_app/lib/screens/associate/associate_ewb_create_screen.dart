@@ -187,7 +187,7 @@ class _AssociateEWBCreateScreenState extends ConsumerState<AssociateEWBCreateScr
               ),
               const SizedBox(height: 32),
               TextButton( // "Back to home"
-                onPressed: () => context.go('/associate/home'),
+                onPressed: () => context.go('/pa/dashboard'),
                 child: const Text("Back to home"),
               )
             ],

@@ -85,6 +85,9 @@ class AuthService {
       case 'branch_manager':
         router.go('/branch/home');
         break;
+      case 'manager':
+        router.go('/manager/dashboard');
+        break;
       default:
         router.go('/web-only');
     }

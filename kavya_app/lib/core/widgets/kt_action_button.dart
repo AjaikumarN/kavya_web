@@ -16,9 +16,9 @@ class KTActionButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: KTColors.cardSurface,
+          color: KTColors.darkElevated,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: KTColors.darkBorder),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

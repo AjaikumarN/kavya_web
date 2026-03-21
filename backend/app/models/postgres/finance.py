@@ -21,6 +21,13 @@ class InvoiceStatus(enum.Enum):
     DISPUTED = "DISPUTED"
 
 
+class InvoicePaymentStatus(enum.Enum):
+    """Simple payment-tracking enum separate from the workflow status."""
+    UNPAID = "UNPAID"
+    PARTIAL = "PARTIAL"
+    PAID = "PAID"
+
+
 class InvoiceType(enum.Enum):
     TAX_INVOICE = "TAX_INVOICE"
     PROFORMA = "PROFORMA"
@@ -107,7 +114,14 @@ class Invoice(Base, TimestampMixin, SoftDeleteMixin):
     # Payment
     amount_paid = Column(Numeric(15, 2), default=0)
     amount_due = Column(Numeric(15, 2), default=0)
-    
+
+    # Payment status (UNPAID / PARTIAL / PAID — simpler than workflow status)
+    payment_status = Column(
+        SQLEnum(InvoicePaymentStatus),
+        default=InvoicePaymentStatus.UNPAID,
+        nullable=True,
+    )
+
     # Status
     status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
     
@@ -187,6 +201,12 @@ class Payment(Base, TimestampMixin, SoftDeleteMixin):
     invoice_id = Column(Integer, ForeignKey('invoices.id'), nullable=True)
     client_id = Column(Integer, ForeignKey('clients.id'), nullable=True)
     vendor_id = Column(Integer, ForeignKey('vendors.id'), nullable=True)
+    # Driver payment fields
+    trip_id = Column(Integer, ForeignKey('trips.id'), nullable=True)
+    driver_id = Column(Integer, ForeignKey('drivers.id'), nullable=True)
+    source_ref = Column(String(100), nullable=True)  # e.g. "trip_pay:TRP-001" or "expense:42"
+    razorpay_order_id = Column(String(100), nullable=True)
+    razorpay_payment_id = Column(String(100), nullable=True)
     
     # Amount
     amount = Column(Numeric(15, 2), nullable=False)
@@ -200,6 +220,9 @@ class Payment(Base, TimestampMixin, SoftDeleteMixin):
     cheque_number = Column(String(30), nullable=True)
     cheque_date = Column(Date, nullable=True)
     transaction_ref = Column(String(100), nullable=True)
+
+    # UPI transaction ID (entered by accountant after app confirms payment)
+    upi_txn_id = Column(String(100), nullable=True)
     
     # Status
     status = Column(SQLEnum(PaymentStatus), default=PaymentStatus.COMPLETED)
@@ -223,7 +246,7 @@ class Payment(Base, TimestampMixin, SoftDeleteMixin):
     # Relationships
     invoice = relationship("Invoice", back_populates="payments")
     ledger_entries = relationship("Ledger", back_populates="payment")
-    
+
     def __repr__(self):
         return f"<Payment {self.payment_number}>"
 

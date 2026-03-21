@@ -75,6 +75,7 @@ class Driver(Base, TimestampMixin, SoftDeleteMixin):
     bank_account_number = Column(String(30), nullable=True)
     bank_name = Column(String(100), nullable=True)
     bank_ifsc = Column(String(15), nullable=True)
+    upi_id = Column(String(60), nullable=True)
     
     # Emergency Contact
     emergency_contact_name = Column(String(100), nullable=True)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
@@ -384,6 +385,10 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
 
   Future<void> _markPaid(BuildContext context, dynamic id) async {
     if (id == null) return;
+    final s = widget.settlement;
+    final driverId = s['driver_id'];
+    final netPaise = (s['net_amount_paise'] as num? ?? 0).toInt();
+
     // Show payment method modal
     String method = 'NEFT';
     await showModalBottomSheet(
@@ -417,6 +422,90 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
                   setState(() => _loading = true);
                   try {
                     final api = ref.read(apiServiceProvider);
+
+                    if (method == 'UPI') {
+                      // Fetch driver UPI VPA
+                      String? vpa;
+                      String? driverName;
+                      try {
+                        final info = await api.get('/drivers/$driverId/payment-info');
+                        vpa = info['data']?['upi_id'] as String?;
+                        driverName = info['data']?['name'] as String?;
+                      } catch (_) {}
+
+                      if (!context.mounted) return;
+
+                      if (vpa == null || vpa.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Driver has no UPI ID registered. Please update driver profile first.'),
+                            backgroundColor: KTColors.danger,
+                          ),
+                        );
+                        setState(() => _loading = false);
+                        return;
+                      }
+
+                      // Build UPI payment URI
+                      final amountRupees = (netPaise / 100).toStringAsFixed(2);
+                      final uri = Uri.parse(
+                        'upi://pay'
+                        '?pa=${Uri.encodeComponent(vpa)}'
+                        '&pn=${Uri.encodeComponent(driverName ?? 'Driver')}'
+                        '&am=$amountRupees'
+                        '&cu=INR'
+                        '&tn=${Uri.encodeComponent('Driver settlement')}',
+                      );
+
+                      bool launched = false;
+                      try {
+                        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } catch (_) {}
+
+                      if (!context.mounted) return;
+
+                      if (!launched) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Could not open UPI app. Please ensure a UPI app is installed.'),
+                            backgroundColor: KTColors.danger,
+                          ),
+                        );
+                        setState(() => _loading = false);
+                        return;
+                      }
+
+                      // Ask accountant to confirm payment completed
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          backgroundColor: KTColors.navy800,
+                          title: Text('Confirm Payment',
+                              style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                          content: Text(
+                            'Did you complete payment of ₹${(netPaise / 100).toStringAsFixed(0)} via UPI to $driverName?',
+                            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text('No', style: KTTextStyles.label.copyWith(color: KTColors.danger)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text('Yes, Paid', style: KTTextStyles.label.copyWith(color: KTColors.success)),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed != true) {
+                        setState(() => _loading = false);
+                        return;
+                      }
+                    }
+
+                    // Mark settlement as paid (all methods reach here)
                     await api.patch('/payables/$id/mark-paid', data: {
                       'payment_method': method,
                       'paid_date': DateTime.now().toIso8601String().split('T').first,

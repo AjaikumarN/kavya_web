@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_stat_card.dart';
@@ -66,37 +65,20 @@ class AccountantHomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Section 2 — Aging buckets visualization [cite: 73-74]
+                // Section 2 — Aging buckets visualization
                 Text("Outstanding aging", style: KTTextStyles.h3),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 60,
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.center,
-                      maxY: 100,
-                      barTouchData: BarTouchData(enabled: false),
-                      titlesData: FlTitlesData(show: false),
-                      borderData: FlBorderData(show: false),
-                      gridData: FlGridData(show: false),
-                      barGroups: [
-                        BarChartGroupData(
-                          x: 0,
-                          barRods: [
-                            BarChartRodData(
-                              toY: 100,
-                              rodStackItems: [
-                                BarChartRodStackItem(0, 40, KTColors.success), // Current [cite: 73-74]
-                                BarChartRodStackItem(40, 70, Colors.yellow.shade700), // 0-30
-                                BarChartRodStackItem(70, 85, Colors.orange), // 31-60
-                                BarChartRodStackItem(85, 95, KTColors.primary), // 61-90
-                                BarChartRodStackItem(95, 100, KTColors.danger), // 90+ days [cite: 74]
-                              ],
-                              borderRadius: BorderRadius.circular(8),
-                              width: double.infinity,
-                            ),
-                          ],
-                        ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    height: 20,
+                    child: Row(
+                      children: [
+                        Flexible(flex: 40, child: Container(color: KTColors.success)),
+                        Flexible(flex: 30, child: Container(color: Colors.yellow.shade700)),
+                        Flexible(flex: 15, child: Container(color: Colors.orange)),
+                        Flexible(flex: 10, child: Container(color: KTColors.primary)),
+                        Flexible(flex: 5, child: Container(color: KTColors.danger)),
                       ],
                     ),
                   ),
@@ -141,22 +123,42 @@ class AccountantHomeScreen extends ConsumerWidget {
                 // Section 5 — Recent payments [cite: 75]
                 Text("Recent payments", style: KTTextStyles.h3),
                 const SizedBox(height: 8),
-                Card(
+                Container(
+                  decoration: BoxDecoration(
+                    color: KTColors.darkElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: KTColors.darkBorder),
+                  ),
                   child: Column(
-                    children: List.generate(3, (index) => ListTile(
-                      title: Text("Acme Corp", style: KTTextStyles.label),
-                      subtitle: const Text("15 Mar 2026"),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(3, (index) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
                         children: [
-                          Text(currencyFormat.format(45000), style: KTTextStyles.h3),
-                          const SizedBox(height: 4),
-                          Chip(
-                            label: const Text("NEFT", style: TextStyle(fontSize: 10)),
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: KTColors.success.withOpacity(0.1),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Acme Corp", style: KTTextStyles.label),
+                                const SizedBox(height: 2),
+                                Text("15 Mar 2026", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textSecondary)),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(currencyFormat.format(45000), style: KTTextStyles.h3),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: KTColors.success.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text("NEFT", style: TextStyle(fontSize: 10, color: KTColors.success, fontWeight: FontWeight.w600)),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -172,11 +174,11 @@ class AccountantHomeScreen extends ConsumerWidget {
                     children: [
                       SizedBox(width: 120, child: KTActionButton(icon: Icons.payment, label: "Record payment", onTap: () => context.push('/accountant/receivables'))),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.description, label: "Generate invoice", onTap: () {})),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.description, label: "Generate invoice", onTap: () => context.push('/accountant/invoices'))),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.account_balance, label: "GST view", onTap: () {})),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.account_balance, label: "GST view", onTap: () => context.push('/accountant/gst'))),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.book, label: "Full ledger", onTap: () {})),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.book, label: "Full ledger", onTap: () => context.push('/accountant/ledger'))),
                     ],
                   ),
                 )

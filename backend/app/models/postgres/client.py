@@ -37,6 +37,9 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     pan = Column(String(15), nullable=True)
     gst_state_code = Column(String(5), nullable=True)
     
+    # UPI / Payment
+    upi_id = Column(String(60), nullable=True)   # VPA e.g. "9876543210@okaxis"
+
     # Financial
     credit_limit = Column(Numeric(15, 2), default=0)
     credit_days = Column(Integer, default=30)

@@ -35,9 +35,20 @@ import '../../screens/fleet/fleet_add_driver_screen.dart';
 import '../../screens/fleet/fleet_create_trip_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
+import '../../screens/accountant/accountant_shell_screen.dart';
+import '../../screens/accountant/accountant_more_screen.dart';
+import '../../screens/accountant/accountant_invoices_screen.dart';
+import '../../screens/accountant/accountant_invoice_detail_screen.dart';
 import '../../screens/accountant/accountant_payments_screen.dart';
-import '../../screens/accountant/accountant_banking_screen.dart';
+import '../../screens/accountant/accountant_receivables_screen.dart';
+import '../../screens/accountant/accountant_payables_screen.dart';
+import '../../screens/accountant/accountant_ledger_screen.dart';
+import '../../screens/accountant/accountant_gst_screen.dart';
+import '../../screens/accountant/accountant_vouchers_screen.dart';
+import '../../screens/accountant/accountant_statements_screen.dart';
+import '../../screens/accountant/accountant_expense_approval_screen.dart';
 import '../../screens/accountant/accountant_settlement_screen.dart';
+import '../../screens/accountant/accountant_banking_screen.dart';
 // Driver settlement
 import '../../screens/driver/driver_settlement_screen.dart';
 // Pump Shift screen
@@ -284,15 +295,101 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/service/new', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const Scaffold()),
       
-      // --- Accountant Routes ---
-      GoRoute(path: '/accountant/home', builder: (context, state) => const AccountantHomeScreen()),
-      GoRoute(path: '/accountant/invoices', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/accountant/invoice/:id', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/accountant/approvals', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/accountant/payments', builder: (context, state) => const AccountantPaymentsScreen()),
-      GoRoute(path: '/accountant/banking', builder: (context, state) => const AccountantBankingScreen()),
-      GoRoute(path: '/accountant/settlements', builder: (context, state) => const AccountantSettlementScreen()),
-      GoRoute(path: '/accountant/reports', builder: (context, state) => const Scaffold()),
+      // --- Accountant Routes --- (Stateful shell with bottom nav)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AccountantShellScreen(navigationShell: navigationShell),
+        branches: [
+          // index 0 → Dashboard
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/accountant/home',
+              builder: (context, state) => const AccountantHomeScreen(),
+            ),
+          ]),
+          // index 1 → Invoices
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/accountant/invoices',
+              builder: (context, state) => const AccountantInvoicesScreen(),
+            ),
+          ]),
+          // index 2 → Ledger
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/accountant/ledger',
+              builder: (context, state) => const AccountantLedgerScreen(),
+            ),
+          ]),
+          // index 3 → Statements / Reports
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/accountant/statements',
+              builder: (context, state) => const AccountantStatementsScreen(),
+            ),
+          ]),
+          // index 4 → More
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/accountant/more',
+              builder: (context, state) => const AccountantMoreScreen(),
+            ),
+          ]),
+        ],
+      ),
+      // Accountant modal / detail routes (outside shell)
+      GoRoute(
+        path: '/accountant/invoice/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => AccountantInvoiceDetailScreen(
+          id: state.pathParameters['id'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/accountant/payments',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantPaymentsScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/receivables',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantReceivablesScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/payables',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantPayablesScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/gst',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantGSTScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/vouchers',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantVouchersScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/approvals',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantExpenseApprovalScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/expenses',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantExpenseApprovalScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/settlements',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantSettlementScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/banking',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AccountantBankingScreen(),
+      ),
       
       // --- Associate Routes ---
       GoRoute(path: '/associate/home', builder: (context, state) => const AssociateHomeScreen()),

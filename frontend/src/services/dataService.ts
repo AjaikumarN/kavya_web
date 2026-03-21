@@ -606,6 +606,10 @@ export const tripService = {
     const data = await api.post(`/trips/${id}/dispatch`);
     return data;
   },
+  approvePayment: async (id: number) => {
+    const data = await api.post(`/trips/${id}/approve-payment`);
+    return data;
+  },
 };
 
 // ---- Finance ----
@@ -1491,6 +1495,14 @@ export const accountantService = {
   },
   exportReport: async (reportType: string, format = 'csv', params?: any) => {
     const data = await api.get(`/reports/export/${reportType}`, { params: { format, ...params }, responseType: 'blob' });
+    return data;
+  },
+  getDriverPayments: async (statusFilter?: string) => {
+    const data = await api.get('/accountant/driver-payments', { params: { status_filter: statusFilter } });
+    return unwrap(data);
+  },
+  processDriverPayment: async (paymentId: number, payload: any) => {
+    const data = await api.post(`/accountant/driver-payments/${paymentId}/mark-paid`, payload);
     return data;
   },
 };

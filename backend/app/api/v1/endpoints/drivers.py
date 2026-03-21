@@ -589,6 +589,30 @@ async def verify_driver_pin(
     return APIResponse(success=True, message="PIN verified")
 
 
+@router.get("/{driver_id}/payment-info", response_model=APIResponse)
+async def get_driver_payment_info(
+    driver_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
+):
+    """Return payment details (UPI VPA, bank info) for a driver — used by accountant UPI flow."""
+    driver = await driver_service.get_driver(db, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return APIResponse(
+        success=True,
+        data={
+            "driver_id": driver.id,
+            "name": f"{driver.first_name or ''} {driver.last_name or ''}".strip(),
+            "upi_id": driver.upi_id,
+            "bank_account_number": driver.bank_account_number,
+            "bank_name": driver.bank_name,
+            "bank_ifsc": driver.bank_ifsc,
+        },
+    )
+
+
 # --- License ---
 @router.get("/{driver_id}/licenses", response_model=APIResponse)
 async def list_licenses(driver_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):

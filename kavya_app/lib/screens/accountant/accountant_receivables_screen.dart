@@ -9,7 +9,7 @@ import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../core/widgets/kt_status_badge.dart';
 import '../../providers/finance_provider.dart';
-import '../../providers/fleet_dashboard_provider.dart'; // for apiServiceProvider
+import '../../widgets/payment_bottom_sheet.dart';
 
 class AccountantReceivablesScreen extends ConsumerStatefulWidget {
   const AccountantReceivablesScreen({super.key});
@@ -30,72 +30,20 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
     }
   }
 
-  void _showRecordPaymentModal(Map<String, dynamic> receivable) {
-    final amountController = TextEditingController(text: receivable['amount_due']?.toString() ?? '');
-    String selectedMode = 'NEFT';
-    DateTime selectedDate = DateTime.now();
-    
+  void _showPaymentSheet(Map<String, dynamic> rec) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => StatefulBuilder( // StatefulBuilder to manage modal state
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24, right: 24, top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text("Record Payment", style: KTTextStyles.h2),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: amountController,
-                decoration: const InputDecoration(labelText: "Amount received (₹)"), // [cite: 77]
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedMode,
-                decoration: const InputDecoration(labelText: "Payment Mode"), // [cite: 77]
-                items: ['NEFT', 'RTGS', 'Cheque', 'Cash', 'UPI'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                onChanged: (val) => setModalState(() => selectedMode = val!),
-              ),
-              const SizedBox(height: 16),
-              const TextField(decoration: InputDecoration(labelText: "Reference number")), // [cite: 77]
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text("Date"), // [cite: 77]
-                subtitle: Text(DateFormat('dd MMM yyyy').format(selectedDate)),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final date = await showDatePicker(context: context, initialDate: selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now());
-                  if (date != null) setModalState(() => selectedDate = date);
-                },
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  try {
-                    // Mock payload
-                    await ref.read(apiServiceProvider).recordPayment(receivable['invoice_id'] ?? '1', {}); // [cite: 77]
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment recorded'), backgroundColor: KTColors.success)); // [cite: 117]
-                      ref.invalidate(receivablesProvider);
-                    }
-                  } catch (e) {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: KTColors.danger)); // [cite: 117]
-                  }
-                },
-                child: const Text("Confirm"), // [cite: 77]
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+      backgroundColor: Colors.transparent,
+      builder: (_) => PaymentBottomSheet(
+        invoiceId: (rec['id'] ?? rec['invoice_id'] ?? 0) as int,
+        clientId: (rec['client_id'] ?? 0) as int,
+        invoiceNumber: rec['invoice_number'] ?? rec['invoice_no'] ?? '',
+        outstandingAmount:
+            (rec['amount_due'] as num?)?.toDouble() ?? 0.0,
+        clientName:
+            rec['client_name'] ?? rec['billing_name'] ?? '',
+        onPaymentRecorded: () => ref.invalidate(receivablesProvider),
       ),
     );
   }
@@ -177,7 +125,7 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
                             const SizedBox(width: 12),
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () => _showRecordPaymentModal(rec), // "Record payment" → modal [cite: 77]
+                                onPressed: () => _showPaymentSheet(rec), // "Record payment" → UPI / NEFT / RTGS / Cheque / Cash
                                 icon: const Icon(Icons.payment),
                                 label: const Text("Pay"),
                               ),

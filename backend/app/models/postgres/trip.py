@@ -116,6 +116,11 @@ class Trip(Base, TimestampMixin, SoftDeleteMixin):
     verified_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     verified_at = Column(DateTime, nullable=True)
     
+    # Admin payment approval (admin approves after driver marks trip complete)
+    payment_approved = Column(Boolean, default=False)
+    payment_approved_at = Column(DateTime, nullable=True)
+    payment_approved_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+
     # Invoice
     is_invoiced = Column(Boolean, default=False)
     invoice_id = Column(Integer, ForeignKey('invoices.id'), nullable=True)

@@ -1,6 +1,8 @@
 # Banking Entries & CSV Reconciliation API Endpoints
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import Optional
 from datetime import date
 
@@ -10,8 +12,40 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.banking import BankingEntryCreate, BankingEntryUpdate, CSVMatchRequest
 from app.services import banking_entry_service, csv_parser_service
+from app.models.postgres.route import BankAccount
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ━━━ Bank Accounts ━━━
+
+@router.get("/accounts", response_model=APIResponse)
+async def list_bank_accounts(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.BANKING_READ)),
+):
+    """List active bank accounts for use in entry forms."""
+    result = await db.execute(
+        select(BankAccount).where(BankAccount.is_active == True, BankAccount.is_deleted == False)
+        .order_by(BankAccount.is_default.desc(), BankAccount.id)
+    )
+    accounts = result.scalars().all()
+    data = [
+        {
+            "id": a.id,
+            "account_name": a.account_name,
+            "bank_name": a.bank_name,
+            "account_number": a.account_number,
+            "account_type": a.account_type,
+            "current_balance": float(a.current_balance or 0),
+            "is_default": a.is_default,
+        }
+        for a in accounts
+    ]
+    return APIResponse(success=True, data=data)
 
 
 # ━━━ Banking Entries ━━━
@@ -33,6 +67,8 @@ async def create_banking_entry(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create banking entry: {str(e)}")
 
 
 @router.get("/entries", response_model=APIResponse)

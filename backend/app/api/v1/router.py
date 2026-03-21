@@ -48,6 +48,7 @@ from app.api.v1.endpoints import (
     intelligence,
     sync,
     payables,
+    receivable_payments,
 )
 
 api_router = APIRouter()
@@ -149,3 +150,10 @@ api_router.include_router(intelligence.router, prefix="/intelligence", tags=["In
 
 # Offline Sync
 api_router.include_router(sync.router, prefix="/sync", tags=["Sync"])
+
+# Receivable Payments (UPI / NEFT / RTGS / Cheque / Cash)
+# Registered without prefix — router defines full paths:
+#   GET  /clients/{id}/payment-info
+#   POST /receivables/record-payment
+#   GET  /receivables/{id}/payments
+api_router.include_router(receivable_payments.router, tags=["Receivable Payments"])

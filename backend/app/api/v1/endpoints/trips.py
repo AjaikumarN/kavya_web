@@ -192,6 +192,63 @@ async def close_trip(
     return APIResponse(success=True, data={"id": trip.id}, message="Trip closed")
 
 
+@router.post("/{trip_id}/approve-payment", response_model=APIResponse)
+async def approve_trip_payment(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.TRIP_UPDATE)),
+):
+    """
+    Fleet Manager approves driver payment for a completed trip.
+    Creates a Payment record with status=PENDING that appears in Accountant's driver-payments queue.
+    """
+    from datetime import date, datetime
+    from app.models.postgres.finance import Payment, PaymentMethod, PaymentStatus
+    from app.models.postgres.trip import TripStatusEnum
+    import random, string
+
+    trip = await db.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    if trip.status != TripStatusEnum.COMPLETED:
+        raise HTTPException(status_code=400, detail="Can only approve payment for completed trips")
+    
+    if trip.payment_approved:
+        raise HTTPException(status_code=400, detail="Payment already approved for this trip")
+
+    # Set payment_approved flag
+    trip.payment_approved = True
+
+    # Create PENDING payment record for accountant queue
+    suffix = ''.join(random.choices(string.digits, k=6))
+    payment = Payment(
+        payment_number=f"TRP-{suffix}",
+        payment_date=date.today(),
+        payment_type="paid",
+        trip_id=trip_id,
+        driver_id=trip.driver_id,
+        source_ref=f"trip_pay:{trip.trip_number}",
+        amount=trip.driver_pay or 0,
+        net_amount=trip.driver_pay or 0,
+        currency="INR",
+        payment_method=PaymentMethod.CASH,
+        status=PaymentStatus.PENDING,
+        remarks=f"Trip payment for {trip.trip_number} ({trip.origin} → {trip.destination})",
+        tenant_id=getattr(trip, 'tenant_id', None),
+        created_by=current_user.user_id,
+    )
+    db.add(payment)
+    await db.commit()
+
+    return APIResponse(
+        success=True,
+        data={"payment_id": payment.id, "payment_number": payment.payment_number, "amount": float(trip.driver_pay or 0)},
+        message="Trip payment approved and queued for accountant"
+    )
+
+
 # --- Driver Checklist ---
 class ChecklistItemPayload(BaseModel):
     id: str

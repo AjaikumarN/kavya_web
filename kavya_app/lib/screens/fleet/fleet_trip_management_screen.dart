@@ -243,6 +243,9 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
     final eta = trip['planned_end']?.toString() ?? '';
     final isDelayed = trip['is_delayed'] == true;
     final status = (trip['status']?.toString() ?? 'PLANNED').toUpperCase();
+    final isCompleted = status == 'COMPLETED';
+    final paymentApproved = trip['payment_approved'] == true;
+    final driverPay = (trip['driver_pay'] as num? ?? 0).toDouble();
 
     Color statusColor;
     String statusLabel;
@@ -284,7 +287,11 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
           color: KTColors.navy800,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isDelayed ? KTColors.amber500.withValues(alpha: 0.5) : KTColors.navy700,
+            color: isDelayed
+                ? KTColors.amber500.withValues(alpha: 0.5)
+                : (isCompleted && !paymentApproved && driverPay > 0)
+                    ? KTColors.success.withValues(alpha: 0.4)
+                    : KTColors.navy700,
           ),
         ),
         child: Column(
@@ -336,8 +343,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                 ),
               ],
             ),
-            if (eta.isNotEmpty) ...[
-              const SizedBox(height: 6),
+            if (eta.isNotEmpty) ...[              const SizedBox(height: 6),
               Row(
                 children: [
                   Icon(Icons.schedule, size: 13, color: isDelayed ? KTColors.amber500 : KTColors.darkTextSecondary),
@@ -352,10 +358,85 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                 ],
               ),
             ],
+            // ── Approve Payment button for completed trips ──────────
+            if (isCompleted && !paymentApproved && driverPay > 0) ...[              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  label: Text('Approve Payment  ·  ₹${driverPay.toStringAsFixed(0)}'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: KTColors.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => _approveCompletion(context, trip),
+                ),
+              ),
+            ],
+            if (isCompleted && paymentApproved) ...[              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle, size: 14, color: KTColors.success),
+                  const SizedBox(width: 4),
+                  Text('Payment queued for accountant',
+                      style: KTTextStyles.caption.copyWith(color: KTColors.success)),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _approveCompletion(BuildContext context, Map<String, dynamic> trip) async {
+    final tripId = trip['id'] as int?;
+    if (tripId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KTColors.darkElevated,
+        title: const Text('Approve Trip Completion', style: TextStyle(color: KTColors.textPrimary)),
+        content: Text(
+          'Approve payment of ₹${((trip['driver_pay'] as num? ?? 0)).toStringAsFixed(0)} '
+          'for driver ${trip['driver_name'] ?? '—'}?\n\nThis will send the payment to the accountant queue.',
+          style: const TextStyle(color: KTColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: KTColors.textMuted)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: KTColors.success),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.post('/admin/trips/$tripId/approve-completion', data: {});
+      ref.invalidate(fleetTripsProvider(_dateFilter));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment queued for accountant'),
+            backgroundColor: KTColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: KTColors.danger),
+        );
+      }
+    }
   }
 
   void _showTripDetail(BuildContext context, Map<String, dynamic> trip) {

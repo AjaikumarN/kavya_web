@@ -141,12 +141,66 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getDashboardAccountant() async {
-    final response = await _dio.get('/dashboard/accountant');
+    final response = await _dio.get('/accountant/dashboard');
+    return response.data;
+  }
+
+  // --- Accountant module ---
+  Future<dynamic> createInvoice(Map<String, dynamic> data) async {
+    final response = await _dio.post('/accountant/invoices', data: data);
+    return response.data;
+  }
+
+  Future<dynamic> updateInvoice(int id, Map<String, dynamic> data) async {
+    final response = await _dio.put('/accountant/invoices/$id', data: data);
+    return response.data;
+  }
+
+  Future<dynamic> deleteInvoice(int id) async {
+    final response = await _dio.delete('/accountant/invoices/$id');
+    return response.data;
+  }
+
+  Future<dynamic> recordAccountantPayment(Map<String, dynamic> data) async {
+    final response = await _dio.post('/accountant/payments', data: data);
+    return response.data;
+  }
+
+  Future<dynamic> getAccountantPayables() async {
+    final response = await _dio.get('/accountant/payables');
+    return response.data;
+  }
+
+  Future<dynamic> getAccountantGST({String? financialYear}) async {
+    final response = await _dio.get('/accountant/gst',
+        queryParameters: {if (financialYear != null) 'financial_year': financialYear});
+    return response.data;
+  }
+
+  Future<dynamic> createLedgerEntry(Map<String, dynamic> data) async {
+    final response = await _dio.post('/accountant/ledger', data: data);
+    return response.data;
+  }
+
+  Future<dynamic> getAccountantVouchers({String? voucherType}) async {
+    final response = await _dio.get('/accountant/vouchers',
+        queryParameters: {if (voucherType != null) 'voucher_type': voucherType});
+    return response.data;
+  }
+
+  Future<dynamic> createVoucher(Map<String, dynamic> data) async {
+    final response = await _dio.post('/accountant/vouchers', data: data);
+    return response.data;
+  }
+
+  Future<dynamic> getAccountantStatements({String period = 'monthly'}) async {
+    final response = await _dio.get('/accountant/statements',
+        queryParameters: {'period': period});
     return response.data;
   }
 
   Future<Map<String, dynamic>> getDashboardAssociate() async {
-    final response = await _dio.get('/dashboard/associate');
+    final response = await _dio.get('/dashboard/pa/kpis');
     return response.data;
   }
 
@@ -338,12 +392,37 @@ class ApiService {
   }
 
   Future<List<dynamic>> getInvoices() async { // [cite: 34]
-    final response = await _dio.get('/finance/invoices');
-    return response.data;
+    final response = await _dio.get('/accountant/invoices');
+    final raw = response.data;
+    if (raw is List) return raw;
+    if (raw is Map) return (raw['data'] as List?) ?? [];
+    return [];
   }
 
   Future<Map<String, dynamic>> getInvoiceDetail(String id) async { // [cite: 34]
     final response = await _dio.get('/finance/invoices/$id');
+    return response.data;
+  }
+
+  Future<dynamic> getAccountantDriverPayments({String? statusFilter}) async {
+    final response = await _dio.get('/accountant/driver-payments',
+        queryParameters: {if (statusFilter != null) 'status_filter': statusFilter});
+    return response.data;
+  }
+
+  Future<dynamic> markDriverPaymentPaid(int paymentId, Map<String, dynamic> data) async {
+    final response =
+        await _dio.post('/accountant/driver-payments/$paymentId/mark-paid', data: data);
+    return response.data;
+  }
+
+  Future<dynamic> getAdminPendingTripCompletions() async {
+    final response = await _dio.get('/admin/trips/pending-completion');
+    return response.data;
+  }
+
+  Future<dynamic> adminApproveTripCompletion(int tripId) async {
+    final response = await _dio.post('/admin/trips/$tripId/approve-completion', data: {});
     return response.data;
   }
 
@@ -352,8 +431,11 @@ class ApiService {
   }
 
   Future<List<dynamic>> getReceivables() async { // [cite: 34]
-    final response = await _dio.get('/finance/receivables');
-    return response.data;
+    final response = await _dio.get('/accountant/receivables');
+    final raw = response.data;
+    if (raw is List) return raw;
+    if (raw is Map) return (raw['data'] as List?) ?? [];
+    return [];
   }
 
   // --- Vehicles & Trips ---

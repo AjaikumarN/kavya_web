@@ -42,6 +42,15 @@ export default function TripDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trip', id] }),
   });
 
+  const approvePaymentMutation = useMutation({
+    mutationFn: () => tripService.approvePayment(Number(id)),
+    onSuccess: () => {
+      toast.success('Payment approved and queued for accountant');
+      queryClient.invalidateQueries({ queryKey: ['trip', id] });
+    },
+    onError: () => toast.error('Failed to approve payment'),
+  });
+
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
   const [expenseForm, setExpenseForm] = useState({ category: 'fuel', description: '', amount: '', date: new Date().toISOString().slice(0, 10) });
 
@@ -89,6 +98,15 @@ export default function TripDetailPage() {
           {['started', 'in_transit'].includes(trip.status) && (
             <button onClick={() => completeMutation.mutate()} className="btn-danger flex items-center gap-2" disabled={completeMutation.isPending}>
               <Square size={16} /> Complete Trip
+            </button>
+          )}
+          {trip.status === 'completed' && !trip.payment_approved && hasPermission('trips:update') && (
+            <button 
+              onClick={() => approvePaymentMutation.mutate()} 
+              className="btn-success flex items-center gap-2" 
+              disabled={approvePaymentMutation.isPending}
+            >
+              <DollarSign size={16} /> Approve Payment · ₹{((trip.driver_pay || 0)).toLocaleString('en-IN')}
             </button>
           )}
           {['started', 'in_transit'].includes(trip.status) && (

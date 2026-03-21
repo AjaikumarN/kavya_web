@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+import '../theme/kt_colors.dart';
 import '../theme/kt_text_styles.dart';
 
 class KTEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
-  final String? lottieAsset;
+  final String? lottieAsset; // kept for API compatibility, ignored
   final String? actionLabel;
   final VoidCallback? onAction;
+  final IconData? icon;
 
   const KTEmptyState({
     super.key,
@@ -16,6 +17,7 @@ class KTEmptyState extends StatelessWidget {
     this.lottieAsset,
     this.actionLabel,
     this.onAction,
+    this.icon,
   });
 
   @override
@@ -26,7 +28,19 @@ class KTEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (lottieAsset != null) Lottie.asset(lottieAsset!, height: 150),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: KTColors.darkElevated,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon ?? Icons.inbox_outlined,
+                size: 40,
+                color: KTColors.textMuted,
+              ),
+            ),
             const SizedBox(height: 16),
             Text(title, style: KTTextStyles.h2, textAlign: TextAlign.center),
             const SizedBox(height: 8),

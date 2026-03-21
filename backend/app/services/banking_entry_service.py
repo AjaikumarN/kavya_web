@@ -113,8 +113,11 @@ async def create_banking_entry(
     threshold = getattr(account, "alert_threshold_paise", 500000) or 500000
     current_paise = int(Decimal(str(account.current_balance or 0)) * 100)
     if current_paise < threshold:
-        from app.tasks.banking_tasks import low_balance_alert
-        low_balance_alert.delay(account_id)
+        try:
+            from app.tasks.banking_tasks import low_balance_alert
+            low_balance_alert.delay(account_id)
+        except Exception:
+            logger.warning("Could not dispatch low_balance_alert task (broker unavailable?)")
 
     return entry
 

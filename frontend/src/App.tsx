@@ -121,6 +121,7 @@ import AccountantInvoicesPage from '@/pages/accountant/AccountantInvoicesPage';
 import AccountantReceivablesPage from '@/pages/accountant/AccountantReceivablesPage';
 import AccountantPayablesPage from '@/pages/accountant/AccountantPayablesPage';
 import AccountantExpensesPage from '@/pages/accountant/AccountantExpensesPage';
+import AccountantDriverPaymentsPage from '@/pages/accountant/AccountantDriverPaymentsPage';
 import AccountantFuelExpensePage from '@/pages/accountant/AccountantFuelExpensePage';
 import AccountantBankingPage from '@/pages/accountant/AccountantBankingPage';
 import AccountantLedgerPage from '@/pages/accountant/AccountantLedgerPage';
@@ -272,6 +273,7 @@ function App() {
           <Route path="/accountant/receivables" element={<AuthGuard requiredPermission="invoice:read"><AccountantReceivablesPage /></AuthGuard>} />
           <Route path="/accountant/payables" element={<AuthGuard requiredPermission="payment:read"><AccountantPayablesPage /></AuthGuard>} />
           <Route path="/accountant/expenses" element={<AuthGuard requiredPermission="expense:read"><AccountantExpensesPage /></AuthGuard>} />
+          <Route path="/accountant/payments" element={<AuthGuard requiredPermission="payment:read"><AccountantDriverPaymentsPage /></AuthGuard>} />
           <Route path="/accountant/fuel" element={<AccountantFuelExpensePage />} />
           <Route path="/accountant/banking" element={<AccountantBankingPage />} />
           <Route path="/accountant/ledger" element={<AuthGuard requiredPermission="ledger:read"><AccountantLedgerPage /></AuthGuard>} />

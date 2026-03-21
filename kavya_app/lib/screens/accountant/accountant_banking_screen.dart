@@ -10,12 +10,22 @@ import '../../providers/fleet_dashboard_provider.dart';
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 
+const _bankingTypeMap = {
+  'Payment Received': 'PAYMENT_RECEIVED',
+  'Payment Made': 'PAYMENT_MADE',
+  'Transfer': 'BANK_TRANSFER',
+  'Deposit': 'CASH_DEPOSIT',
+  'Withdrawal': 'CASH_WITHDRAWAL',
+  'Journal': 'JOURNAL_ENTRY',
+};
+
 final bankingEntriesProvider =
     FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
   (ref, typeFilter) async {
     final api = ref.read(apiServiceProvider);
-    final params = typeFilter == 'All' ? <String, dynamic>{} : {'type': typeFilter};
-    final res = await api.get('/banking/entries/', queryParameters: params);
+    final entryType = _bankingTypeMap[typeFilter];
+    final params = entryType != null ? {'entry_type': entryType} : <String, dynamic>{};
+    final res = await api.get('/banking/entries', queryParameters: params);
     final payload = res['data'] ?? res;
     if (payload is List) return payload.cast<Map<String, dynamic>>();
     return [];
@@ -310,9 +320,11 @@ class _CreateEntrySheet extends ConsumerStatefulWidget {
 class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
   final _formKey = GlobalKey<FormState>();
   bool _submitting = false;
+  bool _loadingAccounts = true;
 
   String _entryType = 'Payment Received';
-  final _accountCtrl = TextEditingController();
+  int? _selectedAccountId;
+  List<Map<String, dynamic>> _accounts = [];
   final _amountCtrl = TextEditingController();
   String _paymentMethod = 'NEFT';
   final _referenceCtrl = TextEditingController();
@@ -324,8 +336,37 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
   static const _paymentMethods = ['NEFT', 'IMPS', 'UPI', 'Cash', 'Cheque', 'RTGS'];
 
   @override
+  void initState() {
+    super.initState();
+    _loadAccounts();
+  }
+
+  Future<void> _loadAccounts() async {
+    try {
+      final api = ref.read(apiServiceProvider);
+      final res = await api.get('/banking/accounts');
+      final list = res['data'] as List? ?? [];
+      if (mounted) {
+        setState(() {
+          _accounts = list.cast<Map<String, dynamic>>();
+          if (_accounts.isNotEmpty) {
+            // Default to the account marked is_default, or the first one
+            final defaultAcc = _accounts.firstWhere(
+              (a) => a['is_default'] == true,
+              orElse: () => _accounts.first,
+            );
+            _selectedAccountId = defaultAcc['id'] as int?;
+          }
+          _loadingAccounts = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingAccounts = false);
+    }
+  }
+
+  @override
   void dispose() {
-    _accountCtrl.dispose();
     _amountCtrl.dispose();
     _referenceCtrl.dispose();
     _descriptionCtrl.dispose();
@@ -334,16 +375,23 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a bank account'), backgroundColor: KTColors.danger),
+      );
+      return;
+    }
     setState(() => _submitting = true);
     try {
       final api = ref.read(apiServiceProvider);
       final amountPaise = ((double.tryParse(_amountCtrl.text) ?? 0) * 100).toInt();
-      await api.post('/banking/entries/', data: {
-        'transaction_type': _entryType,
-        'account_name': _accountCtrl.text,
+      final entryTypeVal = _bankingTypeMap[_entryType] ?? 'PAYMENT_RECEIVED';
+      await api.post('/banking/entries', data: {
+        'entry_type': entryTypeVal,
+        'account_id': _selectedAccountId,
         'amount_paise': amountPaise,
-        'payment_method': _paymentMethod,
-        'reference_number': _referenceCtrl.text,
+        'payment_method': _paymentMethod.toLowerCase(),
+        'reference_no': _referenceCtrl.text,
         'description': _descriptionCtrl.text,
         'entry_date': DateTime.now().toIso8601String().split('T').first,
       });
@@ -393,7 +441,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               Text('Entry Type', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                initialValue: _entryType,
+                value: _entryType,
                 dropdownColor: KTColors.navy800,
                 style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
                 decoration: _inputDec('Select type'),
@@ -402,14 +450,38 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               ),
               const SizedBox(height: 12),
 
-              Text('Account', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Bank Account', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
               const SizedBox(height: 6),
-              TextFormField(
-                controller: _accountCtrl,
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
-                decoration: _inputDec('Account name'),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
+              _loadingAccounts
+                  ? const SizedBox(
+                      height: 48,
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : _accounts.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: KTColors.navy800,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: KTColors.danger),
+                          ),
+                          child: Text(
+                            'No active bank accounts found. Please add a bank account in settings.',
+                            style: KTTextStyles.caption.copyWith(color: KTColors.danger),
+                          ),
+                        )
+                      : DropdownButtonFormField<int>(
+                          value: _selectedAccountId,
+                          dropdownColor: KTColors.navy800,
+                          style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                          decoration: _inputDec('Select account'),
+                          items: _accounts.map((a) => DropdownMenuItem<int>(
+                            value: a['id'] as int,
+                            child: Text('${a['account_name']} (${a['bank_name']})'),
+                          )).toList(),
+                          validator: (v) => v == null ? 'Select an account' : null,
+                          onChanged: (v) => setState(() => _selectedAccountId = v),
+                        ),
               const SizedBox(height: 12),
 
               Text('Amount (₹)', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
@@ -430,7 +502,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               Text('Payment Method', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                initialValue: _paymentMethod,
+                value: _paymentMethod,
                 dropdownColor: KTColors.navy800,
                 style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
                 decoration: _inputDec('Select method'),
@@ -460,7 +532,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               const SizedBox(height: 24),
 
               KTButton.primary(
-                onPressed: _submitting ? null : _save,
+                onPressed: (_submitting || _loadingAccounts) ? null : _save,
                 label: 'Save Entry',
                 isLoading: _submitting,
               ),

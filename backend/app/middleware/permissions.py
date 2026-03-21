@@ -308,6 +308,8 @@ ROLE_PERMISSIONS = {
         Permissions.EXPENSE_UPDATE, Permissions.EXPENSE_DELETE,
         # Ledger (limited view)
         Permissions.LEDGER_READ,
+        # Banking (create entries + read own + view approved)
+        Permissions.BANKING_READ, Permissions.BANKING_RECONCILE,
         # Client
         Permissions.CLIENT_READ,
         # Vehicle

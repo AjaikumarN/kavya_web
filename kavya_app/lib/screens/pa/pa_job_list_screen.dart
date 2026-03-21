@@ -13,10 +13,10 @@ class PAJobListScreen extends ConsumerWidget {
 
   static const _filters = [
     ('All', null),
-    ('LR Needed', 'VEHICLE_ASSIGNED'),
-    ('LR Created', 'LR_CREATED'),
-    ('In Transit', 'in_transit'),
-    ('Completed', 'completed'),
+    ('LR Needed', 'IN_PROGRESS'),
+    ('LR Created', 'TRIP_CREATED'),
+    ('In Transit', 'IN_TRANSIT'),
+    ('Completed', 'COMPLETED'),
   ];
 
   @override
@@ -109,20 +109,20 @@ class _JobListCard extends StatelessWidget {
 
   Color _statusColor(String? s) {
     switch (s) {
-      case 'VEHICLE_ASSIGNED': return KTColors.warning;
-      case 'LR_CREATED': return KTColors.info;
-      case 'in_transit': return KTColors.success;
-      case 'completed': return KTColors.gray400;
+      case 'IN_PROGRESS': return KTColors.warning;
+      case 'TRIP_CREATED': return KTColors.info;
+      case 'IN_TRANSIT': return KTColors.success;
+      case 'COMPLETED': return KTColors.gray400;
       default: return KTColors.darkTextSecondary;
     }
   }
 
   String _statusLabel(String? s) {
     switch (s) {
-      case 'VEHICLE_ASSIGNED': return 'Vehicle Assigned';
-      case 'LR_CREATED': return 'LR Created';
-      case 'in_transit': return 'In Transit';
-      case 'completed': return 'Completed';
+      case 'IN_PROGRESS': return 'Vehicle Assigned';
+      case 'TRIP_CREATED': return 'LR Created';
+      case 'IN_TRANSIT': return 'In Transit';
+      case 'COMPLETED': return 'Completed';
       default: return s ?? '';
     }
   }

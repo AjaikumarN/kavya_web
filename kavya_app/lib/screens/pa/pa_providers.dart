@@ -69,7 +69,7 @@ final paEWBListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async 
 
 final paActiveTripsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  final response = await api.get('/trips', queryParameters: {'status': 'in_transit'});
+  final response = await api.get('/trips', queryParameters: {'status': 'IN_TRANSIT'});
   if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
   if (response is List) return response;
   return [];

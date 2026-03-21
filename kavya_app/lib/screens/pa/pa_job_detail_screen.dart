@@ -66,7 +66,7 @@ class PAJobDetailScreen extends ConsumerWidget {
               const SizedBox(height: 20),
 
               // ── Actions ───────────────────────────────────────────────
-              if (job['status'] == 'VEHICLE_ASSIGNED')
+              if (job['status'] == 'IN_PROGRESS' || job['status'] == 'DOCUMENTATION')
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

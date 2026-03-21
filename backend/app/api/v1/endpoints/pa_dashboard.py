@@ -34,10 +34,10 @@ async def pa_dashboard_stats(
     now = datetime.utcnow()
     six_hours_later = now + timedelta(hours=6)
 
-    # Jobs awaiting LR: status = VEHICLE_ASSIGNED (PA perspective)
+    # Jobs awaiting LR: status = IN_PROGRESS (vehicle assigned, trip being created)
     jobs_lr_res = await db.execute(
         select(func.count()).select_from(Job).where(
-            Job.status == "VEHICLE_ASSIGNED",
+            Job.status.in_(["IN_PROGRESS", "DOCUMENTATION"]),
             Job.is_deleted.is_(False),
         )
     )
@@ -46,7 +46,7 @@ async def pa_dashboard_stats(
     # EWBs expiring within 6 hours
     ewb_expiring_res = await db.execute(
         select(func.count()).select_from(EwayBill).where(
-            EwayBill.status.in_(["active", "generated"]),
+            EwayBill.status.in_(["ACTIVE", "GENERATED", "EXTENDED"]),
             EwayBill.valid_until <= six_hours_later,
             EwayBill.valid_until >= now,
         )
@@ -56,16 +56,16 @@ async def pa_dashboard_stats(
     # Trips in transit
     trips_transit_res = await db.execute(
         select(func.count()).select_from(Trip).where(
-            Trip.status == "in_transit",
+            Trip.status.in_(["IN_TRANSIT", "STARTED"]),
             Trip.is_deleted.is_(False),
         )
     )
     trips_in_transit = trips_transit_res.scalar() or 0
 
-    # POD pending closure: status = "completed" (driver uploaded POD) but invoice not yet generated
+    # POD pending closure: status = COMPLETED but trip not yet invoiced
     pods_pending_res = await db.execute(
         select(func.count()).select_from(Trip).where(
-            Trip.status == "completed",
+            Trip.status == "COMPLETED",
             Trip.is_deleted.is_(False),
         )
     )
@@ -76,7 +76,7 @@ async def pa_dashboard_stats(
         select(EwayBill, LR)
         .join(LR, LR.id == EwayBill.lr_id, isouter=True)
         .where(
-            EwayBill.status.in_(["active", "generated"]),
+            EwayBill.status.in_(["ACTIVE", "GENERATED", "EXTENDED"]),
             EwayBill.valid_until <= six_hours_later,
             EwayBill.valid_until >= now,
         )
@@ -133,7 +133,7 @@ async def pa_priority_actions(
         .join(Client, Client.id == Job.client_id, isouter=True)
         .join(Vehicle, Vehicle.id == Trip.vehicle_id, isouter=True)
         .where(
-            Trip.status == "completed",
+            Trip.status == "COMPLETED",
             Trip.is_deleted.is_(False),
         )
         .order_by(Trip.updated_at.asc())
@@ -151,7 +151,7 @@ async def pa_priority_actions(
         .join(Client, Client.id == Job.client_id, isouter=True)
         .join(Vehicle, Vehicle.id == LR.vehicle_id, isouter=True)
         .where(
-            EwayBill.status.in_(["active", "generated"]),
+            EwayBill.status.in_(["ACTIVE", "GENERATED", "EXTENDED"]),
             EwayBill.valid_until <= six_hours_later,
             EwayBill.valid_until >= now,
         )
@@ -164,27 +164,26 @@ async def pa_priority_actions(
 
     # ── 3. Vehicle assigned → needs LR
     va_res = await db.execute(
-        select(Job, Client, Vehicle)
+        select(Job, Client)
         .join(Client, Client.id == Job.client_id, isouter=True)
-        .join(Vehicle, Vehicle.id == Job.vehicle_id, isouter=True)
         .where(
-            Job.status == "VEHICLE_ASSIGNED",
+            Job.status.in_(["IN_PROGRESS", "DOCUMENTATION"]),
             Job.is_deleted.is_(False),
         )
         .order_by(Job.pickup_date.asc())
         .limit(5)
     )
-    for job, client, vehicle in va_res.fetchall():
-        actions.append(_build_action(job, None, client, vehicle, "VEHICLE_ASSIGNED", None, None))
+    for job, client in va_res.fetchall():
+        actions.append(_build_action(job, None, client, None, "VEHICLE_ASSIGNED", None, None))
 
     # ── 4. LR created → needs trip sheet
     lr_res = await db.execute(
         select(Job, Trip, Client, Vehicle)
         .join(Trip, Trip.job_id == Job.id, isouter=True)
         .join(Client, Client.id == Job.client_id, isouter=True)
-        .join(Vehicle, Vehicle.id == Job.vehicle_id, isouter=True)
+        .join(Vehicle, Vehicle.id == Trip.vehicle_id, isouter=True)
         .where(
-            Job.status == "LR_CREATED",
+            Job.status.in_(["IN_PROGRESS", "TRIP_CREATED"]),
             Job.is_deleted.is_(False),
         )
         .order_by(Job.pickup_date.asc())
@@ -215,7 +214,7 @@ def _build_action(
     lr: LR | None,
     ewb: EwayBill | None,
 ) -> dict:
-    route_str = f"{job.origin or ''} → {job.destination or ''}"
+    route_str = f"{job.origin_city or ''} → {job.destination_city or ''}"
     return {
         "job_id": job.id,
         "job_number": job.job_number,

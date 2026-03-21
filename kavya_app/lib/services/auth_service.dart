@@ -77,7 +77,7 @@ class AuthService {
         break;
       case 'admin':
       case 'super_admin':
-        router.go('/admin/home');
+        router.go('/admin/dashboard');
         break;
       case 'pump_operator':
         router.go('/pump/home');

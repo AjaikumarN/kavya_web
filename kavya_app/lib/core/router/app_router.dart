@@ -556,6 +556,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       // Admin push/modal routes (outside shell)
+      // Legacy admin route redirects (for users with old navigation state)
+      GoRoute(
+        path: '/admin/home',
+        redirect: (_, __) => '/admin/dashboard',
+      ),
+      GoRoute(
+        path: '/admin/fleet',
+        parentNavigatorKey: appNavigatorKey,
+        redirect: (_, __) => '/admin/operations',
+      ),
+      GoRoute(
+        path: '/admin/team',
+        parentNavigatorKey: appNavigatorKey,
+        redirect: (_, __) => '/admin/employees',
+      ),
+      GoRoute(
+        path: '/admin/alerts',
+        parentNavigatorKey: appNavigatorKey,
+        redirect: (_, __) => '/admin/compliance',
+      ),
       GoRoute(
         path: '/admin/masters',
         parentNavigatorKey: appNavigatorKey,

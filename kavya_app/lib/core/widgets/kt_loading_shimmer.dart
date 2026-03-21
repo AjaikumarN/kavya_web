@@ -24,6 +24,8 @@ class KTLoadingShimmer extends StatelessWidget {
         return Container(height: 200, width: double.infinity, margin: const EdgeInsets.only(bottom: 16), color: Colors.white);
       case ShimmerType.list:
         return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: 5,
           itemBuilder: (_, __) => Padding(
             padding: const EdgeInsets.only(bottom: 8.0),

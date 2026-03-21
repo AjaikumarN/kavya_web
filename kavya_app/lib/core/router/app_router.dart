@@ -89,6 +89,21 @@ import '../../screens/pump/pump_dispense_screen.dart';
 import '../../screens/pump/pump_reports_screen.dart';
 import '../../screens/pump/pump_tank_refill_screen.dart';
 import '../../screens/pump/pump_create_tank_screen.dart';
+// Manager screens
+import '../../features/manager/widgets/manager_shell_screen.dart';
+import '../../features/manager/screens/manager_dashboard_screen.dart';
+import '../../features/manager/screens/manager_job_list_screen.dart';
+import '../../features/manager/screens/manager_job_detail_screen.dart';
+import '../../features/manager/screens/manager_create_job_screen.dart';
+import '../../features/manager/screens/manager_assign_screen.dart';
+import '../../features/manager/screens/manager_clients_screen.dart';
+import '../../features/manager/screens/manager_create_client_screen.dart';
+import '../../features/manager/screens/manager_client_detail_screen.dart';
+import '../../features/manager/screens/manager_fleet_screen.dart';
+import '../../features/manager/screens/manager_vehicle_detail_screen.dart';
+import '../../features/manager/screens/manager_reports_screen.dart';
+import '../../features/manager/screens/manager_approvals_screen.dart';
+import '../../features/manager/screens/manager_notifications_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -117,6 +132,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'admin':
           case 'super_admin': return '/admin/home';
           case 'pump_operator': return '/pump/home';
+          case 'manager': return '/manager/dashboard';
           case 'branch_manager': return '/branch/home';
           default: return '/web-only';
         }
@@ -570,6 +586,83 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/driver/settlement',
         parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const DriverSettlementScreen(),
+      ),
+
+      // --- Manager Routes --- (Stateful shell with 5-tab bottom nav)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            ManagerShellScreen(navigationShell: navigationShell),
+        branches: [
+          // index 0 → Dashboard (Home)
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/manager/dashboard', builder: (context, state) => const ManagerDashboardScreen()),
+          ]),
+          // index 1 → Jobs
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/manager/jobs', builder: (context, state) => const ManagerJobListScreen()),
+          ]),
+          // index 2 → Clients
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/manager/clients', builder: (context, state) => const ManagerClientsScreen()),
+          ]),
+          // index 3 → Fleet
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/manager/fleet', builder: (context, state) => const ManagerFleetScreen()),
+          ]),
+          // index 4 → Reports
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/manager/reports', builder: (context, state) => const ManagerReportsScreen()),
+          ]),
+        ],
+      ),
+      // Manager push/modal routes (outside shell)
+      GoRoute(
+        path: '/manager/jobs/create',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const ManagerCreateJobScreen(),
+      ),
+      GoRoute(
+        path: '/manager/jobs/:jobId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => ManagerJobDetailScreen(
+          jobId: state.pathParameters['jobId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/manager/jobs/:jobId/assign',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => ManagerAssignScreen(
+          jobId: state.pathParameters['jobId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/manager/clients/create',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const ManagerCreateClientScreen(),
+      ),
+      GoRoute(
+        path: '/manager/clients/:clientId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => ManagerClientDetailScreen(
+          clientId: state.pathParameters['clientId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/manager/fleet/:vehicleId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => ManagerVehicleDetailScreen(
+          vehicleId: state.pathParameters['vehicleId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/manager/approvals',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const ManagerApprovalsScreen(),
+      ),
+      GoRoute(
+        path: '/manager/notifications',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const ManagerNotificationsScreen(),
       ),
 
       // --- Branch Manager Routes --- (Stateful shell with bottom nav)

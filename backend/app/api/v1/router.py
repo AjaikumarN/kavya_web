@@ -51,6 +51,7 @@ from app.api.v1.endpoints import (
     receivable_payments,
     user_notifications,
     pa_dashboard,
+    manager_dashboard,
 )
 
 api_router = APIRouter()
@@ -136,6 +137,9 @@ api_router.include_router(user_notifications.router, prefix="/my-notifications",
 
 # PA Dashboard
 api_router.include_router(pa_dashboard.router, prefix="/pa/dashboard", tags=["PA Dashboard"])
+
+# Manager Dashboard
+api_router.include_router(manager_dashboard.router, prefix="/manager/dashboard", tags=["Manager Dashboard"])
 
 # Fuel Prices
 api_router.include_router(fuel.router, prefix="/fuel-prices", tags=["Fuel Prices"])

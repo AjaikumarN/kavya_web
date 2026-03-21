@@ -1,0 +1,286 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../core/theme/kt_colors.dart';
+import '../../../core/theme/kt_text_styles.dart';
+import '../../../services/api_service.dart';
+import '../../../providers/fleet_dashboard_provider.dart';
+import '../providers/manager_providers.dart';
+
+class ManagerCreateJobScreen extends ConsumerStatefulWidget {
+  const ManagerCreateJobScreen({super.key});
+
+  @override
+  ConsumerState<ManagerCreateJobScreen> createState() => _ManagerCreateJobScreenState();
+}
+
+class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _originCtrl = TextEditingController();
+  final _destCtrl = TextEditingController();
+  final _materialCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
+  final _freightCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  String? _selectedClientId;
+  String _vehicleType = 'open';
+  String _paymentTerms = 'to_pay';
+  DateTime _pickupDate = DateTime.now().add(const Duration(days: 1));
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _originCtrl.dispose();
+    _destCtrl.dispose();
+    _materialCtrl.dispose();
+    _weightCtrl.dispose();
+    _freightCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit({bool draft = false}) async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      final api = ref.read(apiServiceProvider);
+      final body = {
+        'client_id': _selectedClientId,
+        'origin_city': _originCtrl.text.trim(),
+        'destination_city': _destCtrl.text.trim(),
+        'material_type': _materialCtrl.text.trim(),
+        'quantity': double.tryParse(_weightCtrl.text.trim()) ?? 0,
+        'total_amount': double.tryParse(_freightCtrl.text.trim()) ?? 0,
+        'vehicle_type_required': _vehicleType,
+        'pickup_date': _pickupDate.toIso8601String().split('T').first,
+        'payment_terms': _paymentTerms,
+        'notes': _notesCtrl.text.trim(),
+        'status': draft ? 'DRAFT' : 'PENDING_APPROVAL',
+      };
+      await api.post('/jobs', data: body);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(draft ? 'Job saved as draft' : 'Job created successfully'),
+            backgroundColor: KTColors.success,
+          ),
+        );
+        ref.invalidate(managerJobListProvider);
+        ref.invalidate(managerUnassignedJobsProvider);
+        ref.invalidate(managerDashboardStatsProvider);
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create job. Please try again.'), backgroundColor: KTColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clientsAsync = ref.watch(managerClientListProvider);
+
+    return Scaffold(
+      backgroundColor: KTColors.darkBg,
+      appBar: AppBar(
+        backgroundColor: KTColors.darkSurface,
+        leading: IconButton(icon: const Icon(Icons.close, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
+        title: Text('Create Job', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // ── Client Dropdown ────────────────────────
+            _label('Client'),
+            clientsAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const Text('Could not load clients', style: TextStyle(color: KTColors.danger)),
+              data: (clients) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                child: DropdownButtonFormField<String>(
+                  value: _selectedClientId,
+                  dropdownColor: KTColors.darkElevated,
+                  decoration: const InputDecoration(border: InputBorder.none),
+                  hint: Text('Select client', style: TextStyle(color: KTColors.darkTextSecondary)),
+                  style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                  validator: (v) => v == null ? 'Required' : null,
+                  items: clients.map<DropdownMenuItem<String>>((c) {
+                    final m = c as Map<String, dynamic>;
+                    return DropdownMenuItem(value: m['id']?.toString(), child: Text(m['name'] ?? ''));
+                  }).toList(),
+                  onChanged: (v) => setState(() => _selectedClientId = v),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Origin / Destination ───────────────────
+            Row(
+              children: [
+                Expanded(child: _textField('Pickup city', _originCtrl, required: true)),
+                const SizedBox(width: 12),
+                Expanded(child: _textField('Delivery city', _destCtrl, required: true)),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Material & Weight ──────────────────────
+            Row(
+              children: [
+                Expanded(child: _textField('Material', _materialCtrl)),
+                const SizedBox(width: 12),
+                Expanded(child: _textField('Weight (tons)', _weightCtrl, inputType: TextInputType.number)),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Vehicle type ───────────────────────────
+            _label('Vehicle type'),
+            Row(
+              children: ['open', 'closed', 'trailer', 'tanker'].map((t) {
+                final sel = t == _vehicleType;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(t[0].toUpperCase() + t.substring(1)),
+                    selected: sel,
+                    selectedColor: KTColors.primary,
+                    backgroundColor: KTColors.darkElevated,
+                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.darkTextSecondary),
+                    onSelected: (_) => setState(() => _vehicleType = t),
+                    side: BorderSide.none,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Freight ────────────────────────────────
+            _textField('Freight amount (₹)', _freightCtrl, inputType: TextInputType.number, required: true),
+            const SizedBox(height: 16),
+
+            // ── Pickup date ────────────────────────────
+            _label('Pickup date'),
+            InkWell(
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: context,
+                  initialDate: _pickupDate,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 180)),
+                );
+                if (d != null) setState(() => _pickupDate = d);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, color: KTColors.darkTextSecondary, size: 18),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${_pickupDate.day}/${_pickupDate.month}/${_pickupDate.year}',
+                      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Payment Terms ──────────────────────────
+            _label('Payment terms'),
+            Row(
+              children: ['to_pay', 'paid', 'to_be_billed'].map((t) {
+                final sel = t == _paymentTerms;
+                final label = t.replaceAll('_', ' ');
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(label[0].toUpperCase() + label.substring(1)),
+                    selected: sel,
+                    selectedColor: KTColors.primary,
+                    backgroundColor: KTColors.darkElevated,
+                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.darkTextSecondary),
+                    onSelected: (_) => setState(() => _paymentTerms = t),
+                    side: BorderSide.none,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Notes ──────────────────────────────────
+            _textField('Notes (optional)', _notesCtrl, maxLines: 3),
+            const SizedBox(height: 24),
+
+            // ── Actions ────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _submitting ? null : () => _submit(draft: true),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: KTColors.darkTextSecondary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Save Draft', style: TextStyle(color: KTColors.darkTextSecondary)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _submitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KTColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _submitting
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Create Job'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w600)),
+      );
+
+  Widget _textField(String hint, TextEditingController ctrl, {bool required = false, TextInputType? inputType, int maxLines = 1}) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: inputType,
+      maxLines: maxLines,
+      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+      validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: KTColors.darkTextSecondary),
+        filled: true,
+        fillColor: KTColors.darkElevated,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      ),
+    );
+  }
+}

@@ -74,13 +74,19 @@ import '../../screens/pa/pa_create_trip_sheet_screen.dart';
 import '../../screens/pa/pa_documents_screen.dart';
 import '../../screens/pa/pa_trip_closure_screen.dart';
 import '../../screens/pa/pa_notifications_screen.dart';
-// Admin screens
-import '../../screens/admin/admin_home_screen.dart';
-import '../../screens/admin/admin_dashboard_screen.dart';
-import '../../screens/admin/admin_fleet_screen.dart';
-import '../../screens/admin/admin_team_screen.dart';
-import '../../screens/admin/admin_alerts_screen.dart';
-import '../../screens/admin/admin_finance_screen.dart';
+// Admin screens (new feature module)
+import '../../features/admin/widgets/admin_shell_screen.dart';
+import '../../features/admin/screens/admin_dashboard_screen.dart';
+import '../../features/admin/screens/admin_operations_screen.dart';
+import '../../features/admin/screens/admin_finance_overview_screen.dart';
+import '../../features/admin/screens/admin_employees_screen.dart';
+import '../../features/admin/screens/admin_settings_screen.dart';
+import '../../features/admin/screens/admin_masters_screen.dart';
+import '../../features/admin/screens/admin_compliance_screen.dart';
+import '../../features/admin/screens/admin_quick_actions_screen.dart';
+import '../../features/admin/screens/admin_create_employee_screen.dart';
+import '../../features/admin/screens/admin_employee_detail_screen.dart';
+import '../../features/admin/screens/admin_branches_screen.dart';
 // Pump Operator screens
 import '../../screens/pump/pump_home_screen.dart';
 import '../../screens/pump/pump_dashboard_screen.dart';
@@ -130,7 +136,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'accountant': return '/accountant/home';
           case 'project_associate': return '/pa/dashboard';
           case 'admin':
-          case 'super_admin': return '/admin/home';
+          case 'super_admin': return '/admin/dashboard';
           case 'pump_operator': return '/pump/home';
           case 'manager': return '/manager/dashboard';
           case 'branch_manager': return '/branch/home';
@@ -522,26 +528,65 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PANotificationsScreen(),
       ),
 
-      // --- Admin Routes --- (Stateful shell with bottom nav)
+      // --- Admin Routes --- (Stateful shell with 5-tab bottom nav)
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => AdminHomeScreen(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) =>
+            AdminShellScreen(navigationShell: navigationShell),
         branches: [
+          // index 0 → Dashboard (Home)
           StatefulShellBranch(routes: [
-            GoRoute(path: '/admin/home', builder: (context, state) => const AdminDashboardScreen()),
+            GoRoute(path: '/admin/dashboard', builder: (context, state) => const AdminDashboardScreen()),
           ]),
+          // index 1 → Operations
           StatefulShellBranch(routes: [
-            GoRoute(path: '/admin/fleet', builder: (context, state) => const AdminFleetScreen()),
+            GoRoute(path: '/admin/operations', builder: (context, state) => const AdminOperationsScreen()),
           ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/admin/team', builder: (context, state) => const AdminTeamScreen()),
-          ]),
+          // index 2 → Finance
           StatefulShellBranch(routes: [
             GoRoute(path: '/admin/finance', builder: (context, state) => const AdminFinanceScreen()),
           ]),
+          // index 3 → People (Employees)
           StatefulShellBranch(routes: [
-            GoRoute(path: '/admin/alerts', builder: (context, state) => const AdminAlertsScreen()),
+            GoRoute(path: '/admin/employees', builder: (context, state) => const AdminEmployeesScreen()),
+          ]),
+          // index 4 → Settings
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/admin/settings', builder: (context, state) => const AdminSettingsScreen()),
           ]),
         ],
+      ),
+      // Admin push/modal routes (outside shell)
+      GoRoute(
+        path: '/admin/masters',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminMastersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/compliance',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminComplianceScreen(),
+      ),
+      GoRoute(
+        path: '/admin/quick-actions',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminQuickActionsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/employees/create',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminCreateEmployeeScreen(),
+      ),
+      GoRoute(
+        path: '/admin/employees/:userId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminEmployeeDetailScreen(
+          userId: state.pathParameters['userId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/branches',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminBranchesScreen(),
       ),
 
       // --- Pump Operator Routes --- (Stateful shell with bottom nav)

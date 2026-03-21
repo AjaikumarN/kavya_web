@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     aliases,
     compat,
     admin,
+    admin_dashboard,
     auth,
     users,
     clients,
@@ -68,6 +69,9 @@ api_router.include_router(users.router, prefix="/users", tags=["Users"])
 
 # Admin
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+
+# Admin Dashboard
+api_router.include_router(admin_dashboard.router, prefix="/admin", tags=["Admin Dashboard"])
 
 # Core Business Modules
 api_router.include_router(clients.router, prefix="/clients", tags=["Clients"])

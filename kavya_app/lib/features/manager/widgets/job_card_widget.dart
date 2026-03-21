@@ -15,6 +15,7 @@ class JobCardWidget extends StatelessWidget {
     final origin = job['origin_city'] ?? '';
     final destination = job['destination_city'] ?? '';
     final weight = job['quantity'] ?? job['weight'] ?? '';
+    final weightDisplay = weight == '' ? '' : (double.tryParse(weight.toString()) ?? 0.0).toInt().toString();
     final freight = job['total_amount'] ?? job['freight_amount'] ?? 0;
     final vehicleReg = job['vehicle_reg'] ?? job['vehicle']?['registration_number'];
     final driverName = job['driver_name'] ?? job['driver']?['name'];
@@ -42,7 +43,7 @@ class JobCardWidget extends StatelessWidget {
           Text(clientName, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
           const SizedBox(height: 4),
           Text(
-            '$origin → $destination · ${weight}T · ₹${_formatAmount(freight)}',
+            '$origin → $destination · ${weightDisplay}T · ₹${_formatAmount(freight)}',
             style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
           ),
           if (vehicleReg != null || driverName != null) ...[

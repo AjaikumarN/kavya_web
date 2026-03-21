@@ -116,6 +116,8 @@ class _ReportBody extends StatelessWidget {
     final maxTrips = routes.fold<num>(1, (m, r) => (r['trip_count'] ?? 0) > m ? r['trip_count'] : m);
     return routes.map<Widget>((r) {
       final count = (r['trip_count'] as num?)?.toDouble() ?? 0;
+      final routeName = (r['route'] as String?) ??
+          '${r['origin'] ?? 'Unknown'} → ${r['destination'] ?? 'Unknown'}';
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Container(
@@ -125,7 +127,7 @@ class _ReportBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Expanded(child: Text('${r['origin']} → ${r['destination']}', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
+                Expanded(child: Text(routeName, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
                 Text('${count.toInt()} trips', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
               ]),
               const SizedBox(height: 6),
@@ -146,13 +148,26 @@ class _ReportBody extends StatelessWidget {
   }
 
   List<Widget> _buildExpenseBreakdown(dynamic breakdown) {
-    if (breakdown == null || breakdown is! Map || breakdown.isEmpty) {
+    // Backend returns a List of {category, amount} objects
+    List<Map<String, dynamic>> items = [];
+    if (breakdown is List && breakdown.isNotEmpty) {
+      items = breakdown
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } else if (breakdown is Map && breakdown.isNotEmpty) {
+      // Fallback: treat as {category: amount} map
+      breakdown.forEach((k, v) => items.add({'category': k, 'amount': v}));
+    }
+    if (items.isEmpty) {
       return [Text('No expense data', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary))];
     }
     final colors = [KTColors.primary, KTColors.info, KTColors.success, KTColors.warning, KTColors.danger];
     int ci = 0;
-    return breakdown.entries.map<Widget>((e) {
+    return items.map<Widget>((e) {
       final color = colors[ci++ % colors.length];
+      final category = e['category']?.toString() ?? 'Other';
+      final amount = e['amount'] ?? 0;
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Container(
@@ -161,8 +176,8 @@ class _ReportBody extends StatelessWidget {
           child: Row(children: [
             Container(width: 4, height: 24, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
             const SizedBox(width: 10),
-            Expanded(child: Text(e.key.toString(), style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
-            Text('₹${_fmt(e.value)}', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w600)),
+            Expanded(child: Text(category, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
+            Text('₹${_fmt(amount)}', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w600)),
           ]),
         ),
       );

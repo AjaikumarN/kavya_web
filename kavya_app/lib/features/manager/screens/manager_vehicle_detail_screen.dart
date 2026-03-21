@@ -104,5 +104,8 @@ class ManagerVehicleDetailScreen extends ConsumerWidget {
 final _vehicleDetailProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, vehicleId) async {
   final api = ref.watch(apiServiceProvider);
   final resp = await api.get('/vehicles/$vehicleId');
-  return Map<String, dynamic>.from(resp.data as Map);
+  if (resp is Map && resp['data'] != null) {
+    return Map<String, dynamic>.from(resp['data'] as Map);
+  }
+  return Map<String, dynamic>.from(resp as Map);
 });

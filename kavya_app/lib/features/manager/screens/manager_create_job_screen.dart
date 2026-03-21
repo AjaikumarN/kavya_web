@@ -7,6 +7,23 @@ import '../../../services/api_service.dart';
 import '../../../providers/fleet_dashboard_provider.dart';
 import '../providers/manager_providers.dart';
 
+String _toTitleCase(String s) =>
+    s.split(' ').map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+
+double _safeD(dynamic v) {
+  if (v == null) return 0.0;
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0.0;
+}
+
+String _fmtAmount(dynamic v) {
+  final val = _safeD(v);
+  if (val >= 100000) return '₹${(val / 100000).toStringAsFixed(1)}L';
+  if (val >= 1000) return '₹${(val / 1000).toStringAsFixed(0)}K';
+  return '₹${val.toStringAsFixed(0)}';
+}
+
 class ManagerCreateJobScreen extends ConsumerStatefulWidget {
   const ManagerCreateJobScreen({super.key});
 
@@ -24,6 +41,7 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
   final _notesCtrl = TextEditingController();
 
   String? _selectedClientId;
+  Map<String, dynamic>? _selectedClient;
   String _vehicleType = 'open';
   String _paymentTerms = 'to_pay';
   DateTime _pickupDate = DateTime.now().add(const Duration(days: 1));
@@ -47,8 +65,8 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
       final api = ref.read(apiServiceProvider);
       final body = {
         'client_id': _selectedClientId,
-        'origin_city': _originCtrl.text.trim(),
-        'destination_city': _destCtrl.text.trim(),
+        'origin_city': _toTitleCase(_originCtrl.text.trim()),
+        'destination_city': _toTitleCase(_destCtrl.text.trim()),
         'material_type': _materialCtrl.text.trim(),
         'quantity': double.tryParse(_weightCtrl.text.trim()) ?? 0,
         'total_amount': double.tryParse(_freightCtrl.text.trim()) ?? 0,
@@ -117,10 +135,64 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
                     final m = c as Map<String, dynamic>;
                     return DropdownMenuItem(value: m['id']?.toString(), child: Text(m['name'] ?? ''));
                   }).toList(),
-                  onChanged: (v) => setState(() => _selectedClientId = v),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedClientId = v;
+                      _selectedClient = v == null
+                          ? null
+                          : clients
+                              .whereType<Map>()
+                              .cast<Map<String, dynamic>>()
+                              .firstWhere((c) => c['id']?.toString() == v,
+                                  orElse: () => {});
+                    });
+                  },
                 ),
               ),
             ),
+            if (_selectedClient != null && _selectedClient!.isNotEmpty) ...[  
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: KTColors.darkBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: KTColors.success.withOpacity(0.4)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Text('GSTIN: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text(
+                        (_selectedClient!['gstin'] as String?)?.isNotEmpty == true
+                            ? _selectedClient!['gstin'] as String
+                            : 'Not set',
+                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextPrimary),
+                      ),
+                    ]),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      Text('Credit limit: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text(
+                        _fmtAmount((_selectedClient!['credit_limit'])),
+                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextPrimary),
+                      ),
+                      const SizedBox(width: 12),
+                      Text('Outstanding: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text(
+                        _fmtAmount((_selectedClient!['outstanding_amount'])),
+                        style: KTTextStyles.bodySmall.copyWith(
+                          color: _safeD(_selectedClient!['outstanding_amount']) > 0
+                              ? KTColors.danger : KTColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // ── Origin / Destination ───────────────────

@@ -7,6 +7,7 @@ import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/notification_bell_widget.dart';
+import '../../providers/auth_provider.dart';
 import 'pa_providers.dart';
 
 class PADashboardScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,30 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
       appBar: AppBar(
         backgroundColor: KTColors.darkSurface,
         title: Text('Dashboard', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        actions: const [NotificationBellWidget()],
+        actions: [
+          const NotificationBellWidget(),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: KTColors.darkTextSecondary),
+            color: KTColors.darkSurface,
+            onSelected: (value) {
+              if (value == 'logout') {
+                ref.read(authProvider.notifier).logout();
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout, color: KTColors.danger, size: 18),
+                    const SizedBox(width: 10),
+                    Text('Logout', style: KTTextStyles.body.copyWith(color: KTColors.danger)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: KTColors.primary,

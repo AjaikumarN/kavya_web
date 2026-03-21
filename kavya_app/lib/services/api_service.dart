@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
+import '../core/router/app_router.dart';
 
 class ApiService {
   // Base URL from environment [cite: 31]
@@ -42,12 +44,21 @@ class ApiService {
                 final retryResponse = await Dio().fetch(e.requestOptions);
                 return handler.resolve(retryResponse);
               } catch (refreshError) {
-                // If refresh fails -> clear storage [cite: 32]
+                // If refresh fails -> clear storage and force re-login
                 await _storage.deleteAll();
-                // Redirection to login handled by router guard
+                final ctx = appNavigatorKey.currentContext;
+                if (ctx != null && ctx.mounted) {
+                  ctx.go('/login');
+                }
+                return;
               }
             } else {
               await _storage.deleteAll();
+              final ctx = appNavigatorKey.currentContext;
+              if (ctx != null && ctx.mounted) {
+                ctx.go('/login');
+              }
+              return;
             }
           }
           return handler.next(e);

@@ -90,13 +90,13 @@ import '../../screens/pump/pump_reports_screen.dart';
 import '../../screens/pump/pump_tank_refill_screen.dart';
 import '../../screens/pump/pump_create_tank_screen.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final appNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   const storage = FlutterSecureStorage();
 
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: appNavigatorKey,
     initialLocation: '/login',
     redirect: (BuildContext context, GoRouterState state) async {
       final token = await storage.read(key: 'access_token');
@@ -191,7 +191,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Driver modal routes (outside shell)
       GoRoute(
         path: '/driver/expenses/:tripId',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) {
           final tripId = int.parse(state.pathParameters['tripId'] ?? '0');
           final tripNumber = state.uri.queryParameters['trip'] ?? '';
@@ -204,7 +204,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/add-expense',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -213,7 +213,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/trip/:id',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -222,7 +222,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/trip/:id/epod',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -231,7 +231,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/tracking/:id',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -240,7 +240,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/checklist',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -249,7 +249,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/vehicle',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -258,7 +258,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/documents',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -267,7 +267,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/driver/notifications',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         pageBuilder: (context, state) => PageTransitionPreset.modal(
           context: context,
           state: state,
@@ -353,54 +353,54 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Accountant modal / detail routes (outside shell)
       GoRoute(
         path: '/accountant/invoice/:id',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => AccountantInvoiceDetailScreen(
           id: state.pathParameters['id'] ?? '0',
         ),
       ),
       GoRoute(
         path: '/accountant/payments',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantPaymentsScreen(),
       ),
       GoRoute(
         path: '/accountant/receivables',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantReceivablesScreen(),
       ),
       GoRoute(
         path: '/accountant/payables',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantPayablesScreen(),
       ),
       GoRoute(
         path: '/accountant/gst',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantGSTScreen(),
       ),
       GoRoute(
         path: '/accountant/vouchers',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantVouchersScreen(),
       ),
       GoRoute(
         path: '/accountant/approvals',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantExpenseApprovalScreen(),
       ),
       GoRoute(
         path: '/accountant/expenses',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantExpenseApprovalScreen(),
       ),
       GoRoute(
         path: '/accountant/settlements',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantSettlementScreen(),
       ),
       GoRoute(
         path: '/accountant/banking',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantBankingScreen(),
       ),
       
@@ -455,54 +455,54 @@ final routerProvider = Provider<GoRouter>((ref) {
       // PA push/modal routes (outside shell)
       GoRoute(
         path: '/pa/jobs/:jobId',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => PAJobDetailScreen(
           jobId: int.parse(state.pathParameters['jobId'] ?? '0'),
         ),
       ),
       GoRoute(
         path: '/pa/jobs/:jobId/lr',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => PACreateLRScreen(
           jobId: int.parse(state.pathParameters['jobId'] ?? '0'),
         ),
       ),
       GoRoute(
         path: '/pa/jobs/:jobId/trip',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => PATripSheetScreen(
           jobId: int.parse(state.pathParameters['jobId'] ?? '0'),
         ),
       ),
       GoRoute(
         path: '/pa/ewb/:ewbId',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => PAEWBDetailScreen(
           ewbId: int.parse(state.pathParameters['ewbId'] ?? '0'),
         ),
       ),
       GoRoute(
         path: '/pa/trips/:tripId/docs',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => PADocumentsScreen(
           tripId: int.parse(state.pathParameters['tripId'] ?? '0'),
         ),
       ),
       GoRoute(
         path: '/pa/trips/:tripId/close',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => PATripClosureScreen(
           tripId: int.parse(state.pathParameters['tripId'] ?? '0'),
         ),
       ),
       GoRoute(
         path: '/pa/notifications',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const PANotificationsScreen(),
       ),
       GoRoute(
         path: '/project_associate/notifications',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const PANotificationsScreen(),
       ),
 
@@ -568,7 +568,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Driver settlement (standalone, no shell)
       GoRoute(
         path: '/driver/settlement',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const DriverSettlementScreen(),
       ),
 

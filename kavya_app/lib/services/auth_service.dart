@@ -73,7 +73,7 @@ class AuthService {
         router.go('/accountant/home');
         break;
       case 'project_associate':
-        router.go('/associate/home');
+        router.go('/pa/dashboard');
         break;
       case 'admin':
       case 'super_admin':

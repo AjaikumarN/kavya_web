@@ -77,7 +77,7 @@ class _AssociateHomeScreenState extends ConsumerState<AssociateHomeScreen> {
                   count: data['jobs_needing_lr_count'] ?? 2,
                   severity: (data['jobs_needing_lr_count'] ?? 2) > 0 ? AlertSeverity.high : AlertSeverity.low,
                   items: const ["KT-2026-0042 — Acme Corp (Chennai → Coimbatore)"],
-                  onTap: () => context.push('/associate/jobs'), // Tap card → /associate/jobs [cite: 86]
+                  onTap: () => context.push('/pa/jobs'), // → PA jobs list
                 ),
                 const SizedBox(height: 12),
                 
@@ -86,7 +86,7 @@ class _AssociateHomeScreenState extends ConsumerState<AssociateHomeScreen> {
                   count: 1,
                   severity: AlertSeverity.medium,
                   items: const ["EWB-123456 — TN01AB1234 — expires in 3h 20m"], // In a real app, calculate this from a timestamp [cite: 86-87]
-                  onTap: () => context.push('/associate/ewb/list'), // Tap card → /associate/ewb/list [cite: 87]
+                  onTap: () => context.push('/pa/ewb'), // → PA EWB list
                 ),
                 const SizedBox(height: 12),
 
@@ -95,7 +95,7 @@ class _AssociateHomeScreenState extends ConsumerState<AssociateHomeScreen> {
                   count: 3,
                   severity: AlertSeverity.low,
                   items: const ["KT-T-0089 — TN02CD5678 — Kumar — POD uploaded"],
-                  onTap: () => context.push('/associate/trip/close'), // Tap card → /associate/trip/close [cite: 87]
+                  onTap: () => context.push('/pa/jobs'), // → PA jobs to find trip
                 ),
                 const SizedBox(height: 24),
 
@@ -129,12 +129,12 @@ class _AssociateHomeScreenState extends ConsumerState<AssociateHomeScreen> {
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.0,
                   children: [
-                    KTActionButton(icon: Icons.receipt_long, label: "Create LR", onTap: () => context.push('/associate/lr/create')),
-                    KTActionButton(icon: Icons.fire_truck, label: "Generate EWB", onTap: () => context.push('/associate/ewb/create')),
-                    KTActionButton(icon: Icons.check_circle_outline, label: "Close trip", onTap: () => context.push('/associate/trip/close')),
-                    KTActionButton(icon: Icons.cloud_upload, label: "Upload doc", onTap: () => context.push('/associate/upload')),
-                    KTActionButton(icon: Icons.account_balance_wallet, label: "Banking entry", onTap: () {}), // /associate/banking (form) [cite: 88]
-                    KTActionButton(icon: Icons.list_alt, label: "All jobs", onTap: () => context.push('/associate/jobs')),
+                    KTActionButton(icon: Icons.receipt_long, label: "Create LR", onTap: () => context.push('/pa/jobs')),
+                    KTActionButton(icon: Icons.fire_truck, label: "Generate EWB", onTap: () => context.push('/pa/ewb')),
+                    KTActionButton(icon: Icons.check_circle_outline, label: "Close trip", onTap: () => context.push('/pa/jobs')),
+                    KTActionButton(icon: Icons.cloud_upload, label: "Upload doc", onTap: () => context.push('/pa/jobs')),
+                    KTActionButton(icon: Icons.account_balance_wallet, label: "Banking entry", onTap: () => context.push('/pa/banking')),
+                    KTActionButton(icon: Icons.list_alt, label: "All jobs", onTap: () => context.push('/pa/jobs')),
                   ],
                 ),
               ],

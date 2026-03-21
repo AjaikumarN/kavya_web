@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = 'f001'
-down_revision = 'e001_add_upi_id_to_drivers'
+down_revision = 'e001'
 branch_labels = None
 depends_on = None
 

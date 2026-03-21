@@ -60,7 +60,7 @@ import '../../screens/branch/branch_trips_screen.dart';
 import '../../screens/branch/branch_drivers_screen.dart';
 import '../../screens/branch/branch_reports_screen.dart';
 // Project Associate screens (legacy)
-import '../../screens/associate/associate_home_screen.dart';
+// import '../../screens/associate/associate_home_screen.dart'; // replaced by PA screens
 // PA (new full workflow) screens
 import '../../screens/pa/pa_shell_screen.dart';
 import '../../screens/pa/pa_dashboard_screen.dart';
@@ -404,14 +404,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AccountantBankingScreen(),
       ),
       
-      // --- Associate Routes (legacy) ---
-      GoRoute(path: '/associate/home', builder: (context, state) => const AssociateHomeScreen()),
-      GoRoute(path: '/associate/jobs', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/associate/lr/create', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/associate/lr/list', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/associate/ewb/create', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/associate/trip/close', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/associate/upload', builder: (context, state) => const Scaffold()),
+      // --- Associate Routes (legacy redirects → PA screens) ---
+      GoRoute(path: '/associate/home', redirect: (context, state) => '/pa/dashboard'),
+      GoRoute(path: '/associate/jobs', redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/lr/create', redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/lr/list', redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/ewb/create', redirect: (context, state) => '/pa/ewb'),
+      GoRoute(path: '/associate/ewb/list', redirect: (context, state) => '/pa/ewb'),
+      GoRoute(path: '/associate/trip/close', redirect: (context, state) => '/pa/jobs'),
+      GoRoute(path: '/associate/upload', redirect: (context, state) => '/pa/jobs'),
 
       // --- PA Routes (full workflow with bottom nav shell) ---
       StatefulShellRoute.indexedStack(

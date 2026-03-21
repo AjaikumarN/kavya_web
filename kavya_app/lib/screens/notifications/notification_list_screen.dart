@@ -65,7 +65,7 @@ class NotificationListScreen extends ConsumerWidget {
         context.push('/fleet/expenses');
         break;
       case 'ewb_expiring':
-        context.push('/associate/home');
+        context.push('/pa/ewb');
         break;
     }
   }

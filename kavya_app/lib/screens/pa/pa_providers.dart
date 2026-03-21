@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/fleet_dashboard_provider.dart'; // re-exports apiServiceProvider
+export '../../core/services/fcm_service.dart' show unreadNotificationCountProvider;
+export '../../core/services/fcm_service.dart' show unreadNotificationCountProvider;
 
 // ─── PA Dashboard ──────────────────────────────────────────────────────────
 
@@ -72,8 +74,3 @@ final paActiveTripsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) as
   if (response is List) return response;
   return [];
 });
-
-// ─── In-app notification count (shared with NotificationBellWidget) ────────
-// Defined in fcm_service.dart as unreadNotificationCountProvider.
-// Re-exported here so PA screens can import from one place.
-export '../../core/services/fcm_service.dart' show unreadNotificationCountProvider;

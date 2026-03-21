@@ -35,6 +35,7 @@
         "permission_handler",
         "pretty_dio_logger",
         "qr_flutter",
+        "razorpay_flutter",
         "riverpod_annotation",
         "share_plus",
         "shimmer",
@@ -43,10 +44,24 @@
       ],
       "devDependencies": [
         "build_runner",
+        "flutter_launcher_icons",
         "flutter_lints",
         "flutter_test",
         "hive_generator",
         "riverpod_generator"
+      ]
+    },
+    {
+      "name": "flutter_launcher_icons",
+      "version": "0.14.4",
+      "dependencies": [
+        "args",
+        "checked_yaml",
+        "cli_util",
+        "image",
+        "json_annotation",
+        "path",
+        "yaml"
       ]
     },
     {
@@ -208,6 +223,14 @@
         "firebase_core_web",
         "flutter",
         "meta"
+      ]
+    },
+    {
+      "name": "razorpay_flutter",
+      "version": "1.4.1",
+      "dependencies": [
+        "eventify",
+        "flutter"
       ]
     },
     {
@@ -513,6 +536,58 @@
       ]
     },
     {
+      "name": "yaml",
+      "version": "3.1.3",
+      "dependencies": [
+        "collection",
+        "source_span",
+        "string_scanner"
+      ]
+    },
+    {
+      "name": "path",
+      "version": "1.9.1",
+      "dependencies": []
+    },
+    {
+      "name": "json_annotation",
+      "version": "4.11.0",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
+      "name": "image",
+      "version": "4.8.0",
+      "dependencies": [
+        "archive",
+        "meta",
+        "xml"
+      ]
+    },
+    {
+      "name": "cli_util",
+      "version": "0.4.2",
+      "dependencies": [
+        "meta",
+        "path"
+      ]
+    },
+    {
+      "name": "checked_yaml",
+      "version": "2.0.4",
+      "dependencies": [
+        "json_annotation",
+        "source_span",
+        "yaml"
+      ]
+    },
+    {
+      "name": "args",
+      "version": "2.7.0",
+      "dependencies": []
+    },
+    {
       "name": "lints",
       "version": "5.1.1",
       "dependencies": []
@@ -596,11 +671,6 @@
       ]
     },
     {
-      "name": "path",
-      "version": "1.9.1",
-      "dependencies": []
-    },
-    {
       "name": "meta",
       "version": "1.17.0",
       "dependencies": []
@@ -626,15 +696,6 @@
         "path",
         "pubspec_parse",
         "yaml"
-      ]
-    },
-    {
-      "name": "yaml",
-      "version": "3.1.3",
-      "dependencies": [
-        "collection",
-        "source_span",
-        "string_scanner"
       ]
     },
     {
@@ -867,11 +928,6 @@
         "collection",
         "meta"
       ]
-    },
-    {
-      "name": "args",
-      "version": "2.7.0",
-      "dependencies": []
     },
     {
       "name": "stream_channel",
@@ -1134,6 +1190,11 @@
         "meta",
         "web"
       ]
+    },
+    {
+      "name": "eventify",
+      "version": "1.0.1",
+      "dependencies": []
     },
     {
       "name": "local_auth_windows",
@@ -1689,12 +1750,28 @@
       "dependencies": []
     },
     {
+      "name": "string_scanner",
+      "version": "1.4.1",
+      "dependencies": [
+        "source_span"
+      ]
+    },
+    {
       "name": "source_span",
       "version": "1.10.2",
       "dependencies": [
         "collection",
         "path",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "xml",
+      "version": "6.6.1",
+      "dependencies": [
+        "collection",
+        "meta",
+        "petitparser"
       ]
     },
     {
@@ -1742,29 +1819,6 @@
       "version": "1.4.0",
       "dependencies": [
         "collection"
-      ]
-    },
-    {
-      "name": "json_annotation",
-      "version": "4.11.0",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
-      "name": "checked_yaml",
-      "version": "2.0.4",
-      "dependencies": [
-        "json_annotation",
-        "source_span",
-        "yaml"
-      ]
-    },
-    {
-      "name": "string_scanner",
-      "version": "1.4.1",
-      "dependencies": [
-        "source_span"
       ]
     },
     {
@@ -1833,15 +1887,6 @@
       "dependencies": [
         "meta",
         "path"
-      ]
-    },
-    {
-      "name": "xml",
-      "version": "6.6.1",
-      "dependencies": [
-        "collection",
-        "meta",
-        "petitparser"
       ]
     },
     {
@@ -1952,6 +1997,14 @@
       ]
     },
     {
+      "name": "petitparser",
+      "version": "7.0.2",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
       "name": "analyzer_plugin",
       "version": "0.11.3",
       "dependencies": [
@@ -1971,14 +2024,6 @@
       "name": "vm_service",
       "version": "15.0.2",
       "dependencies": []
-    },
-    {
-      "name": "petitparser",
-      "version": "7.0.2",
-      "dependencies": [
-        "collection",
-        "meta"
-      ]
     },
     {
       "name": "html",

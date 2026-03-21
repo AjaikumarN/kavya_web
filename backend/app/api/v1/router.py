@@ -49,6 +49,8 @@ from app.api.v1.endpoints import (
     sync,
     payables,
     receivable_payments,
+    user_notifications,
+    pa_dashboard,
 )
 
 api_router = APIRouter()
@@ -127,7 +129,13 @@ api_router.include_router(maps.router, prefix="/maps", tags=["Maps"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])
 
 # Notifications
-api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications (Push/SMS)"])
+
+# In-app user notifications feed
+api_router.include_router(user_notifications.router, prefix="/my-notifications", tags=["In-App Notifications"])
+
+# PA Dashboard
+api_router.include_router(pa_dashboard.router, prefix="/pa/dashboard", tags=["PA Dashboard"])
 
 # Fuel Prices
 api_router.include_router(fuel.router, prefix="/fuel-prices", tags=["Fuel Prices"])

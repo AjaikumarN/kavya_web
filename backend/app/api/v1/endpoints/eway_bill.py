@@ -8,6 +8,7 @@ from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
 from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
+from app.services.notification_service import notification_service
 from app.schemas.eway_bill import EwayBillCreate, EwayBillUpdate
 from app.services import eway_service
 from app.services import eway_bill_api_service
@@ -161,6 +162,15 @@ async def create_eway_bill(
     _perm=Depends(require_permission(Permissions.EWAY_BILL_CREATE)),
 ):
     bill = await eway_service.create_eway_bill(db, data.model_dump(), current_user.user_id)
+    validity_str = bill.valid_until.strftime("%d %b %Y %H:%M") if bill.valid_until else "N/A"
+    await notification_service.send(
+        db, event_type="EWB_GENERATED",
+        title="E-way Bill generated",
+        body=f"EWB {bill.eway_bill_number} valid till {validity_str}",
+        target_roles=["FLEET_MANAGER"],
+        data={"ewb_id": str(bill.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
     return APIResponse(success=True, data={"id": bill.id}, message="E-way bill created")
 
 

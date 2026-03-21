@@ -81,3 +81,153 @@ def send_payment_reminders():
     #                 )
     # asyncio.run(_run())
     logger.info("Payment reminder check complete")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EWB EXPIRY NOTIFICATION TASK  (runs every hour)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@celery_app.task(name="app.tasks.notification_tasks.check_ewb_expiry_notify")
+def check_ewb_expiry_notify():
+    """Hourly: flag EWBs expiring within 6 hours and notify PA + Fleet Manager."""
+    import asyncio
+    from datetime import timedelta
+
+    async def _run():
+        from app.db.postgres.connection import AsyncSessionLocal
+        from app.models.postgres.eway_bill import EwayBill
+        from app.models.postgres.lr import LR
+        from app.services.notification_service import notification_service
+        from sqlalchemy import select, and_
+
+        now = datetime.utcnow()
+        cutoff = now + timedelta(hours=6)
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(EwayBill, LR)
+                .join(LR, LR.id == EwayBill.lr_id, isouter=True)
+                .where(
+                    and_(
+                        EwayBill.status.in_(["active", "generated"]),
+                        EwayBill.valid_until <= cutoff,
+                        EwayBill.valid_until >= now,
+                    )
+                )
+                .order_by(EwayBill.valid_until.asc())
+            )
+            rows = result.fetchall()
+
+            for ewb, lr in rows:
+                delta = ewb.valid_until - now
+                hours_left = delta.total_seconds() / 3600
+                lr_num = lr.lr_number if lr else f"LR#{ewb.lr_id}"
+                await notification_service.send(
+                    db,
+                    event_type="EWB_EXPIRY_ALERT",
+                    title="EWB EXPIRING SOON",
+                    body=f"EWB {ewb.eway_bill_number} for {lr_num} expires in {hours_left:.1f} hrs",
+                    target_roles=["PROJECT_ASSOCIATE", "FLEET_MANAGER"],
+                    data={"ewb_id": str(ewb.id), "route": f"/pa/ewb/{ewb.id}"},
+                    urgency="urgent",
+                )
+            await db.commit()
+            logger.info(f"EWB expiry check: notified for {len(rows)} EWB(s)")
+
+    asyncio.run(_run())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERVICE DUE NOTIFICATION TASK  (runs daily 7 AM)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@celery_app.task(name="app.tasks.notification_tasks.check_service_due_notify")
+def check_service_due_notify():
+    """Daily at 7 AM: alert Fleet Manager for vehicles approaching service due."""
+    import asyncio
+
+    async def _run():
+        from app.db.postgres.connection import AsyncSessionLocal
+        from app.models.postgres.vehicle import Vehicle
+        from app.services.notification_service import notification_service
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Vehicle).where(Vehicle.is_deleted.is_(False))
+            )
+            vehicles = result.scalars().all()
+            for v in vehicles:
+                if v.next_service_km and v.current_odometer_km:
+                    km_left = v.next_service_km - v.current_odometer_km
+                    if 0 < km_left < 500:
+                        await notification_service.send(
+                            db,
+                            event_type="SERVICE_DUE_SOON",
+                            title="Service due soon",
+                            body=f"{v.registration_number} service due in {km_left:,.0f} km",
+                            target_roles=["FLEET_MANAGER"],
+                            urgency="urgent",
+                        )
+                        await notification_service.send(
+                            db,
+                            event_type="SERVICE_DUE_ALERT",
+                            title="Vehicle service alert",
+                            body=f"{v.registration_number} needs service soon",
+                            target_roles=["MANAGER"],
+                            urgency="normal",
+                        )
+            await db.commit()
+            logger.info("Service due check complete")
+
+    asyncio.run(_run())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OVERDUE INVOICES NOTIFICATION TASK  (runs daily 9 AM)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@celery_app.task(name="app.tasks.notification_tasks.check_overdue_invoices_notify")
+def check_overdue_invoices_notify():
+    """Daily at 9 AM: alert Admin + Manager for overdue invoices."""
+    import asyncio
+
+    async def _run():
+        from app.db.postgres.connection import AsyncSessionLocal
+        from app.models.postgres.finance import Invoice
+        from app.models.postgres.client import Client
+        from app.services.notification_service import notification_service
+        from sqlalchemy import select, and_
+        from datetime import date
+
+        today = date.today()
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Invoice, Client)
+                .join(Client, Client.id == Invoice.client_id, isouter=True)
+                .where(
+                    and_(
+                        Invoice.due_date < today,
+                        Invoice.status.in_(["pending", "sent", "partially_paid", "overdue"]),
+                    )
+                )
+            )
+            rows = result.fetchall()
+            for inv, client in rows:
+                days_overdue = (today - inv.due_date).days
+                client_name = client.name if client else f"Client#{inv.client_id}"
+                await notification_service.send(
+                    db,
+                    event_type="INVOICE_OVERDUE",
+                    title="Overdue invoice alert",
+                    body=f"{client_name} – {inv.invoice_number} overdue by {days_overdue} days",
+                    target_roles=["ADMIN", "MANAGER"],
+                    data={"invoice_id": str(inv.id)},
+                    urgency="urgent",
+                )
+            await db.commit()
+            logger.info(f"Overdue invoice check: {len(rows)} overdue invoices processed")
+
+    asyncio.run(_run())
+

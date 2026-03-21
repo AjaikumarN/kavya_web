@@ -12,6 +12,7 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.trip import TripCreate, TripUpdate, TripStatusChange, TripExpenseCreate, TripFuelCreate
 from app.services import trip_service
+from app.services.notification_service import notification_service
 from app.models.postgres.job import Job
 from app.models.postgres.vehicle import Vehicle
 from app.models.postgres.driver import Driver
@@ -85,6 +86,36 @@ async def create_trip(
     _perm=Depends(require_permission(Permissions.TRIP_CREATE)),
 ):
     trip = await trip_service.create_trip(db, data.model_dump(), current_user.user_id)
+    route_str = f"{trip.origin or ''} → {trip.destination or ''}"
+    adv_fmt = f"₹{float(trip.advance_paid or 0):,.0f}"
+    # Fetch driver user_id for targeted notification
+    driver_res = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
+    driver_obj = driver_res.scalar_one_or_none()
+    await notification_service.send(
+        db, event_type="TRIP_CREATED",
+        title="Trip created",
+        body=f"Trip {trip.trip_number} departing {trip.planned_departure or 'TBD'}",
+        target_roles=["MANAGER"],
+        data={"trip_id": str(trip.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
+    await notification_service.send(
+        db, event_type="TRIP_DISPATCHED",
+        title="New trip dispatched",
+        body=f"Trip {trip.trip_number} – {route_str}",
+        target_roles=["FLEET_MANAGER"],
+        data={"trip_id": str(trip.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
+    if driver_obj and driver_obj.user_id:
+        await notification_service.send(
+            db, event_type="YOUR_TRIP_READY",
+            title="Your trip sheet is ready",
+            body=f"Trip {trip.trip_number}: {route_str}. Advance: {adv_fmt}",
+            target_user_ids=[driver_obj.user_id],
+            data={"trip_id": str(trip.id), "route": f"/driver/trips/{trip.id}"},
+            urgency="urgent", triggered_by=current_user.user_id,
+        )
     return APIResponse(success=True, data={"id": trip.id, "trip_number": trip.trip_number}, message="Trip created")
 
 
@@ -137,15 +168,19 @@ async def start_trip(
 ):
     odometer = payload.get("start_odometer") if isinstance(payload, dict) else None
     trip, error = await trip_service.change_trip_status(
-        db,
-        trip_id,
-        "started",
-        current_user.user_id,
-        "Trip started",
+        db, trip_id, "started", current_user.user_id, "Trip started",
         odometer_reading=odometer,
     )
     if error:
         raise HTTPException(status_code=400, detail=error)
+    await notification_service.send(
+        db, event_type="TRIP_STARTED",
+        title="Trip started",
+        body=f"Trip {trip.trip_number} departed",
+        target_roles=["MANAGER", "FLEET_MANAGER", "PROJECT_ASSOCIATE"],
+        data={"trip_id": str(trip.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
     return APIResponse(success=True, data={"id": trip.id}, message="Trip started")
 
 
@@ -180,15 +215,28 @@ async def close_trip(
     if isinstance(payload, dict):
         odometer = payload.get("end_odometer")
     trip, error = await trip_service.change_trip_status(
-        db,
-        trip_id,
-        "completed",
-        current_user.user_id,
-        "Trip closed",
+        db, trip_id, "completed", current_user.user_id, "Trip closed",
         odometer_reading=odometer,
     )
     if error:
         raise HTTPException(status_code=400, detail=error)
+    freight_fmt = f"₹{float(trip.total_freight or 0):,.0f}"
+    await notification_service.send(
+        db, event_type="TRIP_CLOSED",
+        title="Trip closed",
+        body=f"Trip {trip.trip_number} closed",
+        target_roles=["MANAGER", "FLEET_MANAGER"],
+        data={"trip_id": str(trip.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
+    await notification_service.send(
+        db, event_type="INVOICE_DUE",
+        title="Invoice due – trip closed",
+        body=f"Trip {trip.trip_number} closed. {freight_fmt} invoice pending.",
+        target_roles=["ACCOUNTANT"],
+        data={"trip_id": str(trip.id), "route": "/accountant/invoices/new"},
+        urgency="urgent", triggered_by=current_user.user_id,
+    )
     return APIResponse(success=True, data={"id": trip.id}, message="Trip closed")
 
 

@@ -12,6 +12,7 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.banking import BankingEntryCreate, BankingEntryUpdate, CSVMatchRequest
 from app.services import banking_entry_service, csv_parser_service
+from app.services.notification_service import notification_service
 from app.models.postgres.route import BankAccount
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,16 @@ async def create_banking_entry(
     """Create a new banking entry (all 6 types)."""
     try:
         entry = await banking_entry_service.create_banking_entry(db, data.model_dump(), current_user.user_id)
+        amount_fmt = f"₹{float(entry.amount or 0):,.0f}"
+        # Notify accountant for approval
+        await notification_service.send(
+            db, event_type="BANKING_ENTRY_NEEDS_APPROVAL",
+            title="Banking entry needs approval",
+            body=f"Entry {amount_fmt} – {entry.entry_type or ''} by user {current_user.user_id}",
+            target_roles=["ACCOUNTANT"],
+            data={"entry_id": str(entry.id), "route": "/accountant/banking"},
+            urgency="urgent", triggered_by=current_user.user_id,
+        )
         return APIResponse(
             success=True,
             data={"id": entry.id, "entry_no": entry.entry_no},

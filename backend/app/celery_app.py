@@ -125,6 +125,19 @@ celery_app.conf.update(
             "task": "app.tasks.banking_tasks.daily_balance_snapshot",
             "schedule": crontab(hour=23, minute=59),
         },
+        # ── Notification Alert Tasks ──
+        "check-ewb-expiry-notify": {
+            "task": "app.tasks.notification_tasks.check_ewb_expiry_notify",
+            "schedule": crontab(minute=0),  # every hour
+        },
+        "check-service-due-notify": {
+            "task": "app.tasks.notification_tasks.check_service_due_notify",
+            "schedule": crontab(hour=7, minute=0),  # 7 AM daily
+        },
+        "check-overdue-invoices-notify": {
+            "task": "app.tasks.notification_tasks.check_overdue_invoices_notify",
+            "schedule": crontab(hour=9, minute=0),  # 9 AM daily
+        },
     },
 )
 

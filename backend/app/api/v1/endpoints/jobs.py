@@ -11,6 +11,7 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.job import JobCreate, JobUpdate, JobStatusChange
 from app.services import job_service, trip_service
+from app.services.notification_service import notification_service
 from app.models.postgres.client import Client
 from app.models.postgres.route import Route
 from app.models.postgres.trip import Trip
@@ -51,6 +52,17 @@ async def create_job(
     _perm=Depends(require_permission(Permissions.JOB_CREATE)),
 ):
     job = await job_service.create_job(db, data.model_dump(), current_user.user_id)
+    route_str = f"{job.origin_city or ''} → {job.destination_city or ''}"
+    await notification_service.send(
+        db,
+        event_type="JOB_CREATED",
+        title="New job assigned",
+        body=f"Job {job.job_number} – ready for LR · {route_str}",
+        target_roles=["PROJECT_ASSOCIATE"],
+        data={"job_id": str(job.id), "route": f"/pa/jobs/{job.id}"},
+        urgency="normal",
+        triggered_by=current_user.user_id,
+    )
     return APIResponse(success=True, data={"id": job.id, "job_number": job.job_number}, message="Job created")
 
 

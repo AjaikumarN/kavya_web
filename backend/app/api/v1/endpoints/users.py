@@ -1,5 +1,6 @@
 # User Management Endpoints
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -121,3 +122,22 @@ async def delete_user(
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
     return APIResponse(success=True, message="User deactivated")
+
+
+class FCMTokenRequest(BaseModel):
+    fcm_token: str
+
+
+@router.patch("/me/fcm-token", response_model=APIResponse)
+async def update_fcm_token(
+    payload: FCMTokenRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Save or update the FCM device token for push notifications."""
+    user = await db.get(User, current_user.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.fcm_token = payload.fcm_token
+    await db.commit()
+    return APIResponse(success=True, message="FCM token saved")

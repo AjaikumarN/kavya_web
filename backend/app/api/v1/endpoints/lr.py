@@ -11,6 +11,7 @@ from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.lr import LRCreate, LRUpdate, LRStatusChange
 from app.services import lr_service
 from app.services.lr_pdf_service import build_lr_pdf, generate_and_upload_lr_pdf
+from app.services.notification_service import notification_service
 
 router = APIRouter()
 
@@ -48,6 +49,31 @@ async def create_lr(
     _perm=Depends(require_permission(Permissions.LR_CREATE)),
 ):
     lr = await lr_service.create_lr(db, data.model_dump(), current_user.user_id)
+    freight_fmt = f"₹{float(lr.freight_amount or 0):,.0f}"
+    await notification_service.send(
+        db, event_type="LR_CREATED",
+        title="LR created",
+        body=f"LR {lr.lr_number} created for job #{lr.job_id}",
+        target_roles=["MANAGER"],
+        data={"lr_id": str(lr.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
+    await notification_service.send(
+        db, event_type="LR_READY",
+        title="LR ready",
+        body=f"LR {lr.lr_number} – vehicle can depart after EWB",
+        target_roles=["FLEET_MANAGER"],
+        data={"lr_id": str(lr.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
+    await notification_service.send(
+        db, event_type="LR_FOR_BILLING",
+        title="New LR for billing",
+        body=f"LR {lr.lr_number} – {freight_fmt} freight",
+        target_roles=["ACCOUNTANT"],
+        data={"lr_id": str(lr.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
     return APIResponse(success=True, data={"id": lr.id, "lr_number": lr.lr_number}, message="LR created")
 
 

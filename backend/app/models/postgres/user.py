@@ -61,6 +61,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     last_login = Column(DateTime, nullable=True)
+    fcm_token = Column(String(512), nullable=True)
     
     # Multi-tenant support
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)

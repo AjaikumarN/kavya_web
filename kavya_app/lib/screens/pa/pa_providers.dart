@@ -1,0 +1,79 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/fleet_dashboard_provider.dart'; // re-exports apiServiceProvider
+
+// ─── PA Dashboard ──────────────────────────────────────────────────────────
+
+final paDashboardStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/pa/dashboard/stats');
+  if (response is Map<String, dynamic> && response['data'] != null) {
+    return Map<String, dynamic>.from(response['data'] as Map);
+  }
+  return {};
+});
+
+final paPriorityActionsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/pa/dashboard/priority-actions');
+  if (response is Map && response['data'] is List) {
+    return response['data'] as List<dynamic>;
+  }
+  if (response is List) return response;
+  return [];
+});
+
+// ─── Job List with filter ───────────────────────────────────────────────────
+
+class PAJobFilter {
+  final String? status;
+  final int page;
+  const PAJobFilter({this.status, this.page = 1});
+
+  PAJobFilter copyWith({String? status, int? page}) =>
+      PAJobFilter(status: status ?? this.status, page: page ?? this.page);
+}
+
+final paJobFilterProvider = StateProvider<PAJobFilter>((ref) => const PAJobFilter());
+
+final paJobListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final filter = ref.watch(paJobFilterProvider);
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/jobs', queryParameters: {
+    if (filter.status != null) 'status': filter.status,
+    'page': filter.page,
+    'limit': 20,
+  });
+  if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
+  if (response is List) return response;
+  return [];
+});
+
+// ─── EWB list ──────────────────────────────────────────────────────────────
+
+final paEWBFilterProvider = StateProvider<String?>((ref) => null); // null = all
+
+final paEWBListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final status = ref.watch(paEWBFilterProvider);
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/eway-bills', queryParameters: {
+    if (status != null) 'status': status,
+  });
+  if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
+  if (response is List) return response;
+  return [];
+});
+
+// ─── Active trips ───────────────────────────────────────────────────────────
+
+final paActiveTripsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/trips', queryParameters: {'status': 'in_transit'});
+  if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
+  if (response is List) return response;
+  return [];
+});
+
+// ─── In-app notification count (shared with NotificationBellWidget) ────────
+// Defined in fcm_service.dart as unreadNotificationCountProvider.
+// Re-exported here so PA screens can import from one place.
+export '../../core/services/fcm_service.dart' show unreadNotificationCountProvider;

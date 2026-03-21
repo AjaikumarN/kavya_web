@@ -59,8 +59,21 @@ import '../../screens/branch/branch_dashboard_screen.dart';
 import '../../screens/branch/branch_trips_screen.dart';
 import '../../screens/branch/branch_drivers_screen.dart';
 import '../../screens/branch/branch_reports_screen.dart';
-// Project Associate screens
+// Project Associate screens (legacy)
 import '../../screens/associate/associate_home_screen.dart';
+// PA (new full workflow) screens
+import '../../screens/pa/pa_shell_screen.dart';
+import '../../screens/pa/pa_dashboard_screen.dart';
+import '../../screens/pa/pa_job_list_screen.dart';
+import '../../screens/pa/pa_job_detail_screen.dart';
+import '../../screens/pa/pa_create_lr_screen.dart';
+import '../../screens/pa/pa_ewb_list_screen.dart';
+import '../../screens/pa/pa_ewb_detail_screen.dart';
+import '../../screens/pa/pa_banking_screen.dart';
+import '../../screens/pa/pa_create_trip_sheet_screen.dart';
+import '../../screens/pa/pa_documents_screen.dart';
+import '../../screens/pa/pa_trip_closure_screen.dart';
+import '../../screens/pa/pa_notifications_screen.dart';
 // Admin screens
 import '../../screens/admin/admin_home_screen.dart';
 import '../../screens/admin/admin_dashboard_screen.dart';
@@ -100,7 +113,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'driver': return '/driver/today';
           case 'fleet_manager': return '/fleet/home';
           case 'accountant': return '/accountant/home';
-          case 'project_associate': return '/associate/home';
+          case 'project_associate': return '/pa/dashboard';
           case 'admin':
           case 'super_admin': return '/admin/home';
           case 'pump_operator': return '/pump/home';
@@ -391,7 +404,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AccountantBankingScreen(),
       ),
       
-      // --- Associate Routes ---
+      // --- Associate Routes (legacy) ---
       GoRoute(path: '/associate/home', builder: (context, state) => const AssociateHomeScreen()),
       GoRoute(path: '/associate/jobs', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/associate/lr/create', builder: (context, state) => const Scaffold()),
@@ -399,6 +412,95 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/associate/ewb/create', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/associate/trip/close', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/associate/upload', builder: (context, state) => const Scaffold()),
+
+      // --- PA Routes (full workflow with bottom nav shell) ---
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            PAShellScreen(navigationShell: navigationShell),
+        branches: [
+          // index 0 → Dashboard
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/pa/dashboard',
+              builder: (context, state) => const PADashboardScreen(),
+            ),
+          ]),
+          // index 1 → Jobs
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/pa/jobs',
+              builder: (context, state) => const PAJobListScreen(),
+            ),
+          ]),
+          // index 2 → EWB
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/pa/ewb',
+              builder: (context, state) => const PAEWBListScreen(),
+            ),
+          ]),
+          // index 3 → Banking
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/pa/banking',
+              builder: (context, state) => const PABankingScreen(),
+            ),
+          ]),
+        ],
+      ),
+      // PA push/modal routes (outside shell)
+      GoRoute(
+        path: '/pa/jobs/:jobId',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PAJobDetailScreen(
+          jobId: int.parse(state.pathParameters['jobId'] ?? '0'),
+        ),
+      ),
+      GoRoute(
+        path: '/pa/jobs/:jobId/lr',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PACreateLRScreen(
+          jobId: int.parse(state.pathParameters['jobId'] ?? '0'),
+        ),
+      ),
+      GoRoute(
+        path: '/pa/jobs/:jobId/trip',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PATripSheetScreen(
+          jobId: int.parse(state.pathParameters['jobId'] ?? '0'),
+        ),
+      ),
+      GoRoute(
+        path: '/pa/ewb/:ewbId',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PAEWBDetailScreen(
+          ewbId: int.parse(state.pathParameters['ewbId'] ?? '0'),
+        ),
+      ),
+      GoRoute(
+        path: '/pa/trips/:tripId/docs',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PADocumentsScreen(
+          tripId: int.parse(state.pathParameters['tripId'] ?? '0'),
+        ),
+      ),
+      GoRoute(
+        path: '/pa/trips/:tripId/close',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PATripClosureScreen(
+          tripId: int.parse(state.pathParameters['tripId'] ?? '0'),
+        ),
+      ),
+      GoRoute(
+        path: '/pa/notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PANotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/project_associate/notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PANotificationsScreen(),
+      ),
 
       // --- Admin Routes --- (Stateful shell with bottom nav)
       StatefulShellRoute.indexedStack(

@@ -1,9 +1,10 @@
 # Tracking & Monitoring Endpoints
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from typing import Optional
 from pydantic import BaseModel
+import httpx
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
@@ -389,3 +390,38 @@ async def get_vehicle_path(
     from_time = to_time - timedelta(hours=hours)
     result = await tracking_service.get_vehicle_path(vehicle_id, from_time, to_time)
     return APIResponse(success=True, data=result, message="Vehicle path fetched")
+
+
+# ── Map Tile Proxy ─────────────────────────────────────────────
+
+@router.get("/tiles/{z}/{x}/{y}")
+async def proxy_map_tile(z: int, x: int, y: int):
+    """Proxy OpenStreetMap tiles through the backend so mobile clients
+    on restricted networks (e.g., Android emulator) can load map tiles."""
+    url = f"https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                url,
+                headers={
+                    "User-Agent": "KavyaTransports-ERP/1.0 (transport.erp@kavya.in)",
+                    "Accept": "image/png,image/*,*/*",
+                },
+                follow_redirects=True,
+            )
+            if r.status_code != 200:
+                raise HTTPException(status_code=r.status_code, detail="Tile unavailable")
+            return Response(
+                content=r.content,
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "public, max-age=86400",
+                    "X-Tile-Source": "openstreetmap",
+                },
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Tile server timeout")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Tile proxy error: {str(e)}")

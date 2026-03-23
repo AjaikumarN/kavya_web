@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/kt_colors.dart';
-import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../core/widgets/kt_empty_state.dart';

@@ -125,7 +125,7 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
                 child: DropdownButtonFormField<String>(
-                  value: _selectedClientId,
+                  initialValue: _selectedClientId,
                   dropdownColor: KTColors.darkElevated,
                   decoration: const InputDecoration(border: InputBorder.none),
                   hint: Text('Select client', style: TextStyle(color: KTColors.darkTextSecondary)),

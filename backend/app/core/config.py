@@ -110,8 +110,6 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "noreply@transporterp.com"
     
     # Finance
-    RAZORPAY_KEY_ID: str = "YOUR_RAZORPAY_KEY_ID_HERE"
-    RAZORPAY_KEY_SECRET: str = "YOUR_RAZORPAY_SECRET_HERE"
     
     # GPS Device
     GPS_TCP_HOST: str = "0.0.0.0"
@@ -136,6 +134,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = str(ENV_FILE_PATH)
         case_sensitive = True
+        extra = "ignore"
 
 
 @lru_cache()

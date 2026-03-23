@@ -283,3 +283,78 @@ async def fuel_dashboard(
 ):
     stats = await fuel_pump_service.get_dashboard_stats(db, current_user.tenant_id)
     return APIResponse(success=True, data=stats.model_dump())
+
+
+# ──────────────────── Shifts ────────────────────
+# Lightweight in-memory shift tracker.  A persistent PumpShift model can be
+# added in a future migration; for now the app gets a working API contract.
+
+from datetime import datetime
+from typing import Any, Dict
+
+_shifts: Dict[int, Dict[str, Any]] = {}  # shift_id → shift data
+_shift_counter = 0
+
+
+def _next_shift_id() -> int:
+    global _shift_counter
+    _shift_counter += 1
+    return _shift_counter
+
+
+@router.get("/shifts/active", response_model=APIResponse)
+async def get_active_shift(
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return the currently open shift for this user, or null if none."""
+    active = [
+        s for s in _shifts.values()
+        if s.get("status") == "open" and s.get("started_by") == current_user.user_id
+    ]
+    return APIResponse(success=True, data=active[0] if active else None)
+
+
+@router.post("/shifts", response_model=APIResponse, status_code=201)
+async def start_shift(
+    payload: dict,
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Open a new pump shift."""
+    # Check for already-open shift
+    for s in _shifts.values():
+        if s.get("status") == "open" and s.get("started_by") == current_user.user_id:
+            raise HTTPException(status_code=400, detail="A shift is already open. Close it first.")
+
+    shift_id = _next_shift_id()
+    shift = {
+        "id": shift_id,
+        "shift_type": payload.get("shift_type", "day"),
+        "started_at": payload.get("started_at", datetime.utcnow().isoformat()),
+        "started_by": current_user.user_id,
+        "tank_readings": payload.get("tank_readings", []),
+        "notes": payload.get("notes", ""),
+        "status": "open",
+    }
+    _shifts[shift_id] = shift
+    return APIResponse(success=True, data=shift, message="Shift started")
+
+
+@router.post("/shifts/{shift_id}/close", response_model=APIResponse)
+async def close_shift(
+    shift_id: int,
+    payload: dict,
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Close an open pump shift."""
+    shift = _shifts.get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    if shift.get("started_by") != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not your shift")
+    if shift.get("status") != "open":
+        raise HTTPException(status_code=400, detail="Shift already closed")
+
+    shift["status"] = "closed"
+    shift["closed_at"] = payload.get("closed_at", datetime.utcnow().isoformat())
+    shift["closing_readings"] = payload.get("tank_readings", [])
+    return APIResponse(success=True, data=shift, message="Shift closed")

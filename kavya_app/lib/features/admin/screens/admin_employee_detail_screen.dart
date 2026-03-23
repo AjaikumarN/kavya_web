@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../../../providers/fleet_dashboard_provider.dart';
 import '../providers/admin_providers.dart';
@@ -35,6 +36,33 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
         ),
         title: const Text('Employee',
             style: TextStyle(color: KTColors.darkTextPrimary)),
+        actions: [
+          detail.whenOrNull(
+            data: (d) {
+              final isActive = d['is_active'] == true;
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isActive ? KTColors.success : KTColors.danger).withAlpha(20),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(
+                        color: isActive ? KTColors.success : KTColors.danger,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ) ?? const SizedBox.shrink(),
+        ],
       ),
       body: detail.when(
         data: (d) {
@@ -105,12 +133,23 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
               _infoRow(Icons.email_outlined, email),
               _infoRow(Icons.phone_outlined, phone),
               _infoRow(Icons.business_outlined, branch),
+              if (d['last_login'] != null) ...[                const SizedBox(height: 4),
+                _infoRow(Icons.access_time, 'Last login: ${_fmtDate(d['last_login'])}'),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
+
+        // ── Activity Stats ──
+        _buildActivityStats(d, role),
+        const SizedBox(height: 16),
 
         // ── Actions ──
+        _actionBtn('Edit role', Icons.admin_panel_settings, KTColors.amber600, () {
+          _showEditRole(context, ref, d, role);
+        }),
+        const SizedBox(height: 10),
         _actionBtn('Reset password', Icons.lock_reset, KTColors.info,
             () async {
           final api = ref.read(apiServiceProvider);
@@ -242,4 +281,181 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildActivityStats(Map<String, dynamic> d, String role) {
+    final r = role.toUpperCase();
+    final List<_StatItem> items;
+    switch (r) {
+      case 'MANAGER':
+        items = [
+          _StatItem('Jobs created', d['jobs_created'] ?? d['job_count'] ?? 0),
+          _StatItem('Active trips', d['active_trips'] ?? 0),
+        ];
+        break;
+      case 'PROJECT_ASSOCIATE':
+        items = [
+          _StatItem('LRs created', d['lrs_created'] ?? d['lr_count'] ?? 0),
+          _StatItem('Trips completed', d['trips_completed'] ?? 0),
+        ];
+        break;
+      case 'FLEET_MANAGER':
+        items = [
+          _StatItem('Vehicles managed', d['vehicles_managed'] ?? d['vehicle_count'] ?? 0),
+          _StatItem('Alerts resolved', d['alerts_resolved'] ?? 0),
+        ];
+        break;
+      case 'ACCOUNTANT':
+        items = [
+          _StatItem('Invoices raised', d['invoices_raised'] ?? d['invoice_count'] ?? 0),
+          _StatItem('Payments recorded', d['payments_recorded'] ?? 0),
+        ];
+        break;
+      case 'DRIVER':
+        items = [
+          _StatItem('Trips completed', d['trips_completed'] ?? d['total_trips'] ?? 0),
+          _StatItem('Total km', d['total_km'] ?? d['distance_km'] ?? 0),
+        ];
+        break;
+      default:
+        items = [];
+    }
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('ACTIVITY',
+            style: TextStyle(
+                color: KTColors.darkTextSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        Row(
+          children: items.map((s) {
+            return Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(right: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: KTColors.darkSurface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: const Border(
+                      left: BorderSide(color: KTColors.amber600, width: 3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${s.value}',
+                        style: const TextStyle(
+                            color: KTColors.darkTextPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(s.label,
+                        style: const TextStyle(
+                            color: KTColors.darkTextSecondary, fontSize: 11)),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  void _showEditRole(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> d, String currentRole) {
+    const roles = ['MANAGER', 'PROJECT_ASSOCIATE', 'FLEET_MANAGER', 'ACCOUNTANT', 'DRIVER', 'ADMIN'];
+    String selected = currentRole.toUpperCase();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KTColors.darkSurface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Change role',
+                    style: TextStyle(
+                        color: KTColors.darkTextPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                ...roles.map((r) => RadioListTile<String>(
+                      title: Text(r,
+                          style: const TextStyle(
+                              color: KTColors.darkTextPrimary, fontSize: 14)),
+                      value: r,
+                      groupValue: selected,
+                      activeColor: KTColors.amber600,
+                      onChanged: (v) => setState(() => selected = v!),
+                    )),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KTColors.amber600,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final api = ref.read(apiServiceProvider);
+                      try {
+                        await api.patch('/users/$userId', data: {'role': selected});
+                        ref.invalidate(_employeeDetailProvider(userId));
+                        ref.invalidate(adminEmployeesProvider);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Role updated to $selected')),
+                          );
+                        }
+                      } catch (_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Failed to update role')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Save',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fmtDate(dynamic val) {
+    if (val == null) return '—';
+    try {
+      return DateFormat('dd MMM yyyy, HH:mm')
+          .format(DateTime.parse(val.toString()));
+    } catch (_) {
+      return val.toString();
+    }
+  }
+}
+
+class _StatItem {
+  final String label;
+  final dynamic value;
+  const _StatItem(this.label, this.value);
 }

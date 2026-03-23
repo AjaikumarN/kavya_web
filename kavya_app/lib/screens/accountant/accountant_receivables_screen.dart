@@ -36,13 +36,11 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => PaymentBottomSheet(
-        invoiceId: (rec['id'] ?? rec['invoice_id'] ?? 0) as int,
-        clientId: (rec['client_id'] ?? 0) as int,
-        invoiceNumber: rec['invoice_number'] ?? rec['invoice_no'] ?? '',
-        outstandingAmount:
-            (rec['amount_due'] as num?)?.toDouble() ?? 0.0,
-        clientName:
-            rec['client_name'] ?? rec['billing_name'] ?? '',
+        invoiceId: (rec['id'] as num?)?.toInt() ?? 0,
+        clientId: (rec['client_id'] as num?)?.toInt() ?? 0,
+        invoiceNumber: rec['invoice_number'] ?? '',
+        outstandingAmount: (rec['amount_due'] as num?)?.toDouble() ?? 0.0,
+        clientName: rec['client_name'] ?? '',
         onPaymentRecorded: () => ref.invalidate(receivablesProvider),
       ),
     );
@@ -73,11 +71,10 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
               itemCount: receivables.length,
               itemBuilder: (context, index) {
                 final rec = receivables[index];
-                // Mocking data fields based on spec
-                final clientName = rec['client_name'] ?? 'Acme Corp';
-                final invoiceNo = rec['invoice_no'] ?? 'KT-INV-2026-001';
-                final amount = rec['amount_due'] ?? 125000;
-                final isOverdue = rec['is_overdue'] ?? true;
+                final clientName = rec['client_name'] ?? '';
+                final invoiceNo = rec['invoice_number'] ?? '';
+                final amount = (rec['amount_due'] as num?) ?? 0;
+                final isOverdue = rec['is_overdue'] ?? false;
                 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -108,7 +105,7 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
                               ],
                             ),
                             if (isOverdue)
-                              Text("12 days overdue", style: KTTextStyles.label.copyWith(color: KTColors.danger)), // Due date + "X days overdue" in red if past [cite: 77]
+                              Text("${rec['aging_days'] ?? 0} days overdue", style: KTTextStyles.label.copyWith(color: KTColors.danger)), // Due date + "X days overdue" in red if past [cite: 77]
                           ],
                         ),
                         const SizedBox(height: 16),

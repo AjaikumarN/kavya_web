@@ -242,10 +242,13 @@ class _AdminComplianceScreenState
         }
       },
       onDetail: () {
-        if (alert['entity_type'] == 'VEHICLE') {
-          context.push('/manager/fleet/$entityId');
+        final alertId = alert['id']?.toString();
+        if (alertId != null) {
+          context.push('/admin/compliance/$alertId');
+        } else if (alert['entity_type'] == 'VEHICLE') {
+          context.push('/admin/vehicles/$entityId');
         } else if (alert['entity_type'] == 'DRIVER') {
-          context.push('/fleet/driver/$entityId');
+          context.push('/admin/drivers/$entityId');
         }
       },
     );

@@ -94,42 +94,40 @@ async def accountant_receivables(
     from app.models.postgres.client import Client
 
     today = date.today()
-    d30 = today - timedelta(days=30)
-    d60 = today - timedelta(days=60)
-    d90 = today - timedelta(days=90)
 
+    # Return per-invoice rows so the Flutter Pay button can pass invoice_id
+    # to POST /receivables/record-payment
     result = await db.execute(
         select(
-            Client.id, Client.name, Client.code,
-            func.sum(Invoice.amount_due).label("total_due"),
-            func.count(Invoice.id).label("invoice_count"),
-            func.min(Invoice.due_date).label("oldest_due"),
-            func.coalesce(func.sum(case((Invoice.due_date >= d30, Invoice.amount_due), else_=0)), 0).label("aging_0_30"),
-            func.coalesce(func.sum(case((and_(Invoice.due_date < d30, Invoice.due_date >= d60), Invoice.amount_due), else_=0)), 0).label("aging_31_60"),
-            func.coalesce(func.sum(case((and_(Invoice.due_date < d60, Invoice.due_date >= d90), Invoice.amount_due), else_=0)), 0).label("aging_61_90"),
-            func.coalesce(func.sum(case((Invoice.due_date < d90, Invoice.amount_due), else_=0)), 0).label("aging_over_90"),
+            Invoice.id,
+            Invoice.invoice_number,
+            Invoice.client_id,
+            Client.name.label("client_name"),
+            Invoice.amount_due,
+            Invoice.due_date,
         )
-        .join(Invoice, Invoice.client_id == Client.id)
-        .where(Invoice.is_deleted == False, Invoice.amount_due > 0, Invoice.status != InvoiceStatus.CANCELLED)
-        .group_by(Client.id, Client.name, Client.code)
-        .order_by(func.sum(Invoice.amount_due).desc())
+        .join(Client, Client.id == Invoice.client_id)
+        .where(
+            Invoice.is_deleted == False,
+            Invoice.amount_due > 0,
+            Invoice.status != InvoiceStatus.CANCELLED,
+        )
+        .order_by(Invoice.due_date.asc())
     )
     items = []
     for r in result.all():
-        oldest_due = r[5]
-        aging_days = max(0, (today - oldest_due).days) if oldest_due else 0
+        due_date = r[5]
+        aging_days = max(0, (today - due_date).days) if due_date else 0
+        is_overdue = (due_date < today) if due_date else False
         items.append({
-            "client_id": r[0],
-            "client_name": r[1],
-            "client_code": r[2],
-            "total_due": float(r[3]),
-            "invoice_count": r[4],
-            "oldest_due": oldest_due.isoformat() if oldest_due else None,
+            "id": r[0],
+            "invoice_number": r[1],
+            "client_id": r[2],
+            "client_name": r[3],
+            "amount_due": float(r[4]),
+            "due_date": due_date.isoformat() if due_date else None,
+            "is_overdue": is_overdue,
             "aging_days": aging_days,
-            "aging_0_30": float(r[6] or 0),
-            "aging_31_60": float(r[7] or 0),
-            "aging_61_90": float(r[8] or 0),
-            "aging_over_90": float(r[9] or 0),
         })
     return APIResponse(success=True, data=items)
 
@@ -801,10 +799,6 @@ async def accountant_mark_driver_payment_paid(
     payment.payment_date = date.today()
     if data.get("transaction_ref"):
         payment.transaction_ref = data["transaction_ref"]
-    if data.get("razorpay_payment_id"):
-        payment.razorpay_payment_id = data["razorpay_payment_id"]
-    if data.get("razorpay_order_id"):
-        payment.razorpay_order_id = data["razorpay_order_id"]
     if data.get("payment_method"):
         try:
             payment.payment_method = PaymentMethod(data["payment_method"].upper())

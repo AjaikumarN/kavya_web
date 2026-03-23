@@ -150,7 +150,7 @@ class _AccountantVouchersScreenState
             const SizedBox(height: 12),
             if (voucherType != 'journal') ...[
               DropdownButtonFormField<String>(
-                value: payMethod,
+                initialValue: payMethod,
                 decoration:
                     const InputDecoration(labelText: 'Payment Method'),
                 items: ['bank_transfer', 'cheque', 'cash', 'upi', 'neft', 'rtgs']

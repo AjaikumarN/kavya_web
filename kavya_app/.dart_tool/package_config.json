@@ -260,12 +260,6 @@
       "languageVersion": "2.12"
     },
     {
-      "name": "eventify",
-      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/eventify-1.0.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "fake_async",
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/fake_async-1.3.3",
       "packageUri": "lib/",
@@ -422,6 +416,12 @@
       "languageVersion": "3.8"
     },
     {
+      "name": "flutter_map",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/flutter_map-6.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "flutter_plugin_android_lifecycle",
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.33",
       "packageUri": "lib/",
@@ -468,6 +468,12 @@
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/flutter_secure_storage_windows-4.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "flutter_staggered_animations",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/flutter_staggered_animations-1.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
     },
     {
       "name": "flutter_test",
@@ -728,6 +734,12 @@
       "languageVersion": "3.9"
     },
     {
+      "name": "latlong2",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/latlong2-0.9.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "leak_tracker",
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/leak_tracker-11.0.2",
       "packageUri": "lib/",
@@ -750,6 +762,12 @@
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/lints-5.1.1",
       "packageUri": "lib/",
       "languageVersion": "3.6"
+    },
+    {
+      "name": "lists",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/lists-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "local_auth",
@@ -782,6 +800,12 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "logger",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/logger-2.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "logging",
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/logging-1.3.0",
       "packageUri": "lib/",
@@ -810,6 +834,12 @@
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/meta-1.17.0",
       "packageUri": "lib/",
       "languageVersion": "3.5"
+    },
+    {
+      "name": "mgrs_dart",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/mgrs_dart-2.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "mime",
@@ -938,6 +968,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "polylabel",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/polylabel-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.13"
+    },
+    {
       "name": "pool",
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/pool-1.5.2",
       "packageUri": "lib/",
@@ -954,6 +990,12 @@
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/pretty_dio_logger-1.4.0",
       "packageUri": "lib/",
       "languageVersion": "3.0"
+    },
+    {
+      "name": "proj4dart",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/proj4dart-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "pub_semver",
@@ -978,12 +1020,6 @@
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/qr_flutter-4.1.0",
       "packageUri": "lib/",
       "languageVersion": "2.19"
-    },
-    {
-      "name": "razorpay_flutter",
-      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/razorpay_flutter-1.4.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
     },
     {
       "name": "riverpod",
@@ -1136,6 +1172,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "unicode",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/unicode-0.3.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "url_launcher",
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/url_launcher-6.3.2",
       "packageUri": "lib/",
@@ -1236,6 +1278,12 @@
       "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/win32_registry-2.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.7"
+    },
+    {
+      "name": "wkt_parser",
+      "rootUri": "file:///Users/ajaikumarn/.pub-cache/hosted/pub.dev/wkt_parser-2.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "xdg_directories",

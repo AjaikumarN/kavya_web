@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/kt_colors.dart';
-import '../../../core/widgets/notification_bell_widget.dart';
-import '../providers/manager_providers.dart';
 
 class ManagerShellScreen extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;

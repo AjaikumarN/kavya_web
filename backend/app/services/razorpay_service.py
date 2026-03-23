@@ -1,10 +1,5 @@
-# Razorpay Payment Service — create payment links, verify payments
-import logging
-import httpx
-from fastapi import HTTPException
-from app.core.config import settings
+# Razorpay integration removed. This file is kept as an empty stub.
 
-logger = logging.getLogger(__name__)
 
 
 async def create_payment_link(amount: float, description: str, customer_name: str,

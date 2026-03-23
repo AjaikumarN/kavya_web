@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -155,6 +154,36 @@ class ManagerDashboardScreen extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 16),
+
+            // ── Live Map button ───────────────────────
+            GestureDetector(
+              onTap: () => context.push('/fleet/map'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: KTColors.darkSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF0EA5E9), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0EA5E9).withAlpha(26),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.location_on_rounded, color: Color(0xFF0EA5E9), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('Live Vehicle Tracking', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    const Icon(Icons.chevron_right, color: KTColors.darkTextSecondary, size: 20),
+                  ],
+                ),
+              ),
+            ),
 
             // ── Create new job button ──────────────────
             SizedBox(

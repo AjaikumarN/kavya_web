@@ -8,7 +8,7 @@ class ApiService {
   // Base URL from environment [cite: 31]
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api/v1',
+    defaultValue: 'http://10.0.2.2:8001/api/v1',
   );
 
   final Dio _dio;
@@ -262,7 +262,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> extendEWB(String ewbId) async { // [cite: 33]
-    final response = await _dio.patch('/eway-bills/$ewbId/extend');
+    final response = await _dio.post('/eway-bills/$ewbId/extend');
     return response.data;
   }
 
@@ -461,12 +461,12 @@ class ApiService {
   }
 
   Future<void> logService(Map<String, dynamic> data) async { // [cite: 33]
-    await _dio.post('/services', data: data);
+    await _dio.post('/service', data: data);
   }
 
   Future<void> recordTyreEvent(Map<String, dynamic> data) async { // [cite: 33]
     final tyreId = data['tyre_id'];
-    await _dio.post('/tyres/$tyreId/events', data: data);
+    await _dio.post('/tyre/$tyreId/event', data: data);
   }
 
   Future<List<dynamic>> getTrips({String? status}) async { // [cite: 34]

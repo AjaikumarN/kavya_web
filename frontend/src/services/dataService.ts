@@ -1602,22 +1602,6 @@ export const gpsTrackingService = {
   },
 };
 
-// ---- Payments (Razorpay) ----
-export const paymentGatewayService = {
-  createLink: async (payload: { amount: number; description: string; customer_name: string; customer_phone: string; customer_email?: string; reference_id?: string }) => {
-    const data = await api.post('/payments/create-link', payload);
-    return unwrap(data);
-  },
-  verify: async (payload: { payment_id: string; payment_link_id: string; signature: string }) => {
-    const data = await api.post('/payments/verify', payload);
-    return unwrap(data);
-  },
-  getStatus: async (paymentId: string) => {
-    const data = await api.get(`/payments/status/${paymentId}`);
-    return unwrap(data);
-  },
-};
-
 // ---- Notifications ----
 export const notificationService = {
   sendPush: async (payload: { device_token: string; title: string; body: string; data?: Record<string, any> }) => {

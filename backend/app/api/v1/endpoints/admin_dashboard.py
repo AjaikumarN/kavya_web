@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, case, update
+from sqlalchemy import select, func, and_, case, update, cast, String
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
@@ -104,7 +104,7 @@ async def admin_dashboard_stats(
     overdue_r = await db.execute(
         select(func.coalesce(func.sum(Invoice.amount_due), 0)).where(
             Invoice.due_date < today,
-            Invoice.payment_status != InvoicePaymentStatus.PAID,
+            cast(Invoice.payment_status, String) != "PAID",
             Invoice.is_deleted.is_(False),
         )
     )
@@ -189,7 +189,7 @@ async def admin_role_health(
             from app.models.postgres.lr import LR
             lr_r = await db.execute(
                 select(func.count()).select_from(LR).where(
-                    LR.status.in_(["DRAFT", "PENDING"]),
+                    LR.status.in_(["DRAFT", "GENERATED"]),  # GENERATED = awaiting trip start
                     LR.is_deleted.is_(False),
                 )
             )
@@ -214,7 +214,7 @@ async def admin_role_health(
             od_r = await db.execute(
                 select(func.coalesce(func.sum(Invoice.amount_due), 0)).where(
                     Invoice.due_date < today,
-                    Invoice.payment_status != InvoicePaymentStatus.PAID,
+                    cast(Invoice.payment_status, String) != "PAID",
                     Invoice.is_deleted.is_(False),
                 )
             )
@@ -440,7 +440,7 @@ async def admin_finance_summary(
     # Total receivables (unpaid invoices)
     recv_r = await db.execute(
         select(func.coalesce(func.sum(Invoice.amount_due), 0)).where(
-            Invoice.payment_status != InvoicePaymentStatus.PAID,
+            cast(Invoice.payment_status, String) != "PAID",
             Invoice.is_deleted.is_(False),
         )
     )
@@ -450,7 +450,7 @@ async def admin_finance_summary(
     od_r = await db.execute(
         select(func.coalesce(func.sum(Invoice.amount_due), 0)).where(
             Invoice.due_date < today,
-            Invoice.payment_status != InvoicePaymentStatus.PAID,
+            cast(Invoice.payment_status, String) != "PAID",
             Invoice.is_deleted.is_(False),
         )
     )
@@ -467,7 +467,7 @@ async def admin_finance_summary(
         lo = today - timedelta(days=max_days)
         hi = today - timedelta(days=min_days)
         return select(func.coalesce(func.sum(Invoice.amount_due), 0)).where(
-            Invoice.payment_status != InvoicePaymentStatus.PAID,
+            cast(Invoice.payment_status, String) != "PAID",
             Invoice.is_deleted.is_(False),
             Invoice.due_date >= lo,
             Invoice.due_date < hi,
@@ -478,7 +478,7 @@ async def admin_finance_summary(
     d61_r = await db.execute(_aging_bucket(61, 90))
     d90_r = await db.execute(
         select(func.coalesce(func.sum(Invoice.amount_due), 0)).where(
-            Invoice.payment_status != InvoicePaymentStatus.PAID,
+            cast(Invoice.payment_status, String) != "PAID",
             Invoice.is_deleted.is_(False),
             Invoice.due_date < today - timedelta(days=90),
         )

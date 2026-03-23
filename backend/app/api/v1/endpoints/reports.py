@@ -722,3 +722,36 @@ async def export_report(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={report_type}_report.csv"},
     )
+
+
+@router.get("/branch/summary", response_model=APIResponse)
+async def branch_summary_report(
+    branch_id: Optional[int] = Query(None),
+    from_date_raw: Optional[str] = Query(None, alias="from"),
+    to_date_raw: Optional[str] = Query(None, alias="to"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Branch-scoped summary report: trips, revenue, expenses."""
+    from_date, to_date = _resolve_date_range(from_date_raw, to_date_raw)
+
+    trip_q = select(func.count(Trip.id)).where(
+        Trip.trip_date >= from_date, Trip.trip_date <= to_date, Trip.is_deleted == False
+    )
+    rev_q = select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(
+        Invoice.invoice_date >= from_date, Invoice.invoice_date <= to_date
+    )
+
+    if branch_id:
+        trip_q = trip_q.where(Trip.branch_id == branch_id)
+        rev_q = rev_q.where(Invoice.branch_id == branch_id)
+
+    total_trips = (await db.execute(trip_q)).scalar() or 0
+    total_revenue = float((await db.execute(rev_q)).scalar() or 0)
+
+    return APIResponse(success=True, data={
+        "branch_id": branch_id,
+        "period": {"from": str(from_date), "to": str(to_date)},
+        "total_trips": total_trips,
+        "total_revenue": total_revenue,
+    })

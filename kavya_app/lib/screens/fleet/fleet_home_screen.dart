@@ -196,6 +196,13 @@ class FleetHomeScreen extends ConsumerWidget {
                       color: KTColors.warning,
                       onTap: () => context.push('/fleet/analytics'),
                     ),
+                    _ActionTile(
+                      context: context,
+                      label: 'Live Map',
+                      icon: Icons.location_on_rounded,
+                      color: KTColors.success,
+                      onTap: () => context.push('/fleet/map'),
+                    ),
                   ],
                 ),
               ),

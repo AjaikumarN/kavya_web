@@ -127,7 +127,7 @@ class AdminMastersScreen extends ConsumerWidget {
     final status = (m['status'] as String? ?? 'active').toUpperCase();
     final isOverdue = status == 'OVERDUE' || (m['is_overdue'] == true);
     return GestureDetector(
-      onTap: () => context.push('/manager/clients/${m['id']}'),
+      onTap: () => context.push('/admin/clients/${m['id']}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
@@ -191,7 +191,7 @@ class AdminMastersScreen extends ConsumerWidget {
     final status = (m['status'] as String? ?? 'AVAILABLE').toUpperCase();
     final isAvail = status == 'AVAILABLE';
     return GestureDetector(
-      onTap: () => context.push('/manager/fleet/${m['id']}'),
+      onTap: () => context.push('/admin/vehicles/${m['id']}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -242,7 +242,9 @@ class AdminMastersScreen extends ConsumerWidget {
     final name = '${m['first_name'] ?? ''} ${(m['last_name'] ?? '').toString().isNotEmpty ? '${(m['last_name'] as String).substring(0, 1)}.' : ''}';
     final status = (m['status'] as String? ?? 'AVAILABLE').toUpperCase();
     final isAvail = status == 'AVAILABLE';
-    return Container(
+    return GestureDetector(
+      onTap: () => context.push('/admin/drivers/${m['id']}'),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -296,6 +298,7 @@ class AdminMastersScreen extends ConsumerWidget {
           ),
         ],
       ),
+    ),
     );
   }
 

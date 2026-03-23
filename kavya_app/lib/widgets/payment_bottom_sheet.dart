@@ -553,7 +553,7 @@ class _PaymentBottomSheetState extends ConsumerState<PaymentBottomSheet> {
                         color: KTColors.darkTextSecondary),
                     hintText: _selectedMode == 'NEFT' ||
                             _selectedMode == 'RTGS'
-                        ? 'Required for ${_selectedMode}'
+                        ? 'Required for $_selectedMode'
                         : 'Optional',
                     hintStyle: const TextStyle(
                         color: KTColors.darkTextSecondary),
@@ -568,7 +568,7 @@ class _PaymentBottomSheetState extends ConsumerState<PaymentBottomSheet> {
                     if ((_selectedMode == 'NEFT' ||
                             _selectedMode == 'RTGS') &&
                         (v == null || v.trim().isEmpty)) {
-                      return '${_selectedMode} requires a UTR reference number';
+                      return '$_selectedMode requires a UTR reference number';
                     }
                     return null;
                   },

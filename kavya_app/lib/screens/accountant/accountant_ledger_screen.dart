@@ -137,7 +137,7 @@ class _AccountantLedgerScreenState
             Text('New Ledger Entry', style: KTTextStyles.h3),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: selectedType,
+              initialValue: selectedType,
               decoration: const InputDecoration(labelText: 'Entry Type'),
               items: typeOptions.map((t) => DropdownMenuItem(
                 value: t.$1,

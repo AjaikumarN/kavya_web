@@ -37,7 +37,9 @@ class _PACreateLRScreenState extends ConsumerState<PACreateLRScreen> {
       _consignorNameCtrl, _consignorGstinCtrl, _consigneeNameCtrl,
       _consigneeGstinCtrl, _fromCityCtrl, _toCityCtrl,
       _commodityCtrl, _weightCtrl, _freightCtrl, _remarksCtrl,
-    ]) c.dispose();
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -185,7 +187,7 @@ class _PACreateLRScreenState extends ConsumerState<PACreateLRScreen> {
                     style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
                   ),
                   value: _autoGenerateEwb,
-                  activeColor: KTColors.primary,
+                  activeThumbColor: KTColors.primary,
                   onChanged: (v) => setState(() => _autoGenerateEwb = v),
                 ),
               ),

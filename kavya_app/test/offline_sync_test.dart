@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:kavya_app/services/offline_sync_service.dart';
-import 'package:kavya_app/services/api_service.dart';
 
 void main() {
   group('OfflineSyncService', () {

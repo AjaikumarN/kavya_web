@@ -536,17 +536,3 @@ async def partial_payments(
         } for inv in invoices],
     )
 
-
-# ━━━ Razorpay Webhook ━━━
-@router.post("/webhooks/razorpay", include_in_schema=False)
-async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
-    body = await request.body()
-    signature = request.headers.get("X-Razorpay-Signature", "")
-
-    if not payment_automation_service.verify_razorpay_webhook_signature(body, signature):
-        raise HTTPException(status_code=400, detail="Invalid webhook signature")
-
-    payload = await request.json()
-    event = payload.get("event", "")
-    await payment_automation_service.process_razorpay_webhook(db, event, payload)
-    return {"status": "ok"}

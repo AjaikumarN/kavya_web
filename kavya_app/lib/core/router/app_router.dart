@@ -23,6 +23,7 @@ import '../../screens/driver/driver_gps_tracking_screen.dart';
 import '../../screens/driver/driver_epod_screen.dart';
 // Fleet Manager screens
 import '../../screens/fleet/fleet_home_screen.dart';
+import '../../screens/fleet/fleet_live_map_screen.dart';
 import '../../screens/fleet/fleet_vehicles_screen.dart';
 import '../../screens/fleet/fleet_analytics_screen.dart';
 import '../../screens/fleet/fleet_driver_list_screen.dart';
@@ -87,6 +88,13 @@ import '../../features/admin/screens/admin_quick_actions_screen.dart';
 import '../../features/admin/screens/admin_create_employee_screen.dart';
 import '../../features/admin/screens/admin_employee_detail_screen.dart';
 import '../../features/admin/screens/admin_branches_screen.dart';
+import '../../features/admin/screens/admin_job_detail_screen.dart';
+import '../../features/admin/screens/admin_trip_detail_screen.dart';
+import '../../features/admin/screens/admin_client_detail_screen.dart';
+import '../../features/admin/screens/admin_vehicle_detail_screen.dart';
+import '../../features/admin/screens/admin_driver_detail_screen.dart';
+import '../../features/admin/screens/admin_invoice_detail_screen.dart';
+import '../../features/admin/screens/admin_compliance_detail_screen.dart';
 // Pump Operator screens
 import '../../screens/pump/pump_home_screen.dart';
 import '../../screens/pump/pump_dashboard_screen.dart';
@@ -301,7 +309,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/home', builder: (context, state) => const FleetHomeScreen()),
       GoRoute(path: '/fleet/vehicles', builder: (context, state) => const FleetVehiclesScreen()),
       GoRoute(path: '/fleet/analytics', builder: (context, state) => const FleetAnalyticsScreen()),
-      GoRoute(path: '/fleet/map', builder: (context, state) => const Scaffold()),
+      GoRoute(path: '/fleet/map', builder: (context, state) => const FleetLiveMapScreen()),
       GoRoute(path: '/fleet/drivers', builder: (context, state) => const FleetDriverListScreen()),
       GoRoute(path: '/fleet/trips', builder: (context, state) => const FleetTripManagementScreen()),
       GoRoute(path: '/fleet/profile', builder: (context, state) => const FleetProfileScreen()),
@@ -607,6 +615,55 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/branches',
         parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AdminBranchesScreen(),
+      ),
+      GoRoute(
+        path: '/admin/jobs/:jobId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminJobDetailScreen(
+          jobId: state.pathParameters['jobId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/trips/:tripId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminTripDetailScreen(
+          tripId: state.pathParameters['tripId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/clients/:clientId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminClientDetailScreen(
+          clientId: state.pathParameters['clientId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/vehicles/:vehicleId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminVehicleDetailScreen(
+          vehicleId: state.pathParameters['vehicleId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/drivers/:driverId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminDriverDetailScreen(
+          driverId: state.pathParameters['driverId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/invoices/:invoiceId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminInvoiceDetailScreen(
+          invoiceId: state.pathParameters['invoiceId'] ?? '0',
+        ),
+      ),
+      GoRoute(
+        path: '/admin/compliance/:alertId',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => AdminComplianceDetailScreen(
+          alertId: state.pathParameters['alertId'] ?? '0',
+        ),
       ),
 
       // --- Pump Operator Routes --- (Stateful shell with bottom nav)

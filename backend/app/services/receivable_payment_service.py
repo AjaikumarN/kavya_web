@@ -166,23 +166,66 @@ async def record_receivable_payment(
     await db.flush()  # get payment.id, still within session txn
 
     # ── Step 4: Update invoice amounts and statuses ──────────────────────────
-    invoice.amount_paid = paid_so_far + amount
-    invoice.amount_due = max(Decimal("0"), total - invoice.amount_paid)
+    new_amount_paid = paid_so_far + amount
+    new_amount_due = max(Decimal("0"), total - new_amount_paid)
 
-    if invoice.amount_paid >= total:
-        invoice.payment_status = InvoicePaymentStatus.PAID
-        invoice.status = InvoiceStatus.PAID
-        invoice.paid_at = datetime.utcnow()
+    if new_amount_paid >= total:
+        new_pay_status = "PAID"
+        new_inv_status = "PAID"
         new_status = "PAID"
-    elif invoice.amount_paid > 0:
-        invoice.payment_status = InvoicePaymentStatus.PARTIAL
-        invoice.status = InvoiceStatus.PARTIALLY_PAID
+        paid_at_val = datetime.utcnow()
+    elif new_amount_paid > 0:
+        new_pay_status = "PARTIAL"
+        new_inv_status = "PARTIALLY_PAID"
         new_status = "PARTIAL"
+        paid_at_val = None
     else:
-        invoice.payment_status = InvoicePaymentStatus.UNPAID
+        new_pay_status = "UNPAID"
+        new_inv_status = "PENDING"   # fall back to pending
         new_status = "UNPAID"
+        paid_at_val = None
 
-    invoice.last_payment_at = datetime.utcnow()
+    # Use raw SQL with CAST() to sidestep asyncpg enum type-mismatch.
+    # asyncpg binary protocol rejects plain string params for native PG enum
+    # columns. Using CAST(:val AS enum_type) instructs PG to cast at DB level.
+    # Actual PG type names (confirmed from pg_type): invoice_payment_status, invoicestatus
+    from sqlalchemy import text as sa_text
+    if paid_at_val:
+        sql = sa_text("""
+            UPDATE invoices
+            SET amount_paid    = :ap,
+                amount_due     = :ad,
+                payment_status = CAST(:ps AS invoice_payment_status),
+                status         = CAST(:st AS invoicestatus),
+                paid_at        = :pa,
+                last_payment_at = :lpa,
+                updated_at     = :lpa
+            WHERE id = :inv_id
+        """)
+        params: dict = {
+            "ap": float(new_amount_paid), "ad": float(new_amount_due),
+            "ps": new_pay_status, "st": new_inv_status,
+            "pa": paid_at_val, "lpa": datetime.utcnow(),
+            "inv_id": data.invoice_id,
+        }
+    else:
+        sql = sa_text("""
+            UPDATE invoices
+            SET amount_paid    = :ap,
+                amount_due     = :ad,
+                payment_status = CAST(:ps AS invoice_payment_status),
+                status         = CAST(:st AS invoicestatus),
+                last_payment_at = :lpa,
+                updated_at      = :lpa
+            WHERE id = :inv_id
+        """)
+        params = {
+            "ap": float(new_amount_paid), "ad": float(new_amount_due),
+            "ps": new_pay_status, "st": new_inv_status,
+            "lpa": datetime.utcnow(),
+            "inv_id": data.invoice_id,
+        }
+    await db.execute(sql, params)
     await db.flush()
 
     # ── Step 5: Double-entry ledger post (via existing finance_service) ──────
@@ -241,7 +284,7 @@ async def record_receivable_payment(
         "payment_id": payment.id,
         "invoice_id": data.invoice_id,
         "new_status": new_status,
-        "outstanding_balance": float(invoice.amount_due or 0),
+        "outstanding_balance": float(new_amount_due),
     }
 
 

@@ -27,9 +27,6 @@ interface PaymentsData {
 interface PaymentFormData {
   payment_method: string;
   transaction_ref: string;
-  razorpay_payment_id?: string;
-  razorpay_order_id?: string;
-  razorpay_signature?: string;
 }
 
 const AccountantDriverPaymentsPage: React.FC = () => {
@@ -276,19 +273,6 @@ const AccountantDriverPaymentsPage: React.FC = () => {
                 />
               </div>
 
-              {import.meta.env.VITE_RAZORPAY_KEY_ID && (
-                <div className="pt-2 border-t">
-                  <p className="text-sm text-gray-600 mb-3">Or pay online using Razorpay:</p>
-                  <button
-                    className="btn-primary w-full"
-                    onClick={() => {
-                      toast('Razorpay integration coming soon', { icon: 'ℹ️' });
-                    }}
-                  >
-                    Pay with Razorpay
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="flex gap-3 p-6 border-t bg-gray-50">

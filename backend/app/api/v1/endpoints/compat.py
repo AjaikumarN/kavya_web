@@ -118,6 +118,13 @@ async def finance_banking_entries(
 
 
 # ----- Fleet compatibility -----
+@router.get("/fleet/dashboard", response_model=APIResponse)
+async def fleet_dashboard_root(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+    """Aggregate fleet dashboard KPIs — root alias for /fleet/dashboard/kpis."""
+    data = await vehicle_service.get_fleet_summary(db)
+    return APIResponse(success=True, data=data)
+
+
 @router.get("/fleet/dashboard/kpis", response_model=APIResponse)
 async def fleet_dashboard_kpis(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     data = await vehicle_service.get_fleet_summary(db)

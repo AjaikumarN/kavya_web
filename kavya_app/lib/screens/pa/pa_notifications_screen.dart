@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -19,7 +18,7 @@ final _notificationsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) a
   return [];
 });
 
-const _wsBaseUrl = 'ws://10.0.2.2:8000/ws/notifications';
+const _wsBaseUrl = 'ws://10.0.2.2:8001/ws/notifications';
 
 class PANotificationsScreen extends ConsumerStatefulWidget {
   const PANotificationsScreen({super.key});

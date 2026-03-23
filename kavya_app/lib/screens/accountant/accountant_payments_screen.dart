@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_empty_state.dart';
@@ -37,41 +36,16 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
   final _inr = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-  Razorpay? _razorpay;
-  int? _activePaymentId;
-  double _activeAmount = 0;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
-    _razorpay = Razorpay();
-    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleRazorpaySuccess);
-    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handleRazorpayError);
-    _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, (_) {});
-  }
-
-  void _handleRazorpaySuccess(PaymentSuccessResponse r) {
-    if (_activePaymentId == null) return;
-    _confirmPayment(_activePaymentId!, {
-      'razorpay_payment_id': r.paymentId,
-      'razorpay_order_id': r.orderId,
-      'transaction_ref': r.paymentId,
-      'payment_method': 'UPI',
-    });
-  }
-
-  void _handleRazorpayError(PaymentFailureResponse r) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Payment failed: ${r.message}'), backgroundColor: KTColors.danger),
-    );
   }
 
   @override
   void dispose() {
     _tabs.dispose();
-    _razorpay?.clear();
     super.dispose();
   }
 
@@ -177,8 +151,6 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
   void _openPaySheet(Map<String, dynamic> payment) {
     final payId = payment['id'] as int?;
     if (payId == null) return;
-    _activePaymentId = payId;
-    _activeAmount = (payment['amount'] as num? ?? 0).toDouble();
 
     showModalBottomSheet(
       context: context,
@@ -193,32 +165,8 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
           Navigator.pop(ctx);
           _confirmPayment(payId, {'transaction_ref': txRef, 'payment_method': method});
         },
-        onRazorpay: () {
-          Navigator.pop(ctx);
-          _launchRazorpay(payment);
-        },
       ),
     );
-  }
-
-  void _launchRazorpay(Map<String, dynamic> payment) {
-    // TODO: replace '' with actual Razorpay API key from config when purchased
-    const razorpayKey = '';
-    if (razorpayKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Razorpay key not configured yet. Use manual payment.'),
-        backgroundColor: KTColors.warning,
-      ));
-      _openPaySheet(payment); // reopen manual sheet
-      return;
-    }
-    _razorpay?.open({
-      'key': razorpayKey,
-      'amount': (_activeAmount * 100).toInt(),
-      'currency': 'INR',
-      'name': 'Kavya Transports',
-      'description': payment['remarks'] ?? 'Driver Payment',
-    });
   }
 
   Future<void> _confirmPayment(int paymentId, Map<String, dynamic> extra) async {
@@ -316,7 +264,7 @@ class _PaymentCard extends StatelessWidget {
           _row(Icons.calendar_today_outlined, payment['payment_date']!.toString()),
         if (txRef != null && txRef.isNotEmpty) _row(Icons.numbers, 'UTR: $txRef'),
         if (rzpRef != null && rzpRef.isNotEmpty)
-          _row(Icons.verified_outlined, 'Razorpay: $rzpRef'),
+          _row(Icons.verified_outlined, 'Ref: $rzpRef'),
         // Pay button
         if (!isHistory && onPay != null) ...[
           const SizedBox(height: 12),
@@ -367,13 +315,11 @@ class _PaySheet extends StatefulWidget {
   final Map<String, dynamic> payment;
   final NumberFormat inr;
   final void Function(String ref, String method) onManualPay;
-  final VoidCallback onRazorpay;
 
   const _PaySheet(
       {required this.payment,
       required this.inr,
-      required this.onManualPay,
-      required this.onRazorpay});
+      required this.onManualPay});
 
   @override
   State<_PaySheet> createState() => _PaySheetState();
@@ -421,28 +367,9 @@ class _PaySheetState extends State<_PaySheet> {
             '${widget.payment['kind_label'] ?? 'Payment'}  ·  ${widget.inr.format(amount)}',
             style: const TextStyle(color: KTColors.textSecondary, fontSize: 13)),
         const SizedBox(height: 20),
-        // Razorpay CTA
-        OutlinedButton.icon(
-          icon: const Icon(Icons.payments_outlined),
-          label: const Text('Pay via Razorpay'),
-          style: OutlinedButton.styleFrom(
-              foregroundColor: KTColors.primary,
-              side: const BorderSide(color: KTColors.primary),
-              minimumSize: const Size(double.infinity, 44)),
-          onPressed: widget.onRazorpay,
-        ),
-        const SizedBox(height: 12),
-        const Row(children: [
-          Expanded(child: Divider(color: KTColors.darkBorder)),
-          Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Text('or manually',
-                  style: TextStyle(color: KTColors.textMuted, fontSize: 12))),
-          Expanded(child: Divider(color: KTColors.darkBorder)),
-        ]),
-        const SizedBox(height: 12),
+        // Payment Method
         DropdownButtonFormField<String>(
-          value: _method,
+          initialValue: _method,
           dropdownColor: KTColors.darkElevated,
           style: const TextStyle(color: KTColors.textPrimary),
           decoration: const InputDecoration(

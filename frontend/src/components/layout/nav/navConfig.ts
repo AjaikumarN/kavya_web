@@ -134,7 +134,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
           { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
           { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
-          { label: 'Payment Link', route: '/finance/payment-link', icon: 'pay', description: 'Generate Razorpay payment links' },
           { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
           { label: 'Document Upload', route: '/documents/new-upload', icon: 'upload', description: 'Upload files to S3 storage' },
         ],
@@ -239,7 +238,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
           { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
           { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
-          { label: 'Payment Link', route: '/finance/payment-link', icon: 'pay', description: 'Generate Razorpay payment links' },
           { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
         ],
       },
@@ -358,7 +356,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Tools',
         items: [
-          { label: 'Payment Link', route: '/finance/payment-link', icon: 'pay', description: 'Generate Razorpay payment links' },
         ],
       },
       {
@@ -555,7 +552,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Trip Replay', path: '/tracking/replay', roles: ['admin', 'manager'] },
       { label: 'Fuel Prices', path: '/fleet/fuel-prices', roles: ['admin', 'manager', 'fleet_manager'] },
       { label: 'Route Calculator', path: '/trips/route-calculator', roles: ['admin', 'manager'] },
-      { label: 'Payment Link', path: '/finance/payment-link', roles: ['admin', 'manager', 'accountant'] },
       { label: 'Notifications', path: '/settings/notifications', roles: ['admin', 'manager'] },
       { label: 'Document Upload', path: '/documents/new-upload', roles: ['admin', 'manager'] },
     ],

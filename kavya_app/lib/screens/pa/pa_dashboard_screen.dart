@@ -10,6 +10,8 @@ import '../../core/widgets/notification_bell_widget.dart';
 import '../../providers/auth_provider.dart';
 import 'pa_providers.dart';
 
+const _kPaAccent = Color(0xFFDC4B2A);
+
 class PADashboardScreen extends ConsumerStatefulWidget {
   const PADashboardScreen({super.key});
 
@@ -23,7 +25,6 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Refresh countdown every minute so "expires in X h" stays current
     _countdownTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -35,17 +36,6 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
     super.dispose();
   }
 
-  String _formatExpiry(String? isoString) {
-    if (isoString == null) return '';
-    final dt = DateTime.tryParse(isoString);
-    if (dt == null) return '';
-    final diff = dt.difference(DateTime.now());
-    if (diff.isNegative) return 'EXPIRED';
-    final h = diff.inHours;
-    final m = diff.inMinutes % 60;
-    return '${h}h ${m}m';
-  }
-
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(paDashboardStatsProvider);
@@ -53,252 +43,341 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
 
     return Scaffold(
       backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Dashboard', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        actions: [
-          const NotificationBellWidget(),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: KTColors.darkTextSecondary),
-            color: KTColors.darkSurface,
-            onSelected: (value) {
-              if (value == 'logout') {
-                ref.read(authProvider.notifier).logout();
-              }
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    const Icon(Icons.logout, color: KTColors.danger, size: 18),
-                    const SizedBox(width: 10),
-                    Text('Logout', style: KTTextStyles.body.copyWith(color: KTColors.danger)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
       body: RefreshIndicator(
-        color: KTColors.primary,
+        color: _kPaAccent,
         backgroundColor: KTColors.darkSurface,
         onRefresh: () async {
           ref.invalidate(paDashboardStatsProvider);
           ref.invalidate(paPriorityActionsProvider);
         },
-        child: SingleChildScrollView(
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── KPI Grid ──────────────────────────────────────────────
-              statsAsync.when(
-                loading: () => const _KPIShimmer(),
-                error: (e, _) => KTErrorState(
-                  message: e.toString(),
-                  onRetry: () => ref.invalidate(paDashboardStatsProvider),
-                ),
-                data: (stats) => _KPIGrid(stats: stats, onFormatExpiry: _formatExpiry),
+          slivers: [
+            // ── Collapsible header ──────────────────────────────────────
+            SliverAppBar(
+              expandedHeight: 110,
+              pinned: true,
+              backgroundColor: KTColors.darkSurface,
+              surfaceTintColor: Colors.transparent,
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.pin,
+                background: _PAHeaderBanner(),
               ),
-              const SizedBox(height: 20),
-
-              // ── Priority Actions ──────────────────────────────────────
-              Text('Priority Actions', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
-              const SizedBox(height: 12),
-              actionsAsync.when(
-                loading: () => const KTLoadingShimmer(type: ShimmerType.list),
-                error: (e, _) => KTErrorState(
-                  message: e.toString(),
-                  onRetry: () => ref.invalidate(paPriorityActionsProvider),
+              actions: [
+                const NotificationBellWidget(),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: KTColors.darkTextSecondary),
+                  color: KTColors.darkSurface,
+                  onSelected: (v) {
+                    if (v == 'logout') ref.read(authProvider.notifier).logout();
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'logout',
+                      child: Row(children: [
+                        const Icon(Icons.logout, color: KTColors.danger, size: 18),
+                        const SizedBox(width: 10),
+                        Text('Logout',
+                            style: KTTextStyles.body.copyWith(color: KTColors.danger)),
+                      ]),
+                    ),
+                  ],
                 ),
-                data: (actions) {
-                  if (actions.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Text(
-                          'All caught up!',
-                          style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
-                        ),
+              ],
+            ),
+
+            // ── KPI Horizontal Scroll ───────────────────────────────────
+            SliverToBoxAdapter(
+              child: statsAsync.when(
+                loading: () => const SizedBox(
+                    height: 130,
+                    child: KTLoadingShimmer(type: ShimmerType.card)),
+                error: (e, _) => KTErrorState(
+                    message: e.toString(),
+                    onRetry: () => ref.invalidate(paDashboardStatsProvider)),
+                data: (stats) => _KPIScrollRow(stats: stats),
+              ),
+            ),
+
+            // ── EWB Urgent Banner ───────────────────────────────────────
+            SliverToBoxAdapter(
+              child: statsAsync.maybeWhen(
+                data: (stats) {
+                  final ewbExpiring = stats['ewb_expiring'] ?? 0;
+                  if (ewbExpiring == 0) return const SizedBox.shrink();
+                  final h = (stats['hours_until_expiry'] as num?)?.toInt() ?? 0;
+                  return GestureDetector(
+                    onTap: () => context.go('/pa/ewb'),
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: KTColors.danger.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: KTColors.danger),
                       ),
-                    );
-                  }
-                  return Column(
-                    children: actions
-                        .map((a) => _PriorityActionCard(action: Map<String, dynamic>.from(a as Map)))
-                        .toList(),
+                      child: Row(children: [
+                        const Icon(Icons.warning_amber_rounded,
+                            color: KTColors.danger, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '$ewbExpiring EWB${ewbExpiring > 1 ? 's' : ''} '
+                            'expiring ${h > 0 ? 'in ${h}h' : 'soon'} — action needed',
+                            style: KTTextStyles.bodySmall
+                                .copyWith(color: KTColors.danger),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right,
+                            color: KTColors.danger, size: 18),
+                      ]),
+                    ),
                   );
                 },
+                orElse: () => const SizedBox.shrink(),
               ),
-            ],
-          ),
+            ),
+
+            // ── Priority Actions header ─────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                child: Row(children: [
+                  Container(
+                    width: 4,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: _kPaAccent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Priority Actions',
+                      style: KTTextStyles.h3
+                          .copyWith(color: KTColors.darkTextPrimary)),
+                ]),
+              ),
+            ),
+
+            // ── Priority Actions list ───────────────────────────────────
+            actionsAsync.when(
+              loading: () => const SliverToBoxAdapter(
+                  child: KTLoadingShimmer(type: ShimmerType.list)),
+              error: (e, _) => SliverToBoxAdapter(
+                child: KTErrorState(
+                    message: e.toString(),
+                    onRetry: () => ref.invalidate(paPriorityActionsProvider)),
+              ),
+              data: (actions) {
+                if (actions.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Column(children: [
+                          Icon(Icons.check_circle_outline,
+                              size: 52,
+                              color: KTColors.success.withValues(alpha: 0.55)),
+                          const SizedBox(height: 12),
+                          Text('All caught up!',
+                              style: KTTextStyles.body
+                                  .copyWith(color: KTColors.darkTextSecondary)),
+                        ]),
+                      ),
+                    ),
+                  );
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverList.separated(
+                    itemCount: actions.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 0),
+                    itemBuilder: (context, i) {
+                      final a = Map<String, dynamic>.from(actions[i] as Map);
+                      return _TimelineActionCard(
+                          action: a, isLast: i == actions.length - 1);
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── KPI Grid ─────────────────────────────────────────────────────────────────
+// ── Header Banner ─────────────────────────────────────────────────────────────
 
-class _KPIGrid extends StatelessWidget {
+class _PAHeaderBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final months = [
+      'Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    final weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    final dateStr =
+        '${weekdays[now.weekday - 1]} ${now.day} ${months[now.month - 1]} ${now.year}';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: KTColors.darkSurface,
+        border: Border(
+          bottom: BorderSide(color: _kPaAccent.withValues(alpha: 0.4), width: 1.5),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 52, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                        color: _kPaAccent, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('PROJECT ASSOCIATE',
+                      style: KTTextStyles.caption.copyWith(
+                          color: _kPaAccent,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8)),
+                ]),
+                const SizedBox(height: 4),
+                Text('Operations Hub',
+                    style: KTTextStyles.h1
+                        .copyWith(color: KTColors.darkTextPrimary)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(dateStr,
+                  style: KTTextStyles.caption
+                      .copyWith(color: KTColors.darkTextSecondary)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── KPI Scroll Row ────────────────────────────────────────────────────────────
+
+class _KPIScrollRow extends StatelessWidget {
   final Map<String, dynamic> stats;
-  final String Function(String?) onFormatExpiry;
-  const _KPIGrid({required this.stats, required this.onFormatExpiry});
+  const _KPIScrollRow({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final ewbExpiring = stats['ewb_expiring'] ?? 0;
-    final hoursUntil = (stats['hours_until_expiry'] as num?)?.toDouble();
-    final expiryLabel = hoursUntil != null && hoursUntil > 0
-        ? 'in ${hoursUntil.toStringAsFixed(0)}h'
-        : ewbExpiring > 0 ? 'Urgent' : 'None';
+    final kpis = [
+      (
+        '${stats['jobs_awaiting_lr'] ?? 0}',
+        'Jobs\nAwaiting LR',
+        KTColors.warning,
+        Icons.work_outline,
+        () => context.go('/pa/jobs'),
+      ),
+      (
+        '${stats['ewb_expiring'] ?? 0}',
+        'EWB\nExpiring',
+        KTColors.danger,
+        Icons.timer_outlined,
+        () => context.go('/pa/ewb'),
+      ),
+      (
+        '${stats['trips_in_transit'] ?? 0}',
+        'Trips\nIn Transit',
+        KTColors.info,
+        Icons.local_shipping_outlined,
+        null,
+      ),
+      (
+        '${stats['pods_pending'] ?? 0}',
+        'PODs\nPending',
+        KTColors.success,
+        Icons.inventory_2_outlined,
+        null,
+      ),
+    ];
 
-    return Column(
-      children: [
-        // ── Urgent EWB Banner ───────────────────────────────────────────
-        if (ewbExpiring > 0)
-          GestureDetector(
-            onTap: () => context.push('/pa/ewb'),
+    return SizedBox(
+      height: 130,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        itemCount: kpis.length,
+        itemBuilder: (context, i) {
+          final k = kpis[i];
+          return GestureDetector(
+            onTap: k.$5 as VoidCallback?,
             child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              width: 118,
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: KTColors.danger.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: KTColors.danger, width: 1),
+                color: KTColors.darkSurface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: (k.$3 as Color).withValues(alpha: 0.3)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: KTColors.danger, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '$ewbExpiring EWB${ewbExpiring > 1 ? 's' : ''} expiring $expiryLabel  — EWB ${stats['earliest_ewb_lr_number'] ?? ''}',
-                      style: KTTextStyles.bodySmall.copyWith(color: KTColors.danger),
-                    ),
+                  Icon(k.$4 as IconData, color: k.$3 as Color, size: 20),
+                  const Spacer(),
+                  Text(
+                    k.$1 as String,
+                    style: KTTextStyles.kpiNumber.copyWith(
+                        color: KTColors.darkTextPrimary, fontSize: 26),
                   ),
-                  const Icon(Icons.chevron_right, color: KTColors.danger, size: 18),
+                  const SizedBox(height: 2),
+                  Text(
+                    k.$2 as String,
+                    style: KTTextStyles.caption.copyWith(color: k.$3 as Color),
+                    maxLines: 2,
+                  ),
                 ],
               ),
             ),
-          ),
-
-        // ── 2×2 KPI tiles ──────────────────────────────────────────────
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.6,
-          children: [
-            _KPICard(
-              label: 'Jobs Awaiting LR',
-              value: '${stats['jobs_awaiting_lr'] ?? 0}',
-              color: KTColors.warning,
-              icon: Icons.work_outline,
-              onTap: () => context.go('/pa/jobs'),
-            ),
-            _KPICard(
-              label: 'EWB Expiring',
-              value: '${stats['ewb_expiring'] ?? 0}',
-              color: KTColors.danger,
-              icon: Icons.timer_outlined,
-              onTap: () => context.go('/pa/ewb'),
-            ),
-            _KPICard(
-              label: 'Trips In Transit',
-              value: '${stats['trips_in_transit'] ?? 0}',
-              color: KTColors.info,
-              icon: Icons.local_shipping_outlined,
-              onTap: () {},
-            ),
-            _KPICard(
-              label: 'PODs Pending',
-              value: '${stats['pods_pending'] ?? 0}',
-              color: KTColors.success,
-              icon: Icons.inventory_2_outlined,
-              onTap: () {},
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _KPICard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _KPICard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: KTColors.darkSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: color, width: 4)),
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(children: [
-              Icon(icon, color: color, size: 18),
-              const SizedBox(width: 6),
-              Text(value, style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-            ]),
-            const SizedBox(height: 4),
-            Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-class _KPIShimmer extends StatelessWidget {
-  const _KPIShimmer();
+// ── Timeline Action Card ──────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) => const KTLoadingShimmer(type: ShimmerType.card);
-}
-
-// ── Priority Action Card ──────────────────────────────────────────────────────
-
-class _PriorityActionCard extends StatelessWidget {
+class _TimelineActionCard extends StatelessWidget {
   final Map<String, dynamic> action;
-  const _PriorityActionCard({required this.action});
+  final bool isLast;
+  const _TimelineActionCard({required this.action, required this.isLast});
 
-  String _statusLabel(String status) {
-    switch (status) {
+  String _statusLabel(String s) {
+    switch (s) {
       case 'POD_UPLOADED': return 'POD Uploaded';
       case 'EWB_EXPIRING': return 'EWB Expiring';
       case 'VEHICLE_ASSIGNED': return 'Vehicle Assigned';
       case 'LR_CREATED': return 'LR Created';
-      default: return status;
+      default: return s;
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
+  Color _statusColor(String s) {
+    switch (s) {
       case 'POD_UPLOADED': return KTColors.success;
       case 'EWB_EXPIRING': return KTColors.danger;
       case 'VEHICLE_ASSIGNED': return KTColors.warning;
@@ -306,67 +385,131 @@ class _PriorityActionCard extends StatelessWidget {
     }
   }
 
+  void _navigate(BuildContext context) {
+    final jobId = action['job_id'];
+    final tripId = action['trip_id'];
+    final ewbId = action['ewb_id'];
+    final status = action['status'] as String?;
+    if (status == 'EWB_EXPIRING' && ewbId != null) {
+      context.push('/pa/ewb/$ewbId');
+    } else if (status == 'POD_UPLOADED' && tripId != null) {
+      context.push('/pa/trips/$tripId/close');
+    } else if (jobId != null) {
+      context.push('/pa/jobs/$jobId');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = (action['status'] as String?) ?? '';
-    final jobId = action['job_id'];
+    final color = _statusColor(status);
 
-    return GestureDetector(
-      onTap: () {
-        if (jobId != null) context.push('/pa/jobs/$jobId');
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: KTColors.darkSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.darkBorder),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _statusColor(status).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _statusLabel(status),
-                        style: KTTextStyles.bodySmall.copyWith(color: _statusColor(status)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      action['job_number'] ?? '',
-                      style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
-                    ),
-                  ]),
-                  const SizedBox(height: 6),
-                  Text(
-                    action['client_name'] ?? '',
-                    style: KTTextStyles.body.copyWith(
-                      color: KTColors.darkTextPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Timeline rail
+          SizedBox(
+            width: 20,
+            child: Column(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                          color: color.withValues(alpha: 0.45), blurRadius: 5)
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    action['route'] ?? '',
-                    style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                        width: 1.5,
+                        color: KTColors.darkBorder),
                   ),
-                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Card
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _navigate(context),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: KTColors.darkSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: KTColors.darkBorder),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _statusLabel(status),
+                                style: TextStyle(
+                                    color: color,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                action['job_number'] ?? '',
+                                style: KTTextStyles.bodySmall.copyWith(
+                                    color: KTColors.darkTextSecondary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 5),
+                          Text(
+                            action['client_name'] ?? action['lr_number'] ?? '',
+                            style: KTTextStyles.body.copyWith(
+                                color: KTColors.darkTextPrimary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          if ((action['origin'] as String?)?.isNotEmpty == true)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                '${action['origin']} → ${action['destination'] ?? ''}',
+                                style: KTTextStyles.caption.copyWith(
+                                    color: KTColors.darkTextSecondary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        color: KTColors.darkTextSecondary, size: 18),
+                  ],
+                ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: KTColors.darkTextSecondary, size: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+

@@ -19,8 +19,10 @@
         "flutter",
         "flutter_background_service",
         "flutter_local_notifications",
+        "flutter_map",
         "flutter_riverpod",
         "flutter_secure_storage",
+        "flutter_staggered_animations",
         "geolocator",
         "go_router",
         "google_fonts",
@@ -28,6 +30,7 @@
         "hive_flutter",
         "image_picker",
         "intl",
+        "latlong2",
         "local_auth",
         "lottie",
         "package_info_plus",
@@ -35,7 +38,6 @@
         "permission_handler",
         "pretty_dio_logger",
         "qr_flutter",
-        "razorpay_flutter",
         "riverpod_annotation",
         "share_plus",
         "shimmer",
@@ -226,14 +228,6 @@
       ]
     },
     {
-      "name": "razorpay_flutter",
-      "version": "1.4.1",
-      "dependencies": [
-        "eventify",
-        "flutter"
-      ]
-    },
-    {
       "name": "local_auth",
       "version": "2.3.0",
       "dependencies": [
@@ -366,6 +360,36 @@
       "dependencies": [
         "equatable",
         "flutter",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_staggered_animations",
+      "version": "1.1.1",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
+      "name": "latlong2",
+      "version": "0.9.1",
+      "dependencies": [
+        "intl"
+      ]
+    },
+    {
+      "name": "flutter_map",
+      "version": "6.2.1",
+      "dependencies": [
+        "async",
+        "collection",
+        "flutter",
+        "http",
+        "latlong2",
+        "logger",
+        "meta",
+        "polylabel",
+        "proj4dart",
         "vector_math"
       ]
     },
@@ -1192,11 +1216,6 @@
       ]
     },
     {
-      "name": "eventify",
-      "version": "1.0.1",
-      "dependencies": []
-    },
-    {
       "name": "local_auth_windows",
       "version": "1.0.11",
       "dependencies": [
@@ -1514,6 +1533,30 @@
       "version": "2.0.8",
       "dependencies": [
         "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "proj4dart",
+      "version": "2.1.0",
+      "dependencies": [
+        "meta",
+        "mgrs_dart",
+        "wkt_parser"
+      ]
+    },
+    {
+      "name": "polylabel",
+      "version": "1.0.1",
+      "dependencies": [
+        "collection"
+      ]
+    },
+    {
+      "name": "logger",
+      "version": "2.7.0",
+      "dependencies": [
+        "clock",
         "meta"
       ]
     },
@@ -1956,6 +1999,18 @@
       ]
     },
     {
+      "name": "wkt_parser",
+      "version": "2.0.0",
+      "dependencies": []
+    },
+    {
+      "name": "mgrs_dart",
+      "version": "2.0.0",
+      "dependencies": [
+        "unicode"
+      ]
+    },
+    {
       "name": "gsettings",
       "version": "0.2.8",
       "dependencies": [
@@ -2026,11 +2081,25 @@
       "dependencies": []
     },
     {
+      "name": "unicode",
+      "version": "0.3.1",
+      "dependencies": [
+        "lists"
+      ]
+    },
+    {
       "name": "html",
       "version": "0.15.6",
       "dependencies": [
         "csslib",
         "source_span"
+      ]
+    },
+    {
+      "name": "lists",
+      "version": "1.0.1",
+      "dependencies": [
+        "meta"
       ]
     },
     {

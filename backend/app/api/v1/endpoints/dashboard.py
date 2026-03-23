@@ -215,3 +215,38 @@ async def pa_revenue_snapshot(
     """PA Revenue snapshot."""
     data = await dashboard_service.get_revenue_chart(db)
     return APIResponse(success=True, data=data)
+
+
+@router.get("/branch", response_model=APIResponse)
+async def branch_dashboard(
+    branch_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Branch-scoped dashboard summary: trips, vehicles, finance KPIs."""
+    from sqlalchemy import select, func
+    from app.models.postgres.trip import Trip, TripStatusEnum
+    from app.models.postgres.vehicle import Vehicle
+
+    trip_query = select(func.count(Trip.id)).where(Trip.is_deleted == False)
+    vehicle_query = select(func.count(Vehicle.id)).where(Vehicle.is_deleted == False)
+    active_query = select(func.count(Trip.id)).where(
+        Trip.is_deleted == False,
+        Trip.status.in_([TripStatusEnum.DISPATCHED, TripStatusEnum.IN_TRANSIT]),
+    )
+
+    if branch_id:
+        trip_query = trip_query.where(Trip.branch_id == branch_id)
+        vehicle_query = vehicle_query.where(Vehicle.branch_id == branch_id)
+        active_query = active_query.where(Trip.branch_id == branch_id)
+
+    total_trips = (await db.execute(trip_query)).scalar() or 0
+    total_vehicles = (await db.execute(vehicle_query)).scalar() or 0
+    active_trips = (await db.execute(active_query)).scalar() or 0
+
+    return APIResponse(success=True, data={
+        "branch_id": branch_id,
+        "total_trips": total_trips,
+        "active_trips": active_trips,
+        "total_vehicles": total_vehicles,
+    })

@@ -8,6 +8,8 @@ import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/notification_bell_widget.dart';
 import 'pa_providers.dart';
 
+const _kPaAccent = Color(0xFFDC4B2A);
+
 class PAJobListScreen extends ConsumerWidget {
   const PAJobListScreen({super.key});
 
@@ -30,11 +32,9 @@ class PAJobListScreen extends ConsumerWidget {
         backgroundColor: KTColors.darkSurface,
         title: Text('Jobs', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
         actions: const [NotificationBellWidget()],
-      ),
-      body: Column(
-        children: [
-          // ── Filter chips ──────────────────────────────────────────────
-          SizedBox(
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: SizedBox(
             height: 50,
             child: ListView(
               scrollDirection: Axis.horizontal,
@@ -43,76 +43,90 @@ class PAJobListScreen extends ConsumerWidget {
                 final isActive = filter.status == f.$2;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(f.$1),
-                    selected: isActive,
-                    onSelected: (_) {
-                      ref.read(paJobFilterProvider.notifier).state =
-                          PAJobFilter(status: f.$2, page: 1);
-                    },
-                    backgroundColor: KTColors.darkSurface,
-                    selectedColor: KTColors.primary,
-                    labelStyle: TextStyle(
-                      color: isActive ? Colors.white : KTColors.darkTextSecondary,
-                      fontSize: 12,
+                  child: GestureDetector(
+                    onTap: () => ref.read(paJobFilterProvider.notifier).state =
+                        PAJobFilter(status: f.$2, page: 1),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isActive ? _kPaAccent : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isActive ? _kPaAccent : KTColors.darkBorder,
+                        ),
+                      ),
+                      child: Text(
+                        f.$1,
+                        style: TextStyle(
+                          color:
+                              isActive ? Colors.white : KTColors.darkTextSecondary,
+                          fontSize: 12,
+                          fontWeight:
+                              isActive ? FontWeight.w700 : FontWeight.w400,
+                        ),
+                      ),
                     ),
-                    side: BorderSide(color: isActive ? KTColors.primary : KTColors.darkBorder),
-                    showCheckmark: false,
                   ),
                 );
               }).toList(),
             ),
           ),
-
-          // ── Jobs list ─────────────────────────────────────────────────
-          Expanded(
-            child: jobsAsync.when(
-              loading: () => const KTLoadingShimmer(type: ShimmerType.list),
-              error: (e, _) => KTErrorState(
-                message: e.toString(),
-                onRetry: () => ref.invalidate(paJobListProvider),
+        ),
+      ),
+      body: jobsAsync.when(
+        loading: () => const KTLoadingShimmer(type: ShimmerType.list),
+        error: (e, _) => KTErrorState(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(paJobListProvider),
+        ),
+        data: (jobs) {
+          if (jobs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.work_off_outlined,
+                      size: 52,
+                      color: KTColors.darkTextSecondary.withValues(alpha: 0.4)),
+                  const SizedBox(height: 12),
+                  Text('No jobs found',
+                      style: KTTextStyles.body
+                          .copyWith(color: KTColors.darkTextSecondary)),
+                ],
               ),
-              data: (jobs) {
-                if (jobs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No jobs found',
-                      style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
-                    ),
-                  );
-                }
-                return RefreshIndicator(
-                  color: KTColors.primary,
-                  backgroundColor: KTColors.darkSurface,
-                  onRefresh: () async => ref.invalidate(paJobListProvider),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: jobs.length,
-                    itemBuilder: (context, i) {
-                      final job = Map<String, dynamic>.from(jobs[i] as Map);
-                      return _JobListCard(job: job);
-                    },
-                  ),
-                );
+            );
+          }
+          return RefreshIndicator(
+            color: _kPaAccent,
+            backgroundColor: KTColors.darkSurface,
+            onRefresh: () async => ref.invalidate(paJobListProvider),
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              itemCount: jobs.length,
+              itemBuilder: (context, i) {
+                final job = Map<String, dynamic>.from(jobs[i] as Map);
+                return _JobCard(job: job);
               },
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-class _JobListCard extends StatelessWidget {
+class _JobCard extends StatelessWidget {
   final Map<String, dynamic> job;
-  const _JobListCard({required this.job});
+  const _JobCard({required this.job});
 
   Color _statusColor(String? s) {
     switch (s) {
       case 'IN_PROGRESS': return KTColors.warning;
       case 'TRIP_CREATED': return KTColors.info;
       case 'IN_TRANSIT': return KTColors.success;
-      case 'COMPLETED': return KTColors.gray400;
+      case 'COMPLETED': return const Color(0xFF64748B);
       default: return KTColors.darkTextSecondary;
     }
   }
@@ -123,6 +137,7 @@ class _JobListCard extends StatelessWidget {
       case 'TRIP_CREATED': return 'LR Created';
       case 'IN_TRANSIT': return 'In Transit';
       case 'COMPLETED': return 'Completed';
+      case 'DRAFT': return 'Draft';
       default: return s ?? '';
     }
   }
@@ -131,79 +146,137 @@ class _JobListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = job['status'] as String?;
     final jobId = job['id'];
+    final color = _statusColor(status);
 
     return GestureDetector(
       onTap: () => context.push('/pa/jobs/$jobId'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: KTColors.darkSurface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: KTColors.darkBorder),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  job['job_number'] ?? 'JOB-???',
-                  style: KTTextStyles.body.copyWith(
-                    color: KTColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _statusColor(status).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _statusLabel(status),
-                    style: KTTextStyles.bodySmall.copyWith(color: _statusColor(status)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              (job['client_name'] as String?) ?? '',
-              style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
-            ),
-            const SizedBox(height: 4),
-            Row(children: [
-              const Icon(Icons.route, size: 14, color: KTColors.darkTextSecondary),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  '${job['origin'] ?? ''} → ${job['destination'] ?? ''}',
-                  style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
-                  overflow: TextOverflow.ellipsis,
+            // Left color rail
+            Container(
+              width: 5,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(14),
+                  bottomLeft: Radius.circular(14),
                 ),
               ),
-            ]),
-            if (status == 'VEHICLE_ASSIGNED') ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => context.push('/pa/jobs/$jobId/lr'),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: KTColors.primary),
-                    foregroundColor: KTColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('Create LR + EWB'),
+            ),
+            // Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          job['job_number'] ?? 'JOB-???',
+                          style: KTTextStyles.mono.copyWith(
+                              color: color, fontWeight: FontWeight.bold),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _statusLabel(status),
+                            style: TextStyle(
+                                color: color,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      (job['client_name'] as String?) ?? '',
+                      style: KTTextStyles.body.copyWith(
+                          color: KTColors.darkTextPrimary,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      Expanded(
+                        child: Row(children: [
+                          const Icon(Icons.location_on_outlined,
+                              size: 12, color: KTColors.darkTextSecondary),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              job['origin'] ?? '',
+                              style: KTTextStyles.caption.copyWith(
+                                  color: KTColors.darkTextSecondary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ]),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(Icons.arrow_forward,
+                            size: 12, color: KTColors.darkTextSecondary),
+                      ),
+                      Expanded(
+                        child: Text(
+                          job['destination'] ?? '',
+                          style: KTTextStyles.caption.copyWith(
+                              color: KTColors.darkTextSecondary),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ]),
+                    if (status == 'VEHICLE_ASSIGNED' ||
+                        status == 'IN_PROGRESS') ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () =>
+                              context.push('/pa/jobs/$jobId/lr'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kPaAccent,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 8),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.add_circle_outline,
+                              size: 16),
+                          label: const Text('Create LR + EWB',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+

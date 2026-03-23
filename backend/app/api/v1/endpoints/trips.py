@@ -797,3 +797,37 @@ async def lookup_priorities(current_user: TokenData = Depends(get_current_user))
         {"value": "urgent", "label": "Urgent"},
     ]
     return APIResponse(success=True, data=priorities)
+
+
+@router.get("/{trip_id}/timeline", response_model=APIResponse)
+async def get_trip_timeline(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return the status change history for a trip."""
+    from app.models.postgres.trip import TripStatus
+    trip = await db.get(Trip, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    result = await db.execute(
+        select(TripStatus)
+        .where(TripStatus.trip_id == trip_id)
+        .order_by(TripStatus.created_at)
+    )
+    events = result.scalars().all()
+    data = [
+        {
+            "id": e.id,
+            "from_status": e.from_status,
+            "to_status": e.to_status,
+            "changed_by": e.changed_by,
+            "latitude": float(e.latitude) if e.latitude else None,
+            "longitude": float(e.longitude) if e.longitude else None,
+            "location_name": e.location_name,
+            "remarks": e.remarks,
+            "timestamp": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in events
+    ]
+    return APIResponse(success=True, data=data)

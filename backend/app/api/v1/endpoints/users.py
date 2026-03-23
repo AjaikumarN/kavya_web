@@ -141,3 +141,26 @@ async def update_fcm_token(
     user.fcm_token = payload.fcm_token
     await db.commit()
     return APIResponse(success=True, message="FCM token saved")
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/{user_id}/reset-password", response_model=APIResponse)
+async def reset_user_password(
+    user_id: int,
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Admin-only: reset a user's password."""
+    if "admin" not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Admin only")
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    from app.core.security import get_password_hash
+    user.hashed_password = get_password_hash(payload.new_password)
+    await db.commit()
+    return APIResponse(success=True, message="Password reset successfully")

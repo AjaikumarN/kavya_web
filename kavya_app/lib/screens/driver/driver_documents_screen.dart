@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
-import '../../services/api_service.dart';
 
 class DriverDocumentsScreen extends ConsumerStatefulWidget {
   const DriverDocumentsScreen({super.key});

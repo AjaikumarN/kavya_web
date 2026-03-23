@@ -441,7 +441,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               Text('Entry Type', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                value: _entryType,
+                initialValue: _entryType,
                 dropdownColor: KTColors.navy800,
                 style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
                 decoration: _inputDec('Select type'),
@@ -471,7 +471,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
                           ),
                         )
                       : DropdownButtonFormField<int>(
-                          value: _selectedAccountId,
+                          initialValue: _selectedAccountId,
                           dropdownColor: KTColors.navy800,
                           style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
                           decoration: _inputDec('Select account'),
@@ -502,7 +502,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               Text('Payment Method', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                value: _paymentMethod,
+                initialValue: _paymentMethod,
                 dropdownColor: KTColors.navy800,
                 style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
                 decoration: _inputDec('Select method'),

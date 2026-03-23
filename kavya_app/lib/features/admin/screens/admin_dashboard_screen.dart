@@ -52,7 +52,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                   child: Center(
                       child:
                           CircularProgressIndicator(color: KTColors.amber600))),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (e, _) => _kpiErrorFallback(ref, e),
             ),
 
             const SizedBox(height: 16),
@@ -107,6 +107,13 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
             roleHealth.when(
               data: (list) {
+                if (list.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text('No role data available',
+                        style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+                  );
+                }
                 return Column(
                   children: list.map<Widget>((r) {
                     final m = r as Map<String, dynamic>;
@@ -125,7 +132,18 @@ class AdminDashboardScreen extends ConsumerWidget {
                   child: Center(
                       child: CircularProgressIndicator(
                           color: KTColors.amber600))),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (e, _) => GestureDetector(
+                onTap: () => ref.invalidate(adminRoleHealthProvider),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: KTColors.darkSurface, borderRadius: BorderRadius.circular(10)),
+                  child: const Column(children: [
+                    Text('Could not load role data', style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+                    SizedBox(height: 4),
+                    Text('Tap to retry', style: TextStyle(color: KTColors.amber600, fontSize: 11)),
+                  ]),
+                ),
+              ),
             ),
 
             const SizedBox(height: 20),
@@ -151,19 +169,19 @@ class AdminDashboardScreen extends ConsumerWidget {
                 QuickActionTile(
                     color: KTColors.amber600,
                     label: 'Create LR',
-                    onTap: () => context.push('/pa/jobs')),
+                    onTap: () => context.go('/admin/operations')),
                 QuickActionTile(
                     color: KTColors.success,
                     label: 'New trip',
-                    onTap: () => context.push('/pa/jobs')),
+                    onTap: () => context.go('/admin/operations')),
                 QuickActionTile(
                     color: KTColors.info,
                     label: 'Upload doc',
-                    onTap: () => context.push('/pa/jobs')),
+                    onTap: () => context.go('/admin/operations')),
                 QuickActionTile(
                     color: const Color(0xFF6366F1),
                     label: 'EWB',
-                    onTap: () => context.push('/pa/ewb')),
+                    onTap: () => context.go('/admin/operations')),
                 QuickActionTile(
                     color: Colors.grey,
                     label: 'Add user',
@@ -172,6 +190,10 @@ class AdminDashboardScreen extends ConsumerWidget {
                     color: KTColors.danger,
                     label: 'Finance',
                     onTap: () => context.go('/admin/finance')),
+                QuickActionTile(
+                    color: const Color(0xFF0EA5E9),
+                    label: 'Live Map',
+                    onTap: () => context.push('/fleet/map')),
               ],
             ),
             const SizedBox(height: 30),
@@ -258,6 +280,51 @@ class AdminDashboardScreen extends ConsumerWidget {
       default:
         return KTColors.info;
     }
+  }
+
+  Widget _kpiErrorFallback(WidgetRef ref, Object error) {
+    return GestureDetector(
+      onTap: () => ref.invalidate(adminDashboardStatsProvider),
+      child: Column(
+        children: [
+          Row(children: [
+            _greyKpi('—', 'Active trips'),
+            const SizedBox(width: 10),
+            _greyKpi('—', 'Month revenue'),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            _greyKpi('—', 'Compliance alerts'),
+            const SizedBox(width: 10),
+            _greyKpi('—', 'Active employees'),
+          ]),
+          const SizedBox(height: 6),
+          const Text('Could not load stats · Tap to retry',
+              style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  Widget _greyKpi(String value, String label) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: KTColors.darkSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: const Border(left: BorderSide(color: Colors.grey, width: 3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
   }
 
   String _fmtCurrency(dynamic val) {

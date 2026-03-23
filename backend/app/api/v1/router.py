@@ -32,7 +32,6 @@ from app.api.v1.endpoints import (
     sarathi,
     echallan,
     gst,
-    payments,
     notifications,
     fuel,
     fuel_pump,
@@ -129,9 +128,6 @@ api_router.include_router(gst.router, prefix="/gst", tags=["GST"])
 
 # Maps & Routing
 api_router.include_router(maps.router, prefix="/maps", tags=["Maps"])
-
-# Payments
-api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])
 
 # Notifications
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications (Push/SMS)"])

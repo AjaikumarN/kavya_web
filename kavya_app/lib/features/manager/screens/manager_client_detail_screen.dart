@@ -5,7 +5,6 @@ import '../../../core/theme/kt_colors.dart';
 import '../../../core/theme/kt_text_styles.dart';
 import '../../../core/widgets/kt_loading_shimmer.dart';
 import '../../../core/widgets/kt_error_state.dart';
-import '../../../services/api_service.dart';
 import '../../../providers/fleet_dashboard_provider.dart';
 
 double _safeDouble(dynamic v) {

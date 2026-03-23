@@ -37,7 +37,21 @@ class AdminFinanceScreen extends ConsumerWidget {
             summary.when(
               data: (d) => _buildKpiGrid(d),
               loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: KTColors.amber600))),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (e, _) => GestureDetector(
+                onTap: () => ref.invalidate(adminFinanceSummaryProvider),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: KTColors.darkSurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Column(children: [
+                    Text('Finance data unavailable', style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 13)),
+                    SizedBox(height: 4),
+                    Text('Tap to retry', style: TextStyle(color: KTColors.amber600, fontSize: 11)),
+                  ]),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -190,7 +204,12 @@ class AdminFinanceScreen extends ConsumerWidget {
     final isPaid = status == 'PAID';
     final isOverdue = status == 'OVERDUE';
 
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        final invId = m['id']?.toString();
+        if (invId != null) context.push('/admin/invoices/$invId');
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -239,6 +258,7 @@ class AdminFinanceScreen extends ConsumerWidget {
             ),
         ],
       ),
+    ),
     );
   }
 

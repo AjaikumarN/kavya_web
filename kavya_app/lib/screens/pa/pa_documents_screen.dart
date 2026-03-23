@@ -23,7 +23,7 @@ const _requiredDocs = [
 final _tripDocsProvider =
     FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, tripId) async {
   final api = ref.read(apiServiceProvider);
-  final response = await api.get('/trips/$tripId/documents');
+  final response = await api.get('/documents', queryParameters: {'entity_type': 'trip', 'entity_id': tripId});
   if (response is Map<String, dynamic> && response['data'] != null) {
     return Map<String, dynamic>.from(response['data'] as Map);
   }

@@ -5,7 +5,6 @@ import '../../../core/theme/kt_colors.dart';
 import '../../../core/theme/kt_text_styles.dart';
 import '../../../core/widgets/kt_loading_shimmer.dart';
 import '../../../core/widgets/kt_error_state.dart';
-import '../../../services/api_service.dart';
 import '../../../providers/fleet_dashboard_provider.dart';
 import '../providers/manager_providers.dart';
 
@@ -27,7 +26,7 @@ class ManagerNotificationsScreen extends ConsumerWidget {
             onPressed: () async {
               try {
                 final api = ref.read(apiServiceProvider);
-                await api.patch('/my-notifications/mark-all-read');
+                await api.patch('/my-notifications/read-all');
                 ref.invalidate(managerNotificationsProvider);
               } catch (_) {}
             },

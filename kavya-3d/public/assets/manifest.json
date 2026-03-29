@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-03-29T16:13:15.651Z",
+  "files": [
+    {
+      "path": "/assets/tr-final-2k.opt.glb",
+      "sizeBytes": 49965084,
+      "sizeKB": 48794.03,
+      "md5hash": "7dab3445ad43f6b3669f1cccfcc07e05",
+      "generatedAt": "2026-03-29T16:13:15.651Z"
+    },
+    {
+      "path": "/assets/tr-final-1k.opt.glb",
+      "sizeBytes": 49526812,
+      "sizeKB": 48366.03,
+      "md5hash": "e8847ca649432914998483a937da8d8d",
+      "generatedAt": "2026-03-29T16:13:15.651Z"
+    },
+    {
+      "path": "/assets/tr-final-lod1.glb",
+      "sizeBytes": 3945348,
+      "sizeKB": 3852.88,
+      "md5hash": "eaac801442f6fb6f941d72d87630624e",
+      "generatedAt": "2026-03-29T16:13:15.651Z"
+    },
+    {
+      "path": "/assets/tr-final-lod2.glb",
+      "sizeBytes": 3794652,
+      "sizeKB": 3705.71,
+      "md5hash": "8cafec20d425121a87f0876142f1efeb",
+      "generatedAt": "2026-03-29T16:13:15.651Z"
+    },
+    {
+      "path": "/assets/kavya-env.meshopt.glb",
+      "sizeBytes": 1140920,
+      "sizeKB": 1114.18,
+      "md5hash": "0bce169e2223b786c5583645277a3cde",
+      "generatedAt": "2026-03-29T16:13:15.651Z"
+    }
+  ]
+}

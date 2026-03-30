@@ -8,7 +8,8 @@ const fleetData = [
     name: 'TATA Ace',
     capacity: '750 kg',
     type: 'Light Commercial',
-    icon: 'fa-truck-pickup',
+    iconImage: '/image/r9.png',
+    bgImage: '/assets/tata-ace-clean.png',
     features: ['Urban deliveries', 'Last-mile logistics', 'Small consignments'],
   },
   {
@@ -16,48 +17,49 @@ const fleetData = [
     capacity: '1.5 Ton',
     type: 'Light Commercial',
     icon: 'fa-truck-front',
+    iconImage: '/image/dl-dost.png',
     features: ['Intra-city transport', 'Quick deliveries', 'Cost effective'],
   },
   {
     name: '14ft / 17ft Trucks',
     capacity: '2.5T - 5T',
     type: 'Medium Commercial',
-    icon: 'fa-truck',
+    iconImage: '/image/r8.png',
     features: ['Medium loads', 'Regional transport', 'Versatile cargo'],
   },
   {
     name: '20ft / 22ft Containers',
     capacity: '7T - 9T',
     type: 'Container',
-    icon: 'fa-container-storage',
+    iconImage: '/image/con.png',
     features: ['SLX / MLX variants', 'Long-haul transport', 'Secure cargo'],
   },
   {
     name: '24ft / 32ft Containers',
     capacity: '10T - 15T',
     type: 'Large Container',
-    icon: 'fa-trailer',
+    iconImage: '/image/r4.png',
     features: ['SLX / MLX variants', 'Heavy consignments', 'Pan-India routes'],
   },
   {
     name: 'Taurus (16T - 35T)',
     capacity: '16T - 35T',
     type: 'Heavy Commercial',
-    icon: 'fa-truck-moving',
+    iconImage: '/image/r5.png',
     features: ['Bulk cargo', 'Industrial goods', 'High capacity'],
   },
   {
     name: 'Low Bed Trailers',
     capacity: '35T+',
     type: 'Specialized',
-    icon: 'fa-truck-ramp-box',
+    iconImage: '/image/r6.png',
     features: ['Heavy machinery', 'ODC movement', 'Oversized cargo'],
   },
   {
     name: 'Semi Low / High Bed',
     capacity: '20T - 40T',
     type: 'Specialized',
-    icon: 'fa-truck-monster',
+    iconImage: '/image/r7.png',
     features: ['Industrial equipment', 'Construction material', 'Special cargo'],
   },
 ]
@@ -114,10 +116,26 @@ export default function Fleet() {
           <div className="fleet-grid stagger-grid">
             {fleetData.map((v, i) => (
               <TiltCard key={i} maxTilt={10} scale={1.03}>
-                <div className="fleet-card hover-lift">
+                <div
+                  className={`fleet-card hover-lift ${v.bgImage ? 'fleet-card--with-bg' : ''}`}
+                  style={v.bgImage ? { '--fleet-bg-image': `url(${v.bgImage})` } : undefined}
+                >
                   <FloatingElement amplitude={4} duration={3 + i * 0.3}>
-                    <div className="fleet-card-icon hover-glow">
-                      <i className={`fas ${v.icon}`} />
+                    <div className={`fleet-card-icon hover-glow ${v.iconImage ? 'fleet-card-icon--photo' : ''}`}>
+                      {v.iconImage ? (
+                        <img
+                          src={v.iconImage}
+                          alt={`${v.name} vehicle`}
+                          className={`fleet-card-image ${v.imageClass || ''}`}
+                          loading="lazy"
+                          onError={e => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = '/assets/tata-ace-clean.png'
+                          }}
+                        />
+                      ) : (
+                        <i className={`fas ${v.icon}`} />
+                      )}
                     </div>
                   </FloatingElement>
                   <h3 className="fleet-card-name">{v.name}</h3>

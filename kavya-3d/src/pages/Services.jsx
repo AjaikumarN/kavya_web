@@ -71,8 +71,13 @@ export default function Services() {
             </div>
             <div className="service-visual slide-right">
               <FloatingElement amplitude={8} duration={4}>
-                <div className="service-icon-large hover-glow">
-                  <i className="fas fa-truck-moving" />
+                <div className="service-icon-large service-icon-large--photo hover-glow">
+                  <img
+                    src="/assets/truck-hero.png"
+                    alt="Kavya Transports truck"
+                    className="service-photo"
+                    loading="lazy"
+                  />
                 </div>
               </FloatingElement>
             </div>
@@ -86,8 +91,19 @@ export default function Services() {
           <div className="two-col">
             <div className="service-visual slide-left">
               <FloatingElement amplitude={10} duration={5}>
-                <div className="service-icon-large hover-glow">
-                  <i className="fas fa-ship" />
+                <div className="service-icon-large service-icon-large--photo hover-glow">
+                  <img
+                    src="/assets/ship-hero.png"
+                    alt="Cargo ship"
+                    className="service-photo"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const fallback = e.currentTarget.nextElementSibling
+                      if (fallback) fallback.style.display = 'block'
+                    }}
+                  />
+                  <i className="fas fa-ship service-photo-fallback" aria-hidden="true" />
                 </div>
               </FloatingElement>
             </div>
@@ -151,8 +167,19 @@ export default function Services() {
             </div>
             <div className="service-visual slide-right">
               <FloatingElement amplitude={6} duration={4.5}>
-                <div className="service-icon-large hover-glow">
-                  <i className="fas fa-warehouse" />
+                <div className="service-icon-large service-icon-large--photo hover-glow">
+                  <img
+                    src="/assets/house-hero.png"
+                    alt="Warehouse facility"
+                    className="service-photo"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const fallback = e.currentTarget.nextElementSibling
+                      if (fallback) fallback.style.display = 'block'
+                    }}
+                  />
+                  <i className="fas fa-warehouse service-photo-fallback" aria-hidden="true" />
                 </div>
               </FloatingElement>
             </div>
@@ -163,11 +190,22 @@ export default function Services() {
       {/* Manpower Services */}
       <section className="section section-alt" id="manpower">
         <div className="container">
-          <div className="two-col">
+          <div className="two-col two-col--center">
             <div className="service-visual slide-left">
               <FloatingElement amplitude={8} duration={5.5}>
                 <div className="service-icon-large hover-glow">
-                  <i className="fas fa-people-carry-box" />
+                  <img
+                    src="/image/r11.png"
+                    alt="Manpower services"
+                    className="service-icon-image"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const fallback = e.currentTarget.nextElementSibling
+                      if (fallback) fallback.style.display = 'block'
+                    }}
+                  />
+                  <i className="fas fa-people-carry-box service-photo-fallback" aria-hidden="true" />
                 </div>
               </FloatingElement>
             </div>

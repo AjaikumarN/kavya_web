@@ -200,12 +200,16 @@ async function loadEnvironment(scene, envPath = '/assets/kavya-env.glb') {
       const size = bounds.boundingBox.maximumWorld.subtract(bounds.boundingBox.minimumWorld)
       const lowerName = (mesh.name || '').toLowerCase()
 
-      // If mesh is very tall and narrow, treat as pillar artifact.
-      const isGiantPillar = size.y > 20 && size.x < 8 && size.z < 8
+      // If mesh is tall with narrow footprint, treat as pillar artifact.
+      // Keep only genuinely thin roadside poles; remove large monolith-like columns.
+      const maxFootprint = Math.max(size.x, size.z)
+      const minFootprint = Math.min(size.x, size.z)
+      const aspectRatio = size.y / Math.max(maxFootprint, 0.001)
+      const isGiantPillar = size.y > 8 && maxFootprint < 12 && minFootprint < 6 && aspectRatio > 2.5
       const isMountain = size.x > 30 || size.z > 30
-      const isPowerPole = lowerName.includes('pole') || lowerName.includes('wire') || lowerName.includes('cable')
+      const isLikelyUtilityPole = size.y < 12 && maxFootprint < 1.0
 
-      if (isGiantPillar && !isMountain && !isPowerPole) {
+      if (isGiantPillar && !isMountain && !isLikelyUtilityPole) {
         console.log('[ENV] Disposing giant pillar mesh:', mesh.name,
           'size:', size.x.toFixed(1), size.y.toFixed(1), size.z.toFixed(1))
         mesh.dispose()
